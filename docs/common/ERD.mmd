@@ -264,6 +264,21 @@ erDiagram
         timestamp created_at
     }
 
+    BlindDatePreference {
+        uuid id PK
+        uuid listingId FK "매물 - Unique"
+        int minAge "최소 나이 - Nullable"
+        int maxAge "최대 나이 - Nullable"
+        enum preferredGender "MALE, FEMALE - Nullable"
+        jsonb preferredLocations "선호 거주지 배열 - Nullable"
+        jsonb preferredJobs "선호 직업 배열 - Nullable"
+        enum minEducation "HIGH_SCHOOL, COLLEGE, BACHELOR, MASTER, DOCTORATE - Nullable"
+        int minHeight "최소 키(cm) - Nullable"
+        int maxHeight "최대 키(cm) - Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% Shop Domain (클랜 상점)
     ShopProduct {
         uuid id PK
@@ -349,6 +364,7 @@ erDiagram
     %% Blind Date Relationships
     BlindDateListing ||--o{ BlindDateRequest : "receives_requests"
     BlindDateListing ||--o| BlindDateMatch : "results_in"
+    BlindDateListing ||--o| BlindDatePreference : "has_preference"
     BlindDateRequest ||--o| BlindDateMatch : "results_in"
 
     %% Shop Relationships

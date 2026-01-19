@@ -8,7 +8,12 @@ flowchart TD
     Start["요청자"]:::requester --> EnterBlindDate["소개팅 메뉴 접속"]:::requester
 
     %% Phase 1: 매물 탐색
-    EnterBlindDate --> ViewListings["공개 매물 리스트<br/>(status: OPEN)"]:::system
+    EnterBlindDate --> SelectTab{"탭 선택"}:::requester
+    SelectTab -- "전체" --> ViewAllListings["전체 매물 리스트"]:::system
+    SelectTab -- "추천" --> ViewRecommended["추천 매물 리스트<br/>(내 조건에 부합)"]:::match
+
+    ViewAllListings --> ViewListings["공개 매물 표시<br/>(status: OPEN)"]:::system
+    ViewRecommended --> ViewListings
 
     ViewListings --> HasListings{"매물 있음?"}:::system
     HasListings -- "No" --> NoListings["⚠️ 공개된 매물이 없습니다"]:::warning

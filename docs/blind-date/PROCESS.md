@@ -545,6 +545,201 @@ interface BlindDateStats {
 
 ---
 
+## 매칭 알고리즘 및 추천 시스템
+
+### 개요
+
+매물의 희망 조건을 구조화하여 사용자에게 맞춤형 추천을 제공합니다.
+
+### BlindDatePreference (희망 조건)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | uuid | PK |
+| listingId | uuid | FK - 매물 (Unique) |
+| minAge | int | 최소 나이 (Nullable) |
+| maxAge | int | 최대 나이 (Nullable) |
+| preferredGender | enum | MALE, FEMALE (Nullable) |
+| preferredLocations | jsonb | 선호 거주지 배열 (Nullable) |
+| preferredJobs | jsonb | 선호 직업 배열 (Nullable) |
+| minEducation | enum | 최소 학력 (Nullable) |
+| minHeight | int | 최소 키(cm) (Nullable) |
+| maxHeight | int | 최대 키(cm) (Nullable) |
+
+**예시:**
+```json
+{
+  "minAge": 25,
+  "maxAge": 32,
+  "preferredGender": "MALE",
+  "preferredLocations": ["서울", "경기"],
+  "preferredJobs": ["전문직", "공무원"],
+  "minEducation": "BACHELOR",
+  "minHeight": 175,
+  "maxHeight": null
+}
+```
+
+### 매칭 알고리즘 (Phase 1: 필터링 기반)
+
+**매물 탐색 시 추천 기능:**
+
+```typescript
+async function findRecommendedListings(userId: string, clanId: string) {
+  const user = await findUser(userId);
+
+  // 1. 전체 OPEN 매물 조회
+  const allListings = await db.blindDateListing.findMany({
+    where: {
+      clanId,
+      status: "OPEN"
+    },
+    include: {
+      preference: true  // BlindDatePreference 포함
+    }
+  });
+
+  // 2. 사용자가 매물의 희망 조건에 부합하는지 확인
+  const recommended = allListings.filter(listing => {
+    // 조건이 없으면 모두 추천
+    if (!listing.preference) return true;
+
+    const pref = listing.preference;
+
+    // 나이 체크
+    if (pref.minAge && user.age < pref.minAge) return false;
+    if (pref.maxAge && user.age > pref.maxAge) return false;
+
+    // 성별 체크
+    if (pref.preferredGender && user.gender !== pref.preferredGender) {
+      return false;
+    }
+
+    // 거주지 체크
+    if (pref.preferredLocations && pref.preferredLocations.length > 0) {
+      if (!pref.preferredLocations.includes(user.location)) {
+        return false;
+      }
+    }
+
+    // 직업 체크 (User에 job 필드 있다고 가정)
+    if (pref.preferredJobs && pref.preferredJobs.length > 0) {
+      if (!pref.preferredJobs.includes(user.job)) {
+        return false;
+      }
+    }
+
+    // 학력 체크 (User에 education 필드 있다고 가정)
+    if (pref.minEducation && user.education) {
+      const educationOrder = [
+        "HIGH_SCHOOL",
+        "COLLEGE",
+        "BACHELOR",
+        "MASTER",
+        "DOCTORATE"
+      ];
+      const userEduIndex = educationOrder.indexOf(user.education);
+      const minEduIndex = educationOrder.indexOf(pref.minEducation);
+
+      if (userEduIndex < minEduIndex) return false;
+    }
+
+    // 키 체크 (User에 height 필드 있다고 가정)
+    if (pref.minHeight && user.height < pref.minHeight) return false;
+    if (pref.maxHeight && user.height > pref.maxHeight) return false;
+
+    return true;
+  });
+
+  return {
+    all: allListings,
+    recommended: recommended,
+    recommendedCount: recommended.length
+  };
+}
+```
+
+### API 활용
+
+**매물 리스트 조회 (추천 탭):**
+```typescript
+// GET /api/clans/:clanId/blind-date/listings?tab=recommended
+const response = await findRecommendedListings(userId, clanId);
+
+return {
+  all: response.all.length,
+  recommended: response.recommended,
+  recommendedCount: response.recommendedCount
+};
+```
+
+**희망 조건 등록/수정:**
+```typescript
+// POST /api/clans/:clanId/blind-date/listings/:id/preference
+async function setPreference(listingId: string, data: PreferenceDto) {
+  const listing = await findListing(listingId);
+
+  // 권한 체크
+  if (listing.registerId !== userId) {
+    throw new Error("권한이 없습니다.");
+  }
+
+  // Upsert (있으면 업데이트, 없으면 생성)
+  const preference = await db.blindDatePreference.upsert({
+    where: { listingId },
+    create: {
+      listingId,
+      ...data
+    },
+    update: data
+  });
+
+  return preference;
+}
+```
+
+### 향후 확장 계획
+
+**Phase 2: 점수 기반 매칭 (추천 순위)**
+```typescript
+function calculateMatchScore(user: User, preference: Preference): number {
+  let score = 100; // 기본 점수
+
+  // 나이 부합도 (완벽 매치: +20, 경계선: +10)
+  if (preference.minAge && preference.maxAge) {
+    const midAge = (preference.minAge + preference.maxAge) / 2;
+    const ageDiff = Math.abs(user.age - midAge);
+    if (ageDiff <= 2) score += 20;
+    else if (ageDiff <= 5) score += 10;
+  }
+
+  // 거주지 완전 일치: +15
+  if (preference.preferredLocations?.includes(user.location)) {
+    score += 15;
+  }
+
+  // 직업 완전 일치: +20
+  if (preference.preferredJobs?.includes(user.job)) {
+    score += 20;
+  }
+
+  // ... 기타 조건
+
+  return score;
+}
+```
+
+**Phase 3: 양방향 매칭 (상호 조건 만족)**
+- 사용자도 본인의 희망 조건 설정
+- 서로의 조건을 만족하는 매물만 추천
+
+**Phase 4: AI 추천**
+- 과거 매칭 성공 데이터 기반
+- 협업 필터링 (비슷한 사용자가 매칭된 매물 추천)
+- 머신러닝 모델 학습
+
+---
+
 ## 엣지 케이스 처리
 
 ### 1. 동시 승인 방지 (Race Condition)
@@ -659,9 +854,19 @@ PATCH  /api/clans/:clanId/blind-date/listings/:id      # 매물 수정
 PATCH  /api/clans/:clanId/blind-date/listings/:id/publish  # 공개
 PATCH  /api/clans/:clanId/blind-date/listings/:id/close    # 마감
 DELETE /api/clans/:clanId/blind-date/listings/:id      # 삭제
-GET    /api/clans/:clanId/blind-date/listings          # 공개 매물 리스트
+GET    /api/clans/:clanId/blind-date/listings?tab=all  # 전체 매물 리스트
+GET    /api/clans/:clanId/blind-date/listings?tab=recommended  # 추천 매물 리스트
 GET    /api/clans/:clanId/blind-date/listings/my       # 내 매물
 GET    /api/clans/:clanId/blind-date/listings/:id      # 매물 상세
+```
+
+### Preference 관련
+
+```
+POST   /api/clans/:clanId/blind-date/listings/:id/preference  # 희망 조건 설정
+PATCH  /api/clans/:clanId/blind-date/listings/:id/preference  # 희망 조건 수정
+DELETE /api/clans/:clanId/blind-date/listings/:id/preference  # 희망 조건 삭제
+GET    /api/clans/:clanId/blind-date/listings/:id/preference  # 희망 조건 조회
 ```
 
 ### Request 관련

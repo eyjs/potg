@@ -192,6 +192,21 @@ erDiagram
         timestamp created_at
     }
 
+    BlindDatePreference {
+        uuid id PK
+        uuid listingId FK "Unique"
+        int minAge "Nullable"
+        int maxAge "Nullable"
+        enum preferredGender "MALE, FEMALE - Nullable"
+        jsonb preferredLocations "Nullable"
+        jsonb preferredJobs "Nullable"
+        enum minEducation "HIGH_SCHOOL, COLLEGE, BACHELOR, MASTER, DOCTORATE - Nullable"
+        int minHeight "Nullable"
+        int maxHeight "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% Shop Domain
     ShopProduct {
         uuid id PK
@@ -294,6 +309,7 @@ erDiagram
     %% Blind Date Relationships
     BlindDateListing ||--o{ BlindDateRequest : "receives_requests"
     BlindDateListing ||--o| BlindDateMatch : "results_in"
+    BlindDateListing ||--o| BlindDatePreference : "has_preference"
     BlindDateRequest ||--o| BlindDateMatch : "results_in"
 
     %% Shop Relationships
