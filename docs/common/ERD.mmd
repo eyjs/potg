@@ -289,9 +289,21 @@ erDiagram
         int stock "재고 수량"
         string imageUrl "상품 이미지 - Nullable"
         enum status "ACTIVE, INACTIVE, OUT_OF_STOCK"
+        enum category "VOUCHER, GOODS, GAME_ITEM, ETC"
+        int purchaseLimit "인당 구매 제한 (0: 무제한)"
         int totalSold "총 판매량 (기본값: 0)"
         timestamp created_at
         timestamp updated_at
+    }
+
+    ShopCoupon {
+        uuid id PK
+        uuid productId FK
+        string code "쿠폰 코드 (Unique)"
+        boolean isUsed "사용 여부 (할당 여부)"
+        uuid assignedToUserId FK "Nullable - 할당된 유저"
+        timestamp assignedAt "Nullable"
+        timestamp created_at
     }
 
     ShopPurchase {
@@ -341,6 +353,7 @@ erDiagram
     User ||--o{ ScrimMatchEntry : "participates_in_match"
     User ||--o{ BettingQuestion : "creates_questions"
     User ||--o{ BettingTicket : "places_bets"
+    User ||--o{ ShopCoupon : "owns_coupon"
 
     %% Auction Relationships
     Auction ||--|{ AuctionParticipant : "has"
@@ -369,3 +382,4 @@ erDiagram
 
     %% Shop Relationships
     ShopProduct ||--o{ ShopPurchase : "has_purchases"
+    ShopProduct ||--o{ ShopCoupon : "has_coupons"

@@ -1,0 +1,57 @@
+sequenceDiagram
+    actor Client
+    participant API as API Server (NestJS)
+    participant DB as Database
+
+    %% ---------------------------
+    %% 1. 회원가입 (Sign Up)
+    %% ---------------------------
+    note over Client, DB: [회원가입 프로세스]
+    Client->>API: POST /auth/signup (login_id, pw, battle_tag)
+    API->>DB: Check Duplicates (id, tag)
+    alt Duplicated
+        DB-->>API: True
+        API-->>Client: 409 Conflict
+    end
+    API->>DB: Insert User (clan_id=NULL, status=PENDING_CLAN)
+    DB-->>API: Success
+    API-->>Client: 201 Created
+
+    %% ---------------------------
+    %% 2. 로그인 (Login) & 클랜 체크
+    %% ---------------------------
+    note over Client, DB: [로그인 및 상태 확인]
+    Client->>API: POST /auth/login
+    API->>DB: Find User
+    API->>API: Verify Password
+    API->>API: Check Clan Status
+    
+    alt Clan Not Assigned (clan_id == NULL)
+        API->>API: Generate Token (Role: TEMPORARY)
+        API-->>Client: 200 OK (Token) + { "need_clan": true }
+        note right of Client: 클랜 가입/생성 화면으로 이동
+    else Clan Assigned
+        API->>API: Generate Token (Role: USER/ADMIN)
+        API-->>Client: 200 OK (Token)
+    end
+
+    %% ---------------------------
+    %% 3. 클랜 등록 (Onboarding)
+    %% ---------------------------
+    note over Client, DB: [클랜 가입/생성 (최초 1회)]
+    Client->>API: POST /clans/join OR /clans/create
+    opt Header
+        Client->>API: Authorization: Bearer AccessToken
+    end
+    API->>DB: Update User (set clan_id, status=ACTIVE)
+    DB-->>API: Success
+    API->>API: Refresh Token (Update Payload with clan_id)
+    API-->>Client: 200 OK (New Token with Clan Info)
+
+    %% ---------------------------
+    %% 4. 배틀태그 변경
+    %% ---------------------------
+    note over Client, DB: [배틀태그 변경]
+    Client->>API: PATCH /users/me/battle-tag
+    API->>DB: Update battle_tag
+    API-->>Client: 200 OK

@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Auction } from './auction.entity';
 import { User } from '../../users/entities/user.entity';
@@ -11,25 +11,25 @@ export enum AuctionRole {
 
 @Entity('auction_participants')
 export class AuctionParticipant extends BaseEntity {
-  @ManyToOne(() => Auction, (auction) => auction.participants)
-  auction: Auction;
-
   @Column()
   auctionId: string;
-
-  @ManyToOne(() => User)
-  user: User;
 
   @Column()
   userId: string;
 
-  @Column({
-    type: 'enum',
-    enum: AuctionRole,
-    default: AuctionRole.PLAYER,
+  @ManyToOne(() => Auction, (auction) => auction.participants, {
+    onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'auctionId' })
+  auction: Auction;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column({ type: 'enum', enum: AuctionRole, default: AuctionRole.SPECTATOR })
   role: AuctionRole;
 
   @Column({ default: 0 })
-  currentPoints: number; // For captains
+  currentPoints: number;
 }

@@ -1,0 +1,49 @@
+erDiagram
+    %% 클랜 테이블
+    %% master_id: 클랜장 식별용. USERS.id를 참조.
+    CLANS {
+        bigint id PK
+        varchar name UK "클랜명"
+        varchar code UK "초대코드/식별코드"
+        bigint master_id FK "클랜장 (USERS.id)"
+        datetime created_at
+    }
+
+    %% 회원 테이블
+    %% clan_id: 1인 1클랜 정책. Null이면 '무소속'.
+    USERS {
+        bigint id PK "Auto Increment"
+        bigint clan_id FK "소속 클랜 (CLANS.id)"
+        varchar login_id UK "로그인 아이디"
+        varchar password "암호화된 비밀번호"
+        varchar battle_tag UK "배틀태그"
+        varchar role "권한 (USER, ADMIN, MASTER)"
+        varchar status "상태 (ACTIVE, BANNED, PENDING_CLAN)"
+        datetime created_at
+        datetime updated_at
+    }
+
+    %% 클랜 가입 요청 (선택 사항: 승인제 운영 시 필요)
+    %% 사용자가 특정 클랜에 가입 신청을 했을 때 임시 저장
+    CLAN_JOIN_REQUESTS {
+        bigint id PK
+        bigint user_id FK
+        bigint clan_id FK
+        varchar status "상태 (PENDING, REJECTED)"
+        datetime created_at
+    }
+
+    %% 토큰 관리
+    USER_TOKENS {
+        bigint id PK
+        bigint user_id FK
+        varchar refresh_token
+        datetime expires_at
+    }
+
+    %% 관계 정의
+    CLANS ||--o{ USERS : "has members (1:N)"
+    USERS ||--o| CLANS : "owns (1:1, if master)"
+    USERS ||--o{ CLAN_JOIN_REQUESTS : "requests"
+    CLANS ||--o{ CLAN_JOIN_REQUESTS : "receives"
+    USERS ||--o{ USER_TOKENS : "has"

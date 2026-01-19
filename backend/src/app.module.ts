@@ -6,6 +6,12 @@ import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { ScrimsModule } from './modules/scrims/scrims.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { ClansModule } from './modules/clans/clans.module';
+import { VotesModule } from './modules/votes/votes.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { BettingModule } from './modules/betting/betting.module';
+import { BlindDateModule } from './modules/blind-date/blind-date.module';
 
 @Module({
   imports: [
@@ -27,9 +33,15 @@ import { ScrimsModule } from './modules/scrims/scrims.module';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     UsersModule,
+    ClansModule,
     AuctionsModule,
     ScrimsModule,
+    VotesModule,
+    ShopModule,
+    BettingModule,
+    BlindDateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

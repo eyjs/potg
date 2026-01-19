@@ -1,55 +1,42 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
+import { ClanMember } from '../../clans/entities/clan-member.entity';
 
-export enum PlayerRole {
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
+export enum MainRole {
   TANK = 'TANK',
   DPS = 'DPS',
   SUPPORT = 'SUPPORT',
   FLEX = 'FLEX',
 }
 
-export enum SystemRole {
-  OWNER = 'OWNER', // Super Admin, accesses all sub-groups
-  ADMIN = 'ADMIN', // Group Admin
-  MEMBER = 'MEMBER', // Regular User
-  GUEST = 'GUEST', // External/Limited User
-}
-
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
-  battleTag: string; // Overwatch BattleTag (Name#1234)
+  battleTag: string;
 
-  @Column({ nullable: true })
-  password?: string; // Optional for OAuth integration later
+  @Column({ nullable: true, select: false }) // Password should not be selected by default
+  password?: string;
 
-  @Column({
-    type: 'enum',
-    enum: SystemRole,
-    default: SystemRole.GUEST,
-  })
-  systemRole: SystemRole;
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 
-  @Column({
-    type: 'enum',
-    enum: PlayerRole,
-    default: PlayerRole.FLEX,
-  })
-  mainRole: PlayerRole;
+  @Column({ type: 'enum', enum: MainRole, default: MainRole.FLEX })
+  mainRole: MainRole;
 
-  @Column({ default: 0 })
-  rating: number; // SR (Skill Rating) or Tier Score
+  @Column({ default: 1000 }) // Default rating
+  rating: number;
 
   @Column({ nullable: true })
   avatarUrl: string;
 
-  @Column({ default: 0 })
-  auctionPoints: number; // Points available for auction captains
+  @Column({ default: false })
+  bettingFloatingEnabled: boolean;
 
-  @Column({ default: 0 })
-  penaltyCount: number; // Track penalties for voting context
-
-  // TODO: Add relationships
-  // @OneToMany(() => Auction, auction => auction.creator)
-  // hostedAuctions: Auction[];
+  @OneToMany(() => ClanMember, (clanMember) => clanMember.user)
+  clanMembers: ClanMember[];
 }

@@ -1,13 +1,12 @@
-import { Entity, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
-import { User } from '../../users/entities/user.entity';
 import { AuctionParticipant } from './auction-participant.entity';
 import { AuctionBid } from './auction-bid.entity';
 
 export enum AuctionStatus {
-  PENDING = 'PENDING',   // Waiting for players
-  ONGOING = 'ONGOING',   // Bidding in progress
-  COMPLETED = 'COMPLETED', // Teams finalized
+  PENDING = 'PENDING',
+  ONGOING = 'ONGOING',
+  COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
 
@@ -16,28 +15,20 @@ export class Auction extends BaseEntity {
   @Column()
   title: string;
 
-  @Column({
-    type: 'enum',
-    enum: AuctionStatus,
-    default: AuctionStatus.PENDING,
-  })
+  @Column({ type: 'enum', enum: AuctionStatus, default: AuctionStatus.PENDING })
   status: AuctionStatus;
 
   @Column({ nullable: true })
-  accessCode: string; // Private room code
-
-  @ManyToOne(() => User)
-  creator: User;
+  accessCode: string;
 
   @Column()
   creatorId: string;
 
-  // Configuration for the auction
-  @Column({ default: 1000 })
+  @Column()
   startingPoints: number;
 
   @Column({ default: 60 })
-  turnTimeLimit: number; // Seconds per turn
+  turnTimeLimit: number; // seconds
 
   @OneToMany(() => AuctionParticipant, (participant) => participant.auction)
   participants: AuctionParticipant[];

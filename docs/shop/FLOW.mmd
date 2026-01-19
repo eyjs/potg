@@ -10,94 +10,56 @@ flowchart TD
 
     %% 회원 플로우
     Role -- "구매자" --> BrowseProducts["상품 탐색"]:::member
-    BrowseProducts --> ViewList["판매 중인 상품<br/>(status: ACTIVE)"]:::system
+    BrowseProducts --> SelectProduct["상품 선택"]:::member
 
-    ViewList --> HasProducts{"상품 있음?"}:::system
-    HasProducts -- "No" --> NoProducts["⚠️ 판매 중인 상품이 없습니다"]:::warning
-    NoProducts --> End1["종료"]:::member
+    SelectProduct --> CheckLimit{"구매 제한 확인<br/>(purchaseLimit)"}:::system
+    CheckLimit -- "초과" --> LimitError["⚠️ 구매 한도 초과"]:::warning
+    LimitError --> BrowseProducts
 
-    HasProducts -- "Yes" --> FilterProducts["필터/정렬"]:::member
+    CheckLimit -- "통과" --> CheckStock{"재고 있음?"}:::system
+    CheckStock -- "No" --> OutOfStock["⚠️ 재고 없음"]:::warning
+    OutOfStock --> BrowseProducts
 
-    subgraph Filters [필터 옵션]
-        direction TB
-        F1["가격 범위"]:::member
-        F1 --> F2["인기순 (totalSold)"]:::member
-        F2 --> F3["최신순"]:::member
-    end
-
-    FilterProducts --> Filters
-    F3 --> SelectProduct["상품 선택"]:::member
-
-    SelectProduct --> ViewDetail["상품 상세"]:::system
-
-    subgraph ProductDetail [상품 정보]
-        direction TB
-        PD1["상품명"]:::system
-        PD1 --> PD2["가격 (포인트)"]:::system
-        PD2 --> PD3["재고 수량"]:::system
-        PD3 --> PD4["설명"]:::system
-        PD4 --> PD5["판매량 (totalSold)"]:::system
-    end
-
-    ViewDetail --> ProductDetail
-    PD5 --> CheckInterest{"구매?"}:::member
-
-    CheckInterest -- "No" --> BrowseProducts
-
-    CheckInterest -- "Yes" --> CheckPoints{"포인트 충분?"}:::system
+    CheckStock -- "Yes" --> CheckPoints{"포인트 충분?"}:::system
     CheckPoints -- "No" --> InsufficientPoints["⚠️ 포인트 부족"]:::warning
     InsufficientPoints --> BrowseProducts
 
-    CheckPoints -- "Yes" --> CheckStock{"재고 있음?"}:::system
-    CheckStock -- "No (OUT_OF_STOCK)" --> OutOfStock["⚠️ 재고 없음"]:::warning
-    OutOfStock --> BrowseProducts
+    CheckPoints -- "Yes" --> ConfirmPurchase["구매 요청"]:::member
+    ConfirmPurchase --> CreatePurchase["요청 전송 (PENDING)"]:::member
+    CreatePurchase --> WaitApproval["관리자 승인 대기"]:::member
 
-    CheckStock -- "Yes" --> SelectQuantity["수량 선택"]:::member
-    SelectQuantity --> ConfirmPurchase["구매 확인"]:::member
-
-    ConfirmPurchase --> CreatePurchase["구매 요청 전송<br/>(status: PENDING)"]:::member
-    CreatePurchase --> NotifyAdmin["관리자에게 알림"]:::system
-    NotifyAdmin --> WaitApproval["승인 대기"]:::member
-
+    %% 승인 대기 후
     WaitApproval --> CheckStatus{"상태 확인"}:::member
-    CheckStatus -- "PENDING" --> StillWaiting["여전히 대기 중"]:::system
-    StillWaiting --> CancelOption{"취소?"}:::member
-    CancelOption -- "No" --> WaitApproval
-    CancelOption -- "Yes" --> CancelPurchase["구매 취소<br/>(status: CANCELLED)"]:::member
-    CancelPurchase --> End2["종료"]:::member
-
     CheckStatus -- "APPROVED" --> PurchaseApproved["구매 승인!"]:::success
     CheckStatus -- "REJECTED" --> PurchaseRejected["구매 거절"]:::warning
 
     PurchaseApproved --> PointsDeducted["포인트 차감 완료"]:::success
-    PointsDeducted --> WaitGift["기프티콘 대기"]:::member
-    WaitGift --> ReceiveGift["기프티콘 수령"]:::success
-    ReceiveGift --> End3["종료"]:::success
+    PointsDeducted --> CheckType{"상품 타입"}:::system
+    
+    CheckType -- "쿠폰(Voucher)" --> AutoAssign["쿠폰 자동 할당"]:::system
+    AutoAssign --> ViewCoupon["[내 쿠폰함]에서<br/>핀번호 확인"]:::success
+    
+    CheckType -- "현물/기타" --> WaitDelivery["관리자 전달 대기"]:::member
+    WaitDelivery --> ReceiveItem["물품 수령"]:::success
 
-    PurchaseRejected --> ViewReason["거절 사유 확인"]:::member
-    ViewReason --> TryAgain{"다시 시도?"}:::member
-    TryAgain -- "Yes" --> BrowseProducts
-    TryAgain -- "No" --> End4["종료"]:::member
-
-    %% 관리자 플로우 (간략)
+    %% 관리자 플로우
     Role -- "관리자" --> AdminMenu{"관리 메뉴"}:::admin
-
     AdminMenu -- "상품 등록" --> CreateProduct["상품 등록"]:::admin
-    CreateProduct --> End5["종료"]:::admin
+    CreateProduct --> SetLimit["구매 제한 설정"]:::admin
+    SetLimit --> CouponMode{"쿠폰 모드?"}:::admin
+    CouponMode -- "Yes" --> UploadCoupons["쿠폰 코드 대량 등록"]:::admin
+    CouponMode -- "No" --> SaveProduct["일반 상품 저장"]:::admin
+    UploadCoupons --> SaveProduct
 
-    AdminMenu -- "구매 승인" --> ViewPending["대기 중인 구매"]:::admin
-    ViewPending --> ApprovePurchase["구매 승인"]:::admin
-    ApprovePurchase --> End6["종료"]:::admin
-
-    AdminMenu -- "통계 확인" --> ViewStats["통계 대시보드"]:::admin
-    ViewStats --> End7["종료"]:::admin
-
-    %% 추가 기능: 내 구매 내역
-    Role -- "내 구매 내역" --> MyPurchases["구매 내역 조회"]:::member
-    MyPurchases --> ShowMyPurchases["내역 리스트<br/>(PENDING/APPROVED/REJECTED)"]:::system
-    ShowMyPurchases --> FilterMyPurchases["상태별 필터"]:::member
-    FilterMyPurchases --> ViewPurchaseDetail["상세 보기"]:::member
-    ViewPurchaseDetail --> End8["종료"]:::member
-
-    %% 선 스타일 설정
-    linkStyle default stroke:#fff,stroke-width:2px
+    AdminMenu -- "구매 승인" --> ApproveAction["구매 승인 처리"]:::admin
+    ApproveAction --> SystemProcess["시스템 처리 (트랜잭션)"]:::system
+    
+    subgraph Approval [승인 프로세스]
+        direction TB
+        SP1["포인트 차감"]:::system
+        SP1 --> SP2["재고 차감"]:::system
+        SP2 --> SP3["쿠폰 할당 (자동)"]:::system
+        SP3 --> SP4["승인 완료"]:::system
+    end
+    
+    SystemProcess --> Approval

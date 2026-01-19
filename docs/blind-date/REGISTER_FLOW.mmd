@@ -5,22 +5,22 @@ flowchart TD
     classDef match fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:black
     classDef warning fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black
 
-    Start["등록자<br/>(주선자)"]:::register --> CreateListing["매물 등록 시작"]:::register
+    Start["등록자 (주선자)"]:::register --> CreateListing["매물 등록 시작"]:::register
 
     %% Phase 1: 매물 작성
-    subgraph Draft [작성 단계 (PRIVATE)]
+    subgraph Draft ["작성 단계 (PRIVATE)"]
         direction TB
-        D1["기본 정보 입력<br/>(이름, 나이, 성별)"]:::register
+        D1["기본 정보 입력 (이름, 나이, 성별)"]:::register
         D1 --> D2["거주지, 직업 입력"]:::register
-        D2 --> D3["외모/스펙 입력<br/>(키, 학력)"]:::register
+        D2 --> D3["외모/스펙 입력 (키, 학력)"]:::register
         D3 --> D4["자기소개 작성"]:::register
         D4 --> D5["희망 조건 작성"]:::register
-        D5 --> D6["사진 업로드<br/>(선택, 최대 5장)"]:::register
-        D6 --> D7["연락처 입력<br/>(매칭 시 공개)"]:::register
+        D5 --> D6["사진 업로드 (선택, 최대 5장)"]:::register
+        D6 --> D7["연락처 입력 (매칭 시 공개)"]:::register
     end
 
     CreateListing --> Draft
-    D7 --> SaveDraft["임시 저장<br/>(status: PRIVATE)"]:::system
+    D7 --> SaveDraft["임시 저장 (status: PRIVATE)"]:::system
 
     %% Phase 2: 검토 및 공개
     SaveDraft --> Review["작성 내용 검토"]:::register
@@ -29,11 +29,11 @@ flowchart TD
     ReviewCheck -- "No" --> ValidateInfo["필수 정보 확인"]:::system
 
     ValidateInfo --> IsValid{"정보 유효?"}:::system
-    IsValid -- "No (누락)" --> ValidationError["⚠️ 필수 정보 누락<br/>(이름, 나이, 자기소개)"]:::warning
+    IsValid -- "No (누락)" --> ValidationError["⚠️ 필수 정보 누락 (이름, 나이, 자기소개)"]:::warning
     ValidationError --> D1
 
-    IsValid -- "Yes" --> PublishListing["공개 전환<br/>(status: OPEN)"]:::register
-    PublishListing --> NotifyClan["클랜 전체 알림<br/>(선택)"]:::system
+    IsValid -- "Yes" --> PublishListing["공개 전환 (status: OPEN)"]:::register
+    PublishListing --> NotifyClan["클랜 전체 알림 (선택)"]:::system
     NotifyClan --> ListingPublished["매물 공개 완료"]:::system
 
     %% Phase 3: 요청 관리
@@ -43,17 +43,17 @@ flowchart TD
     CheckNewRequests --> HasNewRequests{"새 요청?"}:::system
     HasNewRequests -- "No" --> InterestCheck{"관심 지속?"}:::register
     InterestCheck -- "Yes" --> WaitRequests
-    InterestCheck -- "No" --> CloseListing["매물 마감<br/>(status: CLOSED)"]:::register
+    InterestCheck -- "No" --> CloseListing["매물 마감 (status: CLOSED)"]:::register
     CloseListing --> End1["종료"]:::register
 
     HasNewRequests -- "Yes" --> ViewRequests["요청 목록 확인"]:::register
-    ViewRequests --> ShowRequestList["요청 리스트<br/>(PENDING 상태)"]:::system
+    ViewRequests --> ShowRequestList["요청 리스트 (PENDING 상태)"]:::system
 
     ShowRequestList --> ReviewEachRequest["각 요청 검토"]:::register
 
-    subgraph RequestReview [요청 검토]
+    subgraph RequestReview ["요청 검토"]
         direction TB
-        RR1["요청자 정보 확인<br/>(나이, 직업, 메시지)"]:::register
+        RR1["요청자 정보 확인 (나이, 직업, 메시지)"]:::register
         RR1 --> RR2["요청자 프로필 확인"]:::register
         RR2 --> RR3["조건 부합도 검토"]:::register
     end
@@ -64,16 +64,16 @@ flowchart TD
     %% Phase 4: 승인/거절
     SelectRequest --> Decision{"승인/거절"}:::register
 
-    Decision -- "거절" --> RejectRequest["요청 거절<br/>(status: REJECTED)"]:::register
-    RejectRequest --> NotifyRejected["요청자에게 알림<br/>(선택)"]:::system
+    Decision -- "거절" --> RejectRequest["요청 거절 (status: REJECTED)"]:::register
+    RejectRequest --> NotifyRejected["요청자에게 알림 (선택)"]:::system
     NotifyRejected --> HasMoreRequests{"다른 요청 있음?"}:::register
     HasMoreRequests -- "Yes" --> ReviewEachRequest
     HasMoreRequests -- "No" --> WaitRequests
 
     Decision -- "승인" --> ConfirmApproval["승인 확인"]:::register
-    ConfirmApproval --> ProcessApproval["승인 처리<br/>(트랜잭션 시작)"]:::system
+    ConfirmApproval --> ProcessApproval["승인 처리 (트랜잭션 시작)"]:::system
 
-    subgraph Approval [승인 프로세스]
+    subgraph Approval ["승인 프로세스"]
         direction TB
         A1["Request.status = APPROVED"]:::system
         A1 --> A2["Listing.status = MATCHED"]:::system
@@ -89,9 +89,9 @@ flowchart TD
     A8 --> MatchSuccess["매칭 성공!"]:::match
 
     %% Phase 5: 매칭 완료
-    MatchSuccess --> ShowPoints["획득 포인트 표시<br/>(예: 750P)"]:::match
+    MatchSuccess --> ShowPoints["획득 포인트 표시 (예: 750P)"]:::match
     ShowPoints --> ShowContact["연락처 공유"]:::match
-    ShowContact --> NotifyRequester["요청자에게 알림<br/>(매칭 성공)"]:::system
+    ShowContact --> NotifyRequester["요청자에게 알림 (매칭 성공)"]:::system
     NotifyRequester --> UpdateDashboard["대시보드 업데이트"]:::system
     UpdateDashboard --> End2["종료"]:::match
 
@@ -112,4 +112,4 @@ flowchart TD
     WantReopen -- "No" --> End3["종료"]:::register
 
     %% 선 스타일 설정
-    linkStyle default stroke:#fff,stroke-width:2px
+    linkStyle default stroke:#666,stroke-width:2px
