@@ -1,7 +1,11 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { BettingQuestion, BettingStatus, BettingAnswer } from './entities/betting-question.entity';
+import {
+  BettingQuestion,
+  BettingStatus,
+  BettingAnswer,
+} from './entities/betting-question.entity';
 import { BettingTicket, TicketStatus } from './entities/betting-ticket.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { CreateQuestionDto, PlaceBetDto } from './dto/betting.dto';

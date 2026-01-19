@@ -19,7 +19,10 @@ export class BlindDateController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('listings')
-  createListing(@Body() dto: CreateListingDto, @Request() req: AuthenticatedRequest) {
+  createListing(
+    @Body() dto: CreateListingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.blindDateService.createListing(dto, req.user.userId);
   }
 
@@ -40,7 +43,10 @@ export class BlindDateController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('requests/:id/approve')
-  approveRequest(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+  approveRequest(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.blindDateService.approveRequest(id, req.user.userId);
   }
 }

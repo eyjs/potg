@@ -2,7 +2,10 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Auction } from './entities/auction.entity';
-import { AuctionParticipant, AuctionRole } from './entities/auction-participant.entity';
+import {
+  AuctionParticipant,
+  AuctionRole,
+} from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 

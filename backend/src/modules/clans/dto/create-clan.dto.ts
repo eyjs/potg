@@ -1,5 +1,5 @@
 export class CreateClanDto {
-    name: string;
-    tag: string;
-    description?: string;
+  name: string;
+  tag: string;
+  description?: string;
 }

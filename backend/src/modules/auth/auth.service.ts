@@ -11,7 +11,10 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(battleTag: string, pass: string): Promise<Omit<User, 'password'> | null> {
+  async validateUser(
+    battleTag: string,
+    pass: string,
+  ): Promise<Omit<User, 'password'> | null> {
     const user = await this.usersService.findByBattleTag(battleTag);
     if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

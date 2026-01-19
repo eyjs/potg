@@ -1,4 +1,13 @@
-import { Controller, Post, Body, UseGuards, Request, Get, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -12,9 +21,12 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto) {
     // Ideally use LocalGuard, but for simplicity directly calling validate
     if (!loginDto.password) {
-        throw new BadRequestException('Password required');
+      throw new BadRequestException('Password required');
     }
-    const user = await this.authService.validateUser(loginDto.battleTag, loginDto.password);
+    const user = await this.authService.validateUser(
+      loginDto.battleTag,
+      loginDto.password,
+    );
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
