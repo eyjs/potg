@@ -37,14 +37,32 @@ export class BlindDateListing extends BaseEntity {
   @Column()
   location: string;
 
+  @Column({ nullable: true })
+  height: number;
+
   @Column()
   job: string;
+
+  @Column({ nullable: true })
+  education: string;
 
   @Column({ type: 'text' })
   description: string;
 
+  @Column({ type: 'text', nullable: true })
+  idealType: string;
+
   @Column({ type: 'jsonb', nullable: true })
   photos: string[];
+
+  @Column({ nullable: true })
+  contactInfo: string;
+
+  @Column({ nullable: true })
+  matchedRequestId: string;
+
+  @Column({ default: 0 })
+  pointsEarned: number;
 
   @OneToMany(() => BlindDateRequest, (req) => req.listing)
   requests: BlindDateRequest[];

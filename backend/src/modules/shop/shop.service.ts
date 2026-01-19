@@ -5,6 +5,7 @@ import { ShopProduct, ProductStatus } from './entities/shop-product.entity';
 import { ShopPurchase, PurchaseStatus } from './entities/shop-purchase.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
+import { CreateProductDto } from './dto/shop.dto';
 
 @Injectable()
 export class ShopService {
@@ -18,7 +19,7 @@ export class ShopService {
     private dataSource: DataSource,
   ) {}
 
-  async createProduct(createProductDto: any, clanId: string) {
+  async createProduct(createProductDto: CreateProductDto, clanId: string) {
     const product = this.productsRepository.create({
       ...createProductDto,
       clanId,

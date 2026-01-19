@@ -25,11 +25,12 @@ export class ClansService {
     const clan = this.clansRepository.create(createClanDto);
     const savedClan = await this.clansRepository.save(clan);
 
-    // Add creator as MASTER
+    // Add creator as MASTER with initial points
     const member = this.clanMembersRepository.create({
       clanId: savedClan.id,
       userId: userId,
       role: ClanRole.MASTER,
+      totalPoints: 10000, // Initial points for clan creator
     });
     await this.clanMembersRepository.save(member);
 
@@ -60,6 +61,7 @@ export class ClansService {
       clanId,
       userId,
       role: ClanRole.MEMBER,
+      totalPoints: 5000, // Initial points for new members
     });
     return this.clanMembersRepository.save(member);
   }

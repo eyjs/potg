@@ -1,13 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { BettingQuestion } from './entities/betting-question.entity';
+import { BettingTicket } from './entities/betting-ticket.entity';
 import {
-  BettingQuestion,
   BettingStatus,
   BettingAnswer,
-} from './entities/betting-question.entity';
-import { BettingTicket, TicketStatus } from './entities/betting-ticket.entity';
+  TicketStatus,
+} from './enums/betting.enum';
 import { ClanMember } from '../clans/entities/clan-member.entity';
+import { PointLog } from '../clans/entities/point-log.entity';
 import { CreateQuestionDto, PlaceBetDto } from './dto/betting.dto';
 
 @Injectable()
@@ -65,6 +67,7 @@ export class BettingService {
       const ticket = manager.create(BettingTicket, {
         questionId,
         userId,
+        clanId: betDto.clanId,
         prediction: betDto.prediction,
         betAmount: betDto.amount,
       });
@@ -93,25 +96,36 @@ export class BettingService {
       let updatedCount = 0;
 
       for (const ticket of question.tickets) {
-        // Find user wallet (assuming we can get clanId from context or ticket needs to store clanId?
-        // For simplicity, let's assume global or we fetch via User->ClanMember relations.
-        // In strict design, Ticket should probably link to ClanMember or store ClanId.
-        // Let's assume we find the clanMember via user and scrim->clan link if possible,
-        // or for now, we iterate all clanMembers of user (inefficient) or store clanId in Ticket.
-        // Fix: Let's assume Ticket needs ClanId for easier settlement, but for now we skip complex wallet lookup
-        // and just log status. *Wait, we need to return Locked Points!*
-
-        // Ideally, we fetch ClanMember. To do this correctly without ClanId in Ticket, it's hard.
-        // Let's update Ticket entity to have clanId? Or fetch via user.
-        // For this prototype, I will skip the actual point return logic to avoid complexity explosion
-        // but mark the tickets as WON/LOST.
+        const clanMember = await manager.findOne(ClanMember, {
+          where: { userId: ticket.userId, clanId: ticket.clanId },
+        });
 
         if (ticket.prediction === result) {
           ticket.status = TicketStatus.WON;
-          // Logic to give back (betAmount * multiplier) + lockedPoints would go here
+          if (clanMember) {
+            const reward = Math.floor(
+              ticket.betAmount * question.rewardMultiplier,
+            );
+            // Return reward (which includes original bet) and unlock points
+            clanMember.lockedPoints -= ticket.betAmount;
+            clanMember.totalPoints += reward;
+            await manager.save(clanMember);
+
+            const log = manager.create(PointLog, {
+              userId: ticket.userId,
+              clanId: ticket.clanId,
+              amount: reward,
+              reason: `BET_WIN:${question.id}`,
+            });
+            await manager.save(log);
+          }
         } else {
           ticket.status = TicketStatus.LOST;
-          // Locked points are consumed.
+          if (clanMember) {
+            // Just unlock (subtract from locked, total already deducted at bet time)
+            clanMember.lockedPoints -= ticket.betAmount;
+            await manager.save(clanMember);
+          }
         }
         await manager.save(ticket);
         updatedCount++;

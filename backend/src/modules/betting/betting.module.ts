@@ -4,11 +4,16 @@ import { BettingService } from './betting.service';
 import { BettingController } from './betting.controller';
 import { BettingQuestion } from './entities/betting-question.entity';
 import { BettingTicket } from './entities/betting-ticket.entity';
+import { ClanMember } from '../clans/entities/clan-member.entity';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BettingQuestion, BettingTicket])],
+  imports: [
+    TypeOrmModule.forFeature([BettingQuestion, BettingTicket, ClanMember]),
+  ],
   controllers: [BettingController],
-  providers: [BettingService],
+  providers: [BettingService, RolesGuard, ClanRolesGuard],
   exports: [BettingService],
 })
 export class BettingModule {}

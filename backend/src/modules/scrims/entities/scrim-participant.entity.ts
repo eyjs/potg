@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
-import { Scrim, RecruitmentType } from './scrim.entity';
+import { Scrim } from './scrim.entity';
 
 export enum ParticipantSource {
   VOTE = 'VOTE',

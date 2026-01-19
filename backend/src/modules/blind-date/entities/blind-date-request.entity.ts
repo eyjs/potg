@@ -18,6 +18,9 @@ export class BlindDateRequest extends BaseEntity {
   @Column()
   requesterId: string;
 
+  @Column()
+  clanId: string;
+
   @ManyToOne(() => BlindDateListing, (listing) => listing.requests)
   @JoinColumn({ name: 'listingId' })
   listing: BlindDateListing;
@@ -31,4 +34,7 @@ export class BlindDateRequest extends BaseEntity {
 
   @Column({ nullable: true })
   message: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  requesterInfo: unknown;
 }

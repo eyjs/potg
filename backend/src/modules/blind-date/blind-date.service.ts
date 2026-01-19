@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import {
   BlindDateListing,
   ListingStatus,
-  Gender,
 } from './entities/blind-date-listing.entity';
 import {
   BlindDateRequest,
@@ -56,6 +55,7 @@ export class BlindDateService {
     return this.requestsRepository.save(request);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async approveRequest(requestId: string, userId: string) {
     // In real app, check if userId is the owner (registerId) of the listing
     const request = await this.requestsRepository.findOne({

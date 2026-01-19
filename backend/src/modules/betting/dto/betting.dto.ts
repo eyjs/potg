@@ -1,4 +1,4 @@
-import { BettingAnswer } from '../entities/betting-question.entity';
+import { BettingAnswer } from '../enums/betting.enum';
 
 export class CreateQuestionDto {
   scrimId?: string;

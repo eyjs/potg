@@ -17,7 +17,6 @@ export class AuctionsService {
     @InjectRepository(AuctionParticipant)
     private participantsRepository: Repository<AuctionParticipant>,
     @InjectRepository(AuctionBid)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private bidsRepository: Repository<AuctionBid>,
     private dataSource: DataSource,
   ) {}

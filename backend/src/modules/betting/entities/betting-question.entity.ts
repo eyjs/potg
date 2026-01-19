@@ -1,17 +1,7 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { BettingTicket } from './betting-ticket.entity';
-
-export enum BettingStatus {
-  OPEN = 'OPEN',
-  CLOSED = 'CLOSED',
-  SETTLED = 'SETTLED',
-}
-
-export enum BettingAnswer {
-  O = 'O',
-  X = 'X',
-}
+import { BettingStatus, BettingAnswer } from '../enums/betting.enum';
 
 @Entity('betting_questions')
 export class BettingQuestion extends BaseEntity {

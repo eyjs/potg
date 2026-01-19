@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { VotesService } from './votes.service';
 import { AuthGuard } from '@nestjs/passport';
+import { CreateVoteDto, CastVoteDto } from './dto/vote.dto';
+import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('votes')
 export class VotesController {
@@ -17,7 +19,10 @@ export class VotesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  create(@Body() createVoteDto: any, @Request() req) {
+  create(
+    @Body() createVoteDto: CreateVoteDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.votesService.create(createVoteDto, req.user.userId);
   }
 
@@ -35,9 +40,13 @@ export class VotesController {
   @Post(':id/cast')
   castVote(
     @Param('id') id: string,
-    @Body('optionId') optionId: string,
-    @Request() req,
+    @Body() castVoteDto: CastVoteDto,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.votesService.castVote(id, optionId, req.user.userId);
+    return this.votesService.castVote(
+      id,
+      castVoteDto.optionId,
+      req.user.userId,
+    );
   }
 }

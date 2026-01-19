@@ -12,6 +12,7 @@ import { VotesModule } from './modules/votes/votes.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { BettingModule } from './modules/betting/betting.module';
 import { BlindDateModule } from './modules/blind-date/blind-date.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { BlindDateModule } from './modules/blind-date/blind-date.module';
     ShopModule,
     BettingModule,
     BlindDateModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService],

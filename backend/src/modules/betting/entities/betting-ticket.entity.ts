@@ -1,14 +1,8 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
-import { BettingQuestion, BettingAnswer } from './betting-question.entity';
+import { BettingQuestion } from './betting-question.entity';
 import { User } from '../../users/entities/user.entity';
-
-export enum TicketStatus {
-  PENDING = 'PENDING',
-  WON = 'WON',
-  LOST = 'LOST',
-  CANCELLED = 'CANCELLED',
-}
+import { BettingAnswer, TicketStatus } from '../enums/betting.enum';
 
 @Entity('betting_tickets')
 export class BettingTicket extends BaseEntity {
@@ -17,6 +11,9 @@ export class BettingTicket extends BaseEntity {
 
   @Column()
   userId: string;
+
+  @Column({ nullable: true })
+  clanId: string;
 
   @ManyToOne(() => BettingQuestion, (question) => question.tickets, {
     onDelete: 'CASCADE',

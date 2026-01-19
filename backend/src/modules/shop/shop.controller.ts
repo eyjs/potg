@@ -3,13 +3,14 @@ import {
   Get,
   Post,
   Body,
-  Param,
   UseGuards,
   Request,
   Query,
 } from '@nestjs/common';
 import { ShopService } from './shop.service';
 import { AuthGuard } from '@nestjs/passport';
+import { CreateProductDto, PurchaseDto } from './dto/shop.dto';
+import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('shop')
 export class ShopController {
@@ -17,7 +18,7 @@ export class ShopController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('products')
-  createProduct(@Body() createProductDto: any, @Request() req) {
+  createProduct(@Body() createProductDto: CreateProductDto) {
     // Should verify if user is Clan Master/Manager
     return this.shopService.createProduct(
       createProductDto,
@@ -32,11 +33,14 @@ export class ShopController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('purchase')
-  purchase(@Body() body: any, @Request() req) {
+  purchase(
+    @Body() purchaseDto: PurchaseDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.shopService.purchase(
       req.user.userId,
-      body.productId,
-      body.quantity || 1,
+      purchaseDto.productId,
+      purchaseDto.quantity ?? 1,
     );
   }
 }

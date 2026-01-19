@@ -8,9 +8,12 @@ import {
 } from '@nestjs/common';
 import { BettingService } from './betting.service';
 import { AuthGuard } from '@nestjs/passport';
-import { BettingAnswer } from './entities/betting-question.entity';
+import { BettingAnswer } from './enums/betting.enum';
 import { CreateQuestionDto, PlaceBetDto } from './dto/betting.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('betting')
 export class BettingController {
@@ -35,10 +38,10 @@ export class BettingController {
     return this.bettingService.placeBet(id, req.user.userId, betDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Post('questions/:id/settle')
   settle(@Param('id') id: string, @Body('result') result: BettingAnswer) {
-    // Should be Admin/Manager only
     return this.bettingService.settleQuestion(id, result);
   }
 }

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: potg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-potg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-potg_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-potg_db}
+    ports:
+      - '${POSTGRES_PORT:-5434}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-potg}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: potg-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER:-potg}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-potg_dev_password}
+      DATABASE_NAME: ${POSTGRES_DB:-potg_db}
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_key_change_in_production}
+    ports:
+      - '${PORT:-3001}:3001'
+
+volumes:
+  postgres_data:

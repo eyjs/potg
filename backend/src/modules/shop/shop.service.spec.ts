@@ -5,7 +5,6 @@ import { ShopProduct, ProductStatus } from './entities/shop-product.entity';
 import { ShopPurchase } from './entities/shop-purchase.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
 import { DataSource } from 'typeorm';
-import { ClanMember } from '../clans/entities/clan-member.entity';
 import { BadRequestException } from '@nestjs/common';
 
 const mockProduct = {
@@ -26,11 +25,15 @@ const mockClanMember = {
 const mockEntityManager = {
   findOne: jest.fn(),
   save: jest.fn(),
-  create: jest.fn().mockImplementation((entity, dto) => dto),
+  create: jest.fn().mockImplementation((_entity: unknown, dto: unknown) => dto),
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) => cb(mockEntityManager)),
+  transaction: jest
+    .fn()
+    .mockImplementation((cb: (manager: typeof mockEntityManager) => unknown) =>
+      cb(mockEntityManager),
+    ),
 };
 
 describe('ShopService', () => {
@@ -61,7 +64,7 @@ describe('ShopService', () => {
         .mockResolvedValueOnce(mockProduct) // Product
         .mockResolvedValueOnce(mockClanMember); // ClanMember
 
-      const result = await service.purchase('user-1', 'prod-1', 1);
+      await service.purchase('user-1', 'prod-1', 1);
 
       expect(mockEntityManager.save).toHaveBeenCalledTimes(3); // ClanMember(points), Product(stock), Purchase
       expect(mockProduct.stock).toBe(9);

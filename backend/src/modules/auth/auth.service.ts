@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -33,12 +33,45 @@ export class AuthService {
 
   async register(userDto: Partial<User>) {
     if (!userDto.password) {
-      throw new Error('Password is required');
+      throw new BadRequestException('Password is required');
     }
+    if (!userDto.battleTag) {
+      throw new BadRequestException('BattleTag is required');
+    }
+    if (!userDto.mainRole) {
+      throw new BadRequestException('Main role is required');
+    }
+
+    // Check for duplicate battleTag
+    const existingUser = await this.usersService.findByBattleTag(
+      userDto.battleTag,
+    );
+    if (existingUser) {
+      throw new BadRequestException('BattleTag already exists');
+    }
+
     const hashedPassword = await bcrypt.hash(userDto.password, 10);
-    return this.usersService.create({
-      ...userDto,
-      password: hashedPassword,
-    });
+    try {
+      const user = await this.usersService.create({
+        ...userDto,
+        password: hashedPassword,
+      });
+      // Remove password from response
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user;
+      return result;
+    } catch (error: unknown) {
+      // Handle any other database constraint violations
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        // PostgreSQL unique constraint violation
+        throw new BadRequestException('BattleTag already exists');
+      }
+      throw error;
+    }
   }
 }

@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { ScrimsService } from './scrims.service';
 import { AuthGuard } from '@nestjs/passport';
+import { CreateScrimDto, UpdateScrimDto } from './dto/scrim.dto';
+import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('scrims')
 export class ScrimsController {
@@ -18,7 +20,10 @@ export class ScrimsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  create(@Body() createScrimDto: any, @Request() req) {
+  create(
+    @Body() createScrimDto: CreateScrimDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.scrimsService.create(createScrimDto, req.user.userId);
   }
 
@@ -34,7 +39,7 @@ export class ScrimsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateScrimDto: any) {
+  update(@Param('id') id: string, @Body() updateScrimDto: UpdateScrimDto) {
     return this.scrimsService.update(id, updateScrimDto);
   }
 }

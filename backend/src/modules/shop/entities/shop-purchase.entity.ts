@@ -44,4 +44,7 @@ export class ShopPurchase extends BaseEntity {
 
   @Column({ nullable: true })
   adminNote: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approvedAt: Date;
 }

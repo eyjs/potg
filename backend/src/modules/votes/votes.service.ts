@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Vote, VoteStatus } from './entities/vote.entity';
 import { VoteOption } from './entities/vote-option.entity';
 import { VoteRecord } from './entities/vote-record.entity';
+import { CreateVoteDto } from './dto/vote.dto';
 
 @Injectable()
 export class VotesService {
@@ -16,7 +17,7 @@ export class VotesService {
     private voteRecordsRepository: Repository<VoteRecord>,
   ) {}
 
-  async create(createVoteDto: any, userId: string) {
+  async create(createVoteDto: CreateVoteDto, userId: string) {
     const { options, ...voteData } = createVoteDto;
     const vote = this.votesRepository.create({
       ...voteData,
@@ -25,8 +26,8 @@ export class VotesService {
 
     // Create options
     if (options && options.length > 0) {
-      vote.options = options.map((label: string) =>
-        this.voteOptionsRepository.create({ label }),
+      vote.options = options.map((opt) =>
+        this.voteOptionsRepository.create({ label: opt.label }),
       );
     }
 
