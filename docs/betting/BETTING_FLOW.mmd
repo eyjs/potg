@@ -1,0 +1,81 @@
+flowchart TD
+    %% 스타일 정의
+    classDef member fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:black
+    classDef betting fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef result fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:black
+
+    %% 1. 베팅 접근 (2가지 경로)
+    Start["페이지 접속<br/>(어떤 페이지든)"]:::member
+    Start --> CheckActive{"진행중인 베팅 문항<br/>존재?"}:::system
+
+    CheckActive -- "Yes" --> CheckSetting{"플로팅 버튼<br/>설정 ON?"}:::system
+    CheckActive -- "No" --> NoAccess["베팅 접근 없음"]:::system
+
+    %% 경로 A: 플로팅 버튼 (설정 ON)
+    CheckSetting -- "Yes (ON)" --> ShowFloating["플로팅 버튼 표시<br/>(우측 하단)"]:::system
+    ShowFloating --> ClickFloating["플로팅 버튼 클릭"]:::member
+
+    %% 경로 B: 헤더 알림 (설정 OFF 또는 기본)
+    CheckSetting -- "No (OFF)" --> ShowNotification["헤더 알림 뱃지 표시<br/>(진행중 N개)"]:::system
+    ShowNotification --> ClickNotification["알림 아이콘 클릭"]:::member
+    ClickNotification --> NotificationDropdown["알림 드롭다운 오픈<br/>(베팅 탭)"]:::system
+    NotificationDropdown --> ClickBettingItem["'진행중인 베팅' 클릭"]:::member
+
+    %% 2. 베팅 모달 공통 진입
+    ClickFloating --> OpenModal["베팅 모달 오픈"]:::system
+    ClickBettingItem --> OpenModal
+
+    %% 3. 베팅 문항 선택
+    OpenModal --> QuestionList["진행중인 베팅 문항<br/>리스트 표시"]:::betting
+    QuestionList --> SelectQuestion["문항 선택"]:::betting
+    SelectQuestion --> CheckBet{"이미 베팅했나?"}:::system
+
+    CheckBet -- "Yes" --> ShowCurrent["현재 베팅 내용 확인"]:::betting
+    CheckBet -- "No" --> EnterBet["새 베팅 입력"]:::betting
+
+    ShowCurrent --> ModifyCheck{"수정하기?"}:::system
+    ModifyCheck -- "Yes" --> EnterBet
+    ModifyCheck -- "No" --> QuestionList
+
+    %% 4. 베팅 입력
+    subgraph BetInput [베팅 입력]
+        direction TB
+        PredOX["O / X 선택"]:::betting
+        PredOX --> EnterPoints["포인트 입력<br/>(최소 금액 이상)"]:::betting
+    end
+
+    EnterBet --> BetInput
+    EnterPoints --> ValidatePoints{"유효성 검사"}:::system
+    ValidatePoints -- "최소 금액 미만" --> Error["에러: 최소 금액 이상 베팅 필요"]:::system
+    Error --> EnterPoints
+    ValidatePoints -- "포인트 부족" --> Error2["에러: 보유 포인트 부족"]:::system
+    Error2 --> EnterPoints
+    ValidatePoints -- "OK" --> SubmitBet["베팅 제출<br/>lockedPoints += 베팅금액"]:::betting
+
+    %% 5. 베팅 완료 및 추가 베팅
+    SubmitBet --> BetSuccess["베팅 완료<br/>(가용 포인트 즉시 차감)"]:::system
+    BetSuccess --> MoreBet{"다른 문항도 베팅?"}:::system
+    MoreBet -- "Yes" --> QuestionList
+    MoreBet -- "No" --> WaitSettlement["정산 대기"]:::system
+
+    %% 6. 정산 및 결과
+    QuestionList --> CheckDeadline{"문항 마감?"}:::system
+    CheckDeadline -- "Yes" --> WaitSettlement
+    CheckDeadline -- "No" --> QuestionList
+
+    WaitSettlement --> ScrimEnd{"내전 종료?"}:::system
+    ScrimEnd -- "No" --> WaitSettlement
+    ScrimEnd -- "Yes" --> AdminSettle["운영진 정답 입력 대기"]:::system
+    AdminSettle --> AutoSettle["자동 정산 실행"]:::system
+
+    AutoSettle --> CheckResult{"베팅 결과"}:::system
+    CheckResult -- "승리" --> Win["포인트 획득<br/>Math.ceil(금액 × 배율)<br/>lockedPoints 해제"]:::result
+    CheckResult -- "패배" --> Lose["포인트 차감<br/>totalPoints -= 금액<br/>lockedPoints 해제"]:::result
+    Win --> ShowResult["결과 확인<br/>(ClanMember 반영)"]:::member
+    Lose --> ShowResult
+
+    ShowResult --> End["종료"]:::member
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

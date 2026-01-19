@@ -1,0 +1,66 @@
+flowchart TD
+    %% 스타일 정의
+    classDef hostAction fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:black
+    classDef captainAction fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:black
+    classDef systemProcess fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef dbState fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:black
+    classDef resultPage fill:#ffecb3,stroke:#ff6f00,stroke-width:2px,color:black
+    classDef exceptionAction fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:black
+
+    %% 전체 흐름의 시작점
+    StartNode(이미 생성된 내전 Scrim) --> Phase1
+
+    %% Phase 1. 경매 준비
+    subgraph Phase1 ["Phase 1. 경매 설정"]
+        direction TB
+        P1_A["운영자: 경매 방 생성"]:::hostAction --> P1_B["운영자: 팀 생성 (A, B)"]:::hostAction
+        P1_B --> P1_C["운영자: 매물(선수) 등록"]:::hostAction
+        P1_C --> P1_D["운영자: 팀장 지정"]:::hostAction
+        P1_D --> P1_E["운영자: 입장 허용"]:::hostAction
+        P1_E --> P1_F["팀장들: 입장"]:::captainAction
+        P1_F --> P1_G["운영자: 시작"]:::hostAction
+    end
+
+    P1_G --> Phase2_Entry
+
+    %% Phase 2. 실시간 경매 & 예외 처리
+    subgraph Phase2 ["Phase 2. 실시간 경매"]
+        direction TB
+        Phase2_Entry{"매물 남음?"}:::systemProcess
+        Phase2_Entry -- YES --> P2_Load["매물 로드"]:::systemProcess
+        P2_Load --> P2_Bid["입찰 경쟁"]:::captainAction
+        P2_Bid --> P2_Win["자동 낙찰"]:::dbState
+        P2_Win --> P2_Next["운영자: 다음 매물"]:::hostAction
+        P2_Next --> Phase2_Entry
+
+        %% 낙찰 취소 (Undo) 프로세스
+        P2_Win -.-> P2_Undo["운영자: 낙찰 취소 (Undo)"]:::exceptionAction
+        P2_Undo -.-> P2_Rollback["시스템: 환불 & 매물 복구"]:::systemProcess
+        P2_Rollback -.-> Phase2_Entry
+    end
+
+    %% Phase 2 -> Phase 2.5 연결
+    Phase2_Entry -- NO --> Phase25_Entry
+
+    %% Phase 2.5 잔여 처리
+    subgraph Phase25 ["Phase 2.5 잔여 처리"]
+        direction TB
+        Phase25_Entry{"미배정 인원?"}:::systemProcess
+        Phase25_Entry -- YES --> P25_Manual["운영자: 수동 배정"]:::hostAction
+        P25_Manual --> P25_Zero["0 Point 처리"]:::dbState
+        P25_Zero --> Phase25_Entry
+    end
+
+    %% Phase 2.5 -> Phase 3 연결 (경매 종료 노드 추가)
+    Phase25_Entry -- NO --> AuctionEnd
+
+    %% Phase 3. 결과
+    subgraph Phase3 ["Phase 3. 최종 결과"]
+        direction TB
+        AuctionEnd["시스템: 경매 종료 (COMPLETED)"]:::systemProcess
+        AuctionEnd --> Phase3_Update["DB: 내전 팀 정보 업데이트"]:::dbState
+        Phase3_Update --> P3_Poster["매치 포스터 (대진표) 화면"]:::resultPage
+    end
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

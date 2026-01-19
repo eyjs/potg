@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: potg-backend
+    platform: linux/arm64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=potg_db
+    depends_on:
+      - db
+    networks:
+      - potg-network
+    restart: always
+
+  db:
+    container_name: potg-postgres
+    image: postgres:16-alpine
+    platform: linux/arm64
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: potg_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - potg-network
+    restart: always
+
+networks:
+  potg-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

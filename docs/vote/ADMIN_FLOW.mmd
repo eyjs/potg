@@ -1,0 +1,119 @@
+flowchart TD
+    %% 스타일 정의
+    classDef admin fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black
+    classDef vote fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef scrim fill:#e0f2f1,stroke:#00695c,stroke-width:2px,color:black
+
+    %% 1. 투표 생성
+    Start["투표 관리 페이지"]:::admin --> CreateVote["투표 생성"]:::vote
+
+    subgraph VoteInput [투표 입력]
+        direction TB
+        V1["제목 입력<br/>(예: 12월 15일 내전 참가 투표)"]:::vote
+        V1 --> V2["마감 시간 설정<br/>(예: 12월 12일 23:59)"]:::vote
+        V2 --> V2_5["내전 타입 선택<br/>○ 일반내전 (NORMAL)<br/>○ 경매내전 (AUCTION)"]:::vote
+        V2_5 --> V3["옵션 설정<br/>(익명 여부, 다중 선택 등)"]:::vote
+    end
+
+    CreateVote --> VoteInput
+    V3 --> PublishVote["투표 발행<br/>(Vote.status = OPEN)"]:::vote
+    PublishVote --> VoteCreated["투표 생성 완료<br/>(자동으로 참석/불참/늦참 옵션)"]:::system
+
+    %% 2. 투표 관리
+    VoteCreated --> ManageCheck{"투표 관리 필요?"}:::system
+    ManageCheck -- "현황 확인" --> CheckProgress["투표 현황 확인<br/>(실시간 집계)"]:::vote
+    CheckProgress --> VoteCreated
+
+    ManageCheck -- "조기 마감" --> CloseVote["투표 조기 마감<br/>(Vote.status = CLOSED)"]:::vote
+    CloseVote --> VoteClosed["투표 마감 완료"]:::system
+
+    ManageCheck -- "대기" --> WaitClose["마감 시간 대기"]:::system
+
+    %% 3. 투표 마감
+    WaitClose --> DeadlineCheck{"마감 시간<br/>도달?"}:::system
+    DeadlineCheck -- "No" --> WaitClose
+    DeadlineCheck -- "Yes" --> AutoClose["자동 마감<br/>(Vote.status = CLOSED)"]:::system
+    AutoClose --> VoteClosed
+
+    %% 4. 투표 결과 확인
+    VoteClosed --> ViewResult["투표 결과 확인"]:::admin
+    ViewResult --> ShowStats["통계 표시<br/>(참석 N명, 불참 M명, 늦참 K명)"]:::system
+
+    %% 5. 내전 생성 결정
+    ShowStats --> CreateScrimCheck{"내전 생성?"}:::admin
+    CreateScrimCheck -- "No (나중에)" --> End1["종료"]:::admin
+    CreateScrimCheck -- "Yes" --> CreateScrim["내전 생성<br/>(DRAFT 상태)"]:::scrim
+
+    %% 6. 내전 기본 정보 입력
+    subgraph ScrimInput [내전 정보]
+        direction TB
+        S1["제목 입력<br/>(예: 12월 15일 5vs5 내전)"]:::scrim
+        S1 --> S2["일시 설정<br/>(예: 12월 15일 20:00)"]:::scrim
+        S2 --> S3["모집 방식: VOTE<br/>(voteId 자동 연결)"]:::scrim
+    end
+
+    CreateScrim --> ScrimInput
+    S3 --> GenerateParticipants["ScrimParticipant 자동 생성"]:::system
+
+    %% 7. 참가자 자동 생성
+    subgraph AutoGenerate [자동 생성 로직]
+        direction TB
+        AG1["'참석' 투표자 → CONFIRMED + UNASSIGNED"]:::system
+        AG1 --> AG2["'늦참' 투표자 → CONFIRMED + BENCH"]:::system
+        AG2 --> AG3["'불참' 투표자 → 제외"]:::system
+    end
+
+    GenerateParticipants --> AutoGenerate
+    AG3 --> ParticipantsCreated["참가자 명단 생성 완료"]:::system
+
+    %% 8. 명단 정리
+    ParticipantsCreated --> EditList["명단 정리 페이지"]:::admin
+    EditList --> EditCheck{"명단 수정?"}:::admin
+
+    EditCheck -- "참가자 추가" --> AddParticipant["수동 추가<br/>(source: MANUAL)"]:::scrim
+    AddParticipant --> EditList
+
+    EditCheck -- "참가자 제외" --> RemoveParticipant["제외 처리<br/>(status: REMOVED)"]:::scrim
+    RemoveParticipant --> EditList
+
+    EditCheck -- "늦참자 관리" --> MoveToBench["BENCH로 이동"]:::scrim
+    MoveToBench --> EditList
+
+    EditCheck -- "확정" --> ListConfirmed["최종 명단 확정"]:::admin
+
+    %% 9. 팀 배정
+    ListConfirmed --> TeamAssignment["팀 배정 페이지"]:::admin
+    TeamAssignment --> ShowParticipants["참가자 리스트 표시<br/>(레이팅, 포지션 표시)"]:::system
+
+    ShowParticipants --> DragDrop["드래그앤드롭으로<br/>TEAM_A / TEAM_B 배정"]:::admin
+
+    DragDrop --> AssignTeam["ScrimParticipant.assignedTeam<br/>업데이트"]:::scrim
+    AssignTeam --> CheckBalance["밸런스 확인<br/>(평균 레이팅 비교)"]:::admin
+
+    CheckBalance --> BalanceOK{"밸런스<br/>적절?"}:::admin
+    BalanceOK -- "No (재조정)" --> DragDrop
+    BalanceOK -- "Yes" --> ConfirmTeam["팀 배정 확정"]:::admin
+
+    %% 10. 내전 확정
+    ConfirmTeam --> FinalizeScrim["내전 확정<br/>(Scrim.status = SCHEDULED)"]:::scrim
+
+    subgraph Finalize [확정 프로세스]
+        direction TB
+        F1["teamSnapshot 생성"]:::scrim
+        F1 --> F2["알림 발송<br/>(팀 배정 결과)"]:::system
+    end
+
+    FinalizeScrim --> Finalize
+    F2 --> ScrimReady["내전 준비 완료"]:::admin
+
+    %% 11. 내전 진행
+    ScrimReady --> WaitStart["내전 시작 대기"]:::system
+    WaitStart --> StartScrim["내전 시작<br/>(Scrim.status = IN_PROGRESS)"]:::admin
+    StartScrim --> RecordMatch["매치 결과 입력"]:::admin
+    RecordMatch --> FinishScrim["내전 종료<br/>(Scrim.status = FINISHED)"]:::admin
+
+    FinishScrim --> End2["종료"]:::admin
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

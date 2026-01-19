@@ -1,0 +1,75 @@
+flowchart TD
+    %% 스타일 정의
+    classDef admin fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black
+    classDef betting fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef settle fill:#e0f2f1,stroke:#00695c,stroke-width:2px,color:black
+
+    %% 1. 베팅 문항 발행
+    Start["베팅 관리 페이지"]:::admin --> SelectScrim["내전 선택"]:::admin
+
+    SelectScrim --> CreateQuestion["베팅 문항 작성"]:::betting
+
+    subgraph QuestionInput [문항 입력]
+        direction TB
+        Q1["문항 내용 입력<br/>(예: 용훈이 20데스 이상?)"]:::betting
+        Q1 --> Q2["마감 시간 설정<br/>(옵션)"]:::betting
+        Q2 --> Q3["최소 베팅 금액 설정<br/>(기본: 100)"]:::betting
+        Q3 --> Q4["보상 배율 설정<br/>(기본: 2.0)"]:::betting
+    end
+
+    CreateQuestion --> QuestionInput
+    Q4 --> PublishQuestion["문항 발행"]:::betting
+    PublishQuestion --> QuestionCreated["문항 생성 완료"]:::system
+
+    %% 2. 추가 문항 발행
+    QuestionCreated --> MoreQuestion{"추가 문항 발행?"}:::system
+    MoreQuestion -- "Yes" --> CreateQuestion
+    MoreQuestion -- "No" --> WaitScrimEnd["내전 종료 대기"]:::system
+
+    %% 3. 문항 관리
+    QuestionCreated --> ManageCheck{"문항 관리 필요?"}:::system
+    ManageCheck -- "문항 수정" --> EditQuestion["문항 내용/설정 수정"]:::betting
+    ManageCheck -- "문항 삭제" --> DeleteQuestion["문항 삭제<br/>(베팅 없는 경우만)"]:::betting
+    ManageCheck -- "조기 마감" --> CloseQuestion["문항 마감 처리"]:::betting
+
+    EditQuestion --> QuestionCreated
+    DeleteQuestion --> QuestionCreated
+    CloseQuestion --> QuestionCreated
+
+    %% 4. 내전 종료 및 정답 입력
+    WaitScrimEnd --> ScrimEndCheck{"내전 종료?"}:::system
+    ScrimEndCheck -- "No" --> WaitScrimEnd
+    ScrimEndCheck -- "Yes" --> ScrimResult["내전 결과 입력<br/>(점수, MVP 등)"]:::admin
+
+    ScrimResult --> QuestionList["발행된 베팅 문항 목록 확인"]:::admin
+    QuestionList --> SelectAnswerQ["문항 선택"]:::admin
+
+    %% 5. 정답 입력 및 정산
+    SelectAnswerQ --> EnterAnswer["정답 입력 (O / X)"]:::settle
+    EnterAnswer --> ConfirmAnswer{"정답 확인"}:::system
+    ConfirmAnswer -- "취소" --> EnterAnswer
+    ConfirmAnswer -- "확정" --> SubmitAnswer["정답 제출"]:::settle
+
+    SubmitAnswer --> AutoSettle["자동 정산 실행"]:::settle
+
+    subgraph Settlement [정산 프로세스]
+        direction TB
+        S1["맞춘/틀린 사람 분류"]:::settle
+        S1 --> S2["각 티켓별 보상/차감 계산<br/>승: Math.ceil(금액 × 배율)<br/>패: 금액"]:::settle
+        S2 --> S3["ClanMember 업데이트<br/>totalPoints ±<br/>lockedPoints 해제"]:::settle
+        S3 --> S4["PointLog 기록<br/>(clanId 포함)"]:::settle
+    end
+
+    AutoSettle --> Settlement
+    S5 --> SettleComplete["정산 완료"]:::system
+
+    %% 6. 다음 문항 처리
+    SettleComplete --> MoreAnswers{"정답 미입력 문항 존재?"}:::system
+    MoreAnswers -- "Yes" --> SelectAnswerQ
+    MoreAnswers -- "No" --> AllComplete["모든 베팅 정산 완료"]:::admin
+
+    AllComplete --> End["종료"]:::admin
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

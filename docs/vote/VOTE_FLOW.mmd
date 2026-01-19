@@ -1,0 +1,66 @@
+flowchart TD
+    %% 스타일 정의
+    classDef member fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:black
+    classDef vote fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef result fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:black
+
+    %% 1. 투표 알림 및 접근
+    Start["투표 알림 수신"]:::member
+    Start --> Access["투표 페이지 접근<br/>(알림 또는 클랜 페이지)"]:::member
+
+    %% 2. 투표 목록 확인
+    Access --> VoteList["진행중인 투표 목록 확인"]:::system
+    VoteList --> CheckDeadline{"마감 시간<br/>지났나?"}:::system
+
+    CheckDeadline -- "Yes" --> Closed["투표 마감됨<br/>(결과만 확인 가능)"]:::system
+    CheckDeadline -- "No" --> SelectVote["투표 선택"]:::vote
+
+    %% 3. 투표 참여
+    SelectVote --> CheckVoted{"이미 투표했나?"}:::system
+
+    CheckVoted -- "Yes" --> ShowCurrent["현재 투표 내용 확인"]:::vote
+    CheckVoted -- "No" --> EnterVote["투표 입력"]:::vote
+
+    ShowCurrent --> ModifyCheck{"수정하기?"}:::system
+    ModifyCheck -- "Yes" --> EnterVote
+    ModifyCheck -- "No" --> VoteList
+
+    %% 4. 투표 선택
+    subgraph VoteInput [투표 입력]
+        direction TB
+        Option["옵션 선택<br/>(참석 / 불참 / 늦참)"]:::vote
+    end
+
+    EnterVote --> VoteInput
+    Option --> SubmitVote["투표 제출<br/>(VoteRecord 생성/수정)"]:::vote
+
+    %% 5. 투표 완료
+    SubmitVote --> VoteSuccess["투표 완료"]:::system
+    VoteSuccess --> MoreVote{"다른 투표도<br/>참여?"}:::system
+    MoreVote -- "Yes" --> VoteList
+    MoreVote -- "No" --> WaitClose["마감 대기"]:::system
+
+    %% 6. 투표 마감 및 결과
+    VoteList --> CheckStatus{"투표 마감?"}:::system
+    CheckStatus -- "Yes" --> WaitClose
+    CheckStatus -- "No" --> VoteList
+
+    WaitClose --> VoteClose["투표 마감<br/>(Vote.status = CLOSED)"]:::system
+    VoteClose --> ShowResult["투표 결과 확인<br/>(참석 / 불참 / 늦참 인원)"]:::result
+
+    Closed --> ShowResult
+
+    %% 7. 내전 생성 알림
+    ShowResult --> WaitScrim["내전 생성 대기"]:::system
+    WaitScrim --> ScrimCreated{"관리자가<br/>내전 생성?"}:::system
+
+    ScrimCreated -- "Yes" --> ScrimNotif["내전 생성 알림<br/>(팀 배정 결과)"]:::result
+    ScrimCreated -- "No" --> WaitScrim
+
+    ScrimNotif --> CheckTeam["팀 배정 확인<br/>(TEAM_A / TEAM_B / BENCH)"]:::member
+
+    CheckTeam --> End["종료"]:::member
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

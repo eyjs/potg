@@ -1,0 +1,288 @@
+erDiagram
+    %% Clan Domain
+    Clan {
+        uuid id PK
+        uuid ownerId FK
+        string name UK
+        string tag UK
+        string description "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% User Domain (Global Account)
+    User {
+        uuid id PK
+        string battleTag UK
+        string password "Nullable"
+        enum role "USER, ADMIN"
+        enum mainRole "TANK, DPS, SUPPORT, FLEX"
+        int rating
+        string avatarUrl
+        boolean bettingFloatingEnabled "베팅 플로팅 버튼 사용 여부 (기본값: false)"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Clan Member (Clan-Specific User Data)
+    ClanMember {
+        uuid id PK
+        uuid clanId FK
+        uuid userId FK
+        enum clanRole "MANAGER, MEMBER"
+        int totalPoints "실제 보유 포인트"
+        int lockedPoints "베팅으로 잠긴 포인트"
+        int penaltyCount "해당 클랜 내 페널티"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Auction Domain
+    Auction {
+        uuid id PK
+        uuid clanId FK "Nullable"
+        string title
+        enum status "PENDING, READY, ONGOING, PAUSED, DRAFTING, COMPLETED, CANCELLED"
+        enum visibility "PUBLIC, CLAN_ONLY"
+        string accessCode "Nullable"
+        uuid creatorId FK
+        int startingPoints
+        int turnTimeLimit
+        
+        %% Real-time Status Fields
+        uuid currentTurnUserId FK "현재 입찰 순서(팀장)"
+        uuid currentTargetUserId FK "현재 경매 대상(선수)"
+        int currentBiddingPrice "현재 최고 입찰가"
+        uuid currentHighBidderId FK "현재 최고 입찰자"
+        timestamp currentTurnEndTime "현재 턴 종료 예정 시간(타이머)"
+        
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    AuctionParticipant {
+        uuid id PK
+        uuid auctionId FK
+        uuid userId FK
+        enum role "CAPTAIN, PLAYER, SPECTATOR"
+        uuid teamId FK "낙찰된 팀장(소속팀)"
+        int currentPoints "경매 세션용 휘발성 포인트"
+        int sequence "경매 순서(선수)"
+        timestamp created_at
+    }
+
+    AuctionBid {
+        uuid id PK
+        uuid auctionId FK
+        uuid bidderId FK "Captain"
+        uuid targetPlayerId FK "Player"
+        int amount
+        boolean isReverted "입찰 취소 여부"
+        timestamp created_at
+    }
+
+    %% Point System
+    PointLog {
+        uuid id PK
+        uuid userId FK
+        uuid clanId FK "어떤 클랜의 포인트인가"
+        int amount "변동액 (+/-)"
+        string reason "지급/차감 사유"
+        timestamp created_at
+    }
+
+    %% Scrim Domain
+    Scrim {
+        uuid id PK
+        uuid clanId FK "Nullable"
+        uuid auctionId FK "Nullable - 경매 기반 생성 시 연결"
+        uuid voteId FK "Nullable - 투표 기반 생성 시 연결"
+        string title
+        enum status "DRAFT, SCHEDULED, IN_PROGRESS, FINISHED, CANCELLED"
+        enum recruitmentType "VOTE, AUCTION, MANUAL"
+        uuid hostId FK
+        timestamp scheduledDate "Nullable"
+        jsonb teamSnapshot "Nullable"
+        int teamAScore
+        int teamBScore
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ScrimParticipant {
+        uuid id PK
+        uuid scrimId FK
+        uuid userId FK
+        enum source "VOTE, AUCTION, MANUAL"
+        enum status "PENDING, CONFIRMED, BENCH, DECLINED, REMOVED"
+        enum assignedTeam "TEAM_A, TEAM_B, BENCH, UNASSIGNED"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ScrimMatch {
+        uuid id PK
+        uuid scrimId FK
+        string mapName
+        int teamAScore
+        int teamBScore
+        string screenshotUrl "Nullable"
+        string replayCode "Nullable"
+        uuid mvpPlayerId FK "Nullable"
+        timestamp created_at
+    }
+
+    ScrimMatchEntry {
+        uuid id PK
+        uuid scrimMatchId FK
+        uuid userId FK
+        enum team "TEAM_A, TEAM_B"
+        timestamp created_at
+    }
+
+    %% Vote Domain
+    Vote {
+        uuid id PK
+        uuid clanId FK
+        uuid creatorId FK
+        string title
+        timestamp deadline
+        enum status "OPEN, CLOSED"
+        enum scrimType "NORMAL, AUCTION"
+        boolean multipleChoice
+        boolean anonymous
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    VoteOption {
+        uuid id PK
+        uuid voteId FK
+        string label
+        int count
+    }
+
+    VoteRecord {
+        uuid id PK
+        uuid voteId FK
+        uuid userId FK
+        uuid optionId FK
+        timestamp created_at
+    }
+
+    %% Betting System (O/X Prediction Game)
+    BettingQuestion {
+        uuid id PK
+        uuid scrimId FK "대상 내전"
+        uuid creatorId FK "OWNER/ADMIN"
+        string question "예: 용훈이 20데스 이상?"
+        enum status "OPEN, CLOSED, SETTLED"
+        enum correctAnswer "O, X (Nullable)"
+        timestamp bettingDeadline "Nullable"
+        int minBetAmount "기본값: 100"
+        float rewardMultiplier "보상 배율 - 기본값: 2.0"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BettingTicket {
+        uuid id PK
+        uuid questionId FK "베팅 문항"
+        uuid userId FK "베터"
+        enum prediction "O, X"
+        int betAmount "베팅 포인트"
+        enum status "PENDING, WON, LOST, CANCELLED"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Clan Sharing (Cross-Clan Read Access)
+    ClanShare {
+        uuid id PK
+        uuid ownerClanId FK
+        uuid viewerClanId FK
+        boolean canViewAuctions
+        boolean canViewScrims
+        boolean canViewVotes
+        timestamp created_at
+    }
+
+    %% Clan Join Request
+    ClanJoinRequest {
+        uuid id PK
+        uuid clanId FK
+        uuid userId FK
+        enum status "PENDING, APPROVED, REJECTED"
+        string message "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Blind Date Domain (Date Candidates)
+    BlindDateCandidate {
+        uuid id PK
+        uuid registerId FK "주선자(User)"
+        uuid clanId FK "소속 클랜"
+        string name "이름"
+        int age
+        enum gender "MALE, FEMALE"
+        string job "직업"
+        string location "거주지"
+        text description "자기소개"
+        text idealType "원하는 이성상"
+        enum status "PRIVATE, OPEN"
+        jsonb photos "사진 URL 리스트"
+        string contactInfo "연락처"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Relationships
+
+    %% Clan Relationships
+    Clan ||--o{ ClanMember : "has_members"
+    Clan ||--|| User : "owned_by"
+    Clan ||--o{ Auction : "hosts"
+    Clan ||--o{ Scrim : "organizes"
+    Clan ||--o{ Vote : "conducts"
+    Clan ||--o{ ClanShare : "shares_info_with (as Owner)"
+    Clan ||--o{ ClanShare : "views_shared_info (as Viewer)"
+    Clan ||--o{ ClanJoinRequest : "receives_application_from"
+    Clan ||--o{ BlindDateCandidate : "contains_candidate"
+
+    %% User Relationships
+    User ||--o{ ClanMember : "belongs_to_clans"
+    User ||--o{ Auction : "creates"
+    User ||--o{ Scrim : "hosts"
+    User ||--o{ AuctionParticipant : "participates_in"
+    User ||--o{ AuctionBid : "makes_bid (as Captain)"
+    User ||--o{ AuctionBid : "is_target_of (as Player)"
+    User ||--o{ Vote : "creates"
+    User ||--o{ VoteRecord : "casts_vote"
+    User ||--o{ ScrimParticipant : "joins_scrim_as"
+    User ||--o{ ScrimMatch : "is_mvp_of"
+    User ||--o{ ClanJoinRequest : "applies_to"
+    User ||--o{ BlindDateCandidate : "registers_candidate"
+    User ||--o{ PointLog : "has_history"
+    User ||--o{ ScrimMatchEntry : "participates_in_match"
+    User ||--o{ BettingQuestion : "creates_questions"
+    User ||--o{ BettingTicket : "places_bets"
+
+    %% Auction Relationships
+    Auction ||--|{ AuctionParticipant : "has"
+    Auction ||--o{ AuctionBid : "records"
+    Auction |o--o| Scrim : "organizes_teams_for"
+
+    %% Scrim Relationships
+    Scrim ||--o{ ScrimMatch : "consists_of"
+    Scrim ||--o{ ScrimParticipant : "has_participants"
+    Scrim ||--o{ BettingQuestion : "has_questions"
+    ScrimMatch ||--o{ ScrimMatchEntry : "has_players"
+
+    %% Vote Relationships
+    Vote ||--|{ VoteOption : "has_options"
+    Vote ||--o{ VoteRecord : "tracks_votes"
+    Vote ||--o| Scrim : "may_result_in"
+
+    %% Betting Relationships
+    BettingQuestion ||--o{ BettingTicket : "has_bets"

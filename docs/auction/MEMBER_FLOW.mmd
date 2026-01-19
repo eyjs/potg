@@ -1,0 +1,16 @@
+flowchart TD
+    %% 스타일 정의
+    classDef member fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+
+    %% 1. 입장 및 관전
+    Start["경매방 입장"]:::member --> Watch["실시간 경매 관전"]:::member
+
+    %% 2. 경매 종료 및 결과
+    Watch --> End{"경매 종료?"}:::system
+    End -- "No" --> Watch
+    End -- "Yes" --> Poster["최종 팀 포스터 확인"]:::member
+    Poster --> Scrim["내전 페이지 이동"]:::member
+
+    %% 선 스타일 설정: 흰색(#fff) 및 굵기(2px) 적용
+    linkStyle default stroke:#fff,stroke-width:2px

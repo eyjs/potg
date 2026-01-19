@@ -1,0 +1,215 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Eye, EyeOff, LogIn, Shield } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+
+export default function LoginPage() {
+  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    rememberMe: false,
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    // TODO: 실제 로그인 API 호출
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setIsLoading(false)
+    router.push("/")
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/5 to-transparent rotate-12" />
+        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-accent/5 to-transparent -rotate-12" />
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `linear-gradient(rgba(249, 158, 26, 0.3) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(249, 158, 26, 0.3) 1px, transparent 1px)`,
+            backgroundSize: "50px 50px",
+          }}
+        />
+      </div>
+
+      {/* Header */}
+      <header className="relative z-10 p-6">
+        <Link href="/" className="flex items-center gap-2 w-fit">
+          <div className="h-10 w-10 bg-primary skew-btn flex items-center justify-center">
+            <span className="text-primary-foreground font-extrabold text-lg italic">J</span>
+          </div>
+          <span className="font-extrabold text-xl italic tracking-wider text-foreground">
+            JOONBI <span className="text-primary">HQ</span>
+          </span>
+        </Link>
+      </header>
+
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-extrabold italic uppercase tracking-wider text-foreground mb-2">로그인</h1>
+            <p className="text-muted-foreground">JoonBi HQ에 오신 것을 환영합니다</p>
+          </div>
+
+          {/* Login Form Card */}
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 p-6 relative overflow-hidden">
+            {/* Accent line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-accent" />
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  이메일
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  비밀번호
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember"
+                    checked={formData.rememberMe}
+                    onCheckedChange={(checked) => setFormData({ ...formData, rememberMe: checked as boolean })}
+                    className="border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+                    로그인 상태 유지
+                  </Label>
+                </div>
+                <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80 transition-colors">
+                  비밀번호 찾기
+                </Link>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider skew-btn"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  {isLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      접속 중...
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-5 h-5" />
+                      로그인
+                    </>
+                  )}
+                </span>
+              </Button>
+            </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="px-3 bg-card text-sm text-muted-foreground">또는</span>
+              </div>
+            </div>
+
+            {/* Social Login */}
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 border-border/50 hover:bg-[#FEE500] hover:text-black hover:border-[#FEE500] transition-all bg-transparent"
+              >
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.47 1.607 4.647 4.045 5.89l-.925 3.42a.3.3 0 0 0 .454.334l4.026-2.68c.776.112 1.575.172 2.4.172 5.523 0 10-3.477 10-7.636S17.523 3 12 3z" />
+                </svg>
+                카카오로 로그인
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 border-border/50 hover:bg-[#03C75A] hover:text-white hover:border-[#03C75A] transition-all bg-transparent"
+              >
+                <span className="font-bold text-lg mr-2">N</span>
+                네이버로 로그인
+              </Button>
+            </div>
+          </div>
+
+          {/* Sign Up Link */}
+          <div className="text-center mt-6">
+            <p className="text-muted-foreground">
+              아직 계정이 없으신가요?{" "}
+              <Link href="/signup" className="text-primary hover:text-primary/80 font-semibold transition-colors">
+                회원가입
+              </Link>
+            </p>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 p-6 text-center text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-1">
+          <Shield className="w-4 h-4 text-primary" />
+          <span>JoonBi HQ는 오버워치 팬 커뮤니티입니다</span>
+        </div>
+      </footer>
+    </div>
+  )
+}
