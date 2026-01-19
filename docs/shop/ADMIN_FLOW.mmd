@@ -1,0 +1,174 @@
+flowchart TD
+    %% 스타일 정의
+    classDef admin fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef success fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:black
+    classDef warning fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black
+
+    Start["클랜마스터"]:::admin --> AdminMenu["상점 관리 메뉴"]:::admin
+
+    AdminMenu --> MenuChoice{"작업 선택"}:::admin
+
+    %% Phase 1: 상품 등록
+    MenuChoice -- "상품 등록" --> CreateProduct["상품 등록 시작"]:::admin
+
+    subgraph ProductInfo [상품 정보 입력]
+        direction TB
+        PI1["상품명 입력<br/>(예: BBQ 치킨 기프티콘)"]:::admin
+        PI1 --> PI2["가격 설정<br/>(포인트)"]:::admin
+        PI2 --> PI3["재고 수량 설정"]:::admin
+        PI3 --> PI4["상품 설명 입력<br/>(선택)"]:::admin
+        PI4 --> PI5["상품 이미지 업로드<br/>(선택)"]:::admin
+    end
+
+    CreateProduct --> ProductInfo
+    PI5 --> ReviewProduct["입력 정보 검토"]:::admin
+
+    ReviewProduct --> ValidateProduct{"정보 유효?"}:::system
+    ValidateProduct -- "No (필수 누락)" --> ValidationError["⚠️ 필수 정보 누락<br/>(상품명, 가격, 재고)"]:::warning
+    ValidationError --> PI1
+
+    ValidateProduct -- "Yes" --> SaveProduct["상품 저장<br/>(status: ACTIVE)"]:::admin
+    SaveProduct --> ProductCreated["상품 등록 완료"]:::success
+    ProductCreated --> NotifyMembers["회원들에게 알림<br/>(선택)"]:::system
+    NotifyMembers --> AdminMenu
+
+    %% Phase 2: 상품 관리
+    MenuChoice -- "상품 관리" --> ViewProducts["상품 리스트"]:::admin
+    ViewProducts --> ShowProducts["전체 상품 표시<br/>(ACTIVE/INACTIVE/OUT_OF_STOCK)"]:::system
+
+    ShowProducts --> SelectProduct["상품 선택"]:::admin
+    SelectProduct --> ProductAction{"작업"}:::admin
+
+    ProductAction -- "수정" --> EditProduct["상품 정보 수정"]:::admin
+    EditProduct --> PI1
+
+    ProductAction -- "재고 추가" --> AddStock["재고 수량 증가"]:::admin
+    AddStock --> UpdateStock["stock += N"]:::system
+    UpdateStock --> CheckStockStatus{"이전 상태가<br/>OUT_OF_STOCK?"}:::system
+    CheckStockStatus -- "Yes" --> ReactivateProduct["status = ACTIVE"]:::system
+    ReactivateProduct --> StockUpdated["재고 추가 완료"]:::success
+    CheckStockStatus -- "No" --> StockUpdated
+    StockUpdated --> AdminMenu
+
+    ProductAction -- "활성화/비활성화" --> ToggleStatus["상태 전환"]:::admin
+    ToggleStatus --> ToggleCheck{"현재 상태?"}:::system
+    ToggleCheck -- "ACTIVE" --> SetInactive["status = INACTIVE"]:::system
+    ToggleCheck -- "INACTIVE" --> SetActive["status = ACTIVE"]:::system
+    SetInactive --> StatusToggled["상태 변경 완료"]:::success
+    SetActive --> StatusToggled
+    StatusToggled --> AdminMenu
+
+    ProductAction -- "삭제" --> DeleteCheck{"PENDING 구매<br/>있음?"}:::system
+    DeleteCheck -- "Yes" --> DeleteError["⚠️ 대기 중인 구매가 있어<br/>삭제할 수 없습니다"]:::warning
+    DeleteError --> AdminMenu
+    DeleteCheck -- "No" --> ConfirmDelete["삭제 확인"]:::admin
+    ConfirmDelete --> DeleteProduct["상품 삭제"]:::admin
+    DeleteProduct --> ProductDeleted["삭제 완료"]:::success
+    ProductDeleted --> AdminMenu
+
+    %% Phase 3: 구매 승인
+    MenuChoice -- "구매 승인" --> ViewPending["대기 중인 구매"]:::admin
+    ViewPending --> ShowPending["PENDING 구매 리스트"]:::system
+
+    ShowPending --> HasPending{"구매 있음?"}:::system
+    HasPending -- "No" --> NoPending["⚠️ 대기 중인 구매가 없습니다"]:::warning
+    NoPending --> AdminMenu
+
+    HasPending -- "Yes" --> SelectPurchase["구매 선택"]:::admin
+    SelectPurchase --> ViewPurchaseDetail["구매 상세 정보"]:::system
+
+    subgraph PurchaseDetail [구매 상세]
+        direction TB
+        PDT1["구매자 (battleTag)"]:::system
+        PDT1 --> PDT2["상품명"]:::system
+        PDT2 --> PDT3["수량"]:::system
+        PDT3 --> PDT4["총 가격"]:::system
+        PDT4 --> PDT5["구매자 가용 포인트"]:::system
+        PDT5 --> PDT6["상품 현재 재고"]:::system
+    end
+
+    ViewPurchaseDetail --> PurchaseDetail
+    PDT6 --> ApprovalDecision{"승인/거절"}:::admin
+
+    ApprovalDecision -- "거절" --> EnterReason["거절 사유 입력<br/>(선택)"]:::admin
+    EnterReason --> RejectPurchase["구매 거절<br/>(status: REJECTED)"]:::admin
+    RejectPurchase --> NotifyRejected["구매자에게 알림"]:::system
+    NotifyRejected --> AdminMenu
+
+    ApprovalDecision -- "승인" --> ValidateApproval["승인 가능 여부 확인"]:::system
+
+    subgraph ApprovalValidation [승인 검증]
+        direction TB
+        AV1["재고 충분?"]:::system
+        AV1 --> AV2["구매자 포인트 충분?"]:::system
+        AV2 --> AV3["상태가 PENDING?"]:::system
+    end
+
+    ValidateApproval --> ApprovalValidation
+    AV3 --> IsValidApproval{"검증 통과?"}:::system
+
+    IsValidApproval -- "No" --> ApprovalError["⚠️ 승인 불가<br/>(재고 부족 또는 포인트 부족)"]:::warning
+    ApprovalError --> AdminMenu
+
+    IsValidApproval -- "Yes" --> ProcessApproval["승인 처리<br/>(트랜잭션 시작)"]:::system
+
+    subgraph ApprovalProcess [승인 프로세스]
+        direction TB
+        AP1["포인트 차감<br/>(totalPoints)"]:::system
+        AP1 --> AP2["PointLog 기록"]:::system
+        AP2 --> AP3["재고 차감<br/>(stock)"]:::system
+        AP3 --> AP4["판매량 증가<br/>(totalSold)"]:::system
+        AP4 --> AP5["재고 0이면<br/>status = OUT_OF_STOCK"]:::system
+        AP5 --> AP6["Purchase.status = APPROVED"]:::system
+        AP6 --> AP7["트랜잭션 커밋"]:::system
+    end
+
+    ProcessApproval --> ApprovalProcess
+    AP7 --> ApprovalSuccess["승인 완료!"]:::success
+
+    ApprovalSuccess --> NotifyBuyer["구매자에게 알림"]:::system
+    NotifyBuyer --> PrepareGift["기프티콘 준비"]:::admin
+
+    PrepareGift --> SendGift["기프티콘 전달<br/>(수동)"]:::admin
+    SendGift --> MarkDelivered["전달 완료 표시<br/>(선택)"]:::admin
+    MarkDelivered --> AdminMenu
+
+    %% Phase 4: 통계 및 내역
+    MenuChoice -- "통계 확인" --> ViewStats["통계 대시보드"]:::admin
+
+    subgraph Stats [통계 정보]
+        direction TB
+        ST1["총 상품 수"]:::system
+        ST1 --> ST2["활성 상품 수"]:::system
+        ST2 --> ST3["총 거래액 (포인트)"]:::system
+        ST3 --> ST4["총 판매 수량"]:::system
+        ST4 --> ST5["인기 상품 TOP 5"]:::system
+        ST5 --> ST6["최근 구매 10건"]:::system
+    end
+
+    ViewStats --> Stats
+    ST6 --> StatsAction{"작업"}:::admin
+    StatsAction -- "닫기" --> AdminMenu
+    StatsAction -- "엑셀 다운로드" --> ExportExcel["통계 엑셀 다운로드<br/>(선택 기능)"]:::admin
+    ExportExcel --> AdminMenu
+
+    MenuChoice -- "구매 내역" --> ViewPurchases["전체 구매 내역"]:::admin
+    ViewPurchases --> ShowAllPurchases["구매 리스트<br/>(APPROVED만 또는 전체)"]:::system
+
+    ShowAllPurchases --> FilterPurchases["필터링"]:::admin
+
+    subgraph PurchaseFilters [필터 옵션]
+        direction TB
+        PF1["상태별 (PENDING/APPROVED/REJECTED)"]:::admin
+        PF1 --> PF2["상품별"]:::admin
+        PF2 --> PF3["구매자별"]:::admin
+        PF3 --> PF4["기간별"]:::admin
+    end
+
+    FilterPurchases --> PurchaseFilters
+    PF4 --> FilteredPurchases["필터링된 내역"]:::system
+    FilteredPurchases --> AdminMenu
+
+    %% 선 스타일 설정
+    linkStyle default stroke:#fff,stroke-width:2px

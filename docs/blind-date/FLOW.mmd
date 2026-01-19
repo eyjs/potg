@@ -1,0 +1,76 @@
+flowchart TD
+    %% 스타일 정의
+    classDef register fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:black
+    classDef requester fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef match fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:black
+
+    Start["소개팅 시스템"]:::system --> Role{"역할 선택"}:::system
+
+    %% 등록자 플로우
+    Role -- "매물 등록" --> CreateListing["매물 작성<br/>(PRIVATE)"]:::register
+    CreateListing --> FillInfo["정보 입력<br/>(이름, 나이, 직업 등)"]:::register
+    FillInfo --> UploadPhotos["사진 업로드<br/>(선택)"]:::register
+    UploadPhotos --> SaveDraft["임시 저장"]:::register
+
+    SaveDraft --> EditCheck{"수정 필요?"}:::register
+    EditCheck -- "Yes" --> FillInfo
+    EditCheck -- "No" --> PublishListing["공개 전환<br/>(OPEN)"]:::register
+
+    PublishListing --> WaitRequests["요청 대기"]:::register
+    WaitRequests --> CheckRequests["요청 확인"]:::register
+
+    CheckRequests --> HasRequests{"요청 있음?"}:::register
+    HasRequests -- "No" --> WaitRequests
+    HasRequests -- "Yes" --> ReviewRequests["요청 목록 확인"]:::register
+
+    ReviewRequests --> SelectRequest["요청 선택"]:::register
+    SelectRequest --> Decision{"승인/거절"}:::register
+
+    Decision -- "승인" --> ApproveRequest["요청 승인"]:::match
+    Decision -- "거절" --> RejectRequest["요청 거절"]:::register
+    RejectRequest --> HasRequests
+
+    ApproveRequest --> Matched["매칭 성공!"]:::match
+    Matched --> PointsAwarded["포인트 획득<br/>(변동)"]:::match
+    PointsAwarded --> ContactShared["연락처 공유"]:::match
+    ContactShared --> End1["종료"]:::match
+
+    %% 요청자 플로우
+    Role -- "매물 탐색" --> BrowseListings["공개 매물 리스트"]:::requester
+    BrowseListings --> FilterListings["필터링<br/>(성별, 나이, 지역)"]:::requester
+    FilterListings --> ViewListing["매물 상세 보기"]:::requester
+
+    ViewListing --> CheckInfo{"조건 맞음?"}:::requester
+    CheckInfo -- "No" --> BrowseListings
+    CheckInfo -- "Yes" --> SendRequest["소개팅 요청 전송"]:::requester
+
+    SendRequest --> WriteMessage["메시지 작성<br/>(선택)"]:::requester
+    WriteMessage --> SubmitRequest["요청 제출<br/>(PENDING)"]:::requester
+
+    SubmitRequest --> WaitApproval["승인 대기"]:::requester
+    WaitApproval --> CheckStatus{"상태 확인"}:::requester
+
+    CheckStatus -- "승인됨<br/>(APPROVED)" --> RequestApproved["매칭 성공!"]:::match
+    CheckStatus -- "거절됨<br/>(REJECTED)" --> RequestRejected["매칭 실패"]:::requester
+    CheckStatus -- "대기중<br/>(PENDING)" --> WaitApproval
+
+    RequestApproved --> ContactReceived["연락처 받음"]:::match
+    ContactReceived --> End2["종료"]:::match
+
+    RequestRejected --> TryAgain{"다시 시도?"}:::requester
+    TryAgain -- "Yes" --> BrowseListings
+    TryAgain -- "No" --> End3["종료"]:::requester
+
+    %% 등록자의 매물 마감 플로우
+    WaitRequests --> NoInterest{"관심 없음?"}:::register
+    NoInterest -- "Yes" --> CloseListing["매물 마감<br/>(CLOSED)"]:::register
+    CloseListing --> End4["종료"]:::register
+
+    %% 요청자의 요청 취소 플로우
+    WaitApproval --> CancelCheck{"취소?"}:::requester
+    CancelCheck -- "Yes" --> CancelRequest["요청 취소<br/>(CANCELLED)"]:::requester
+    CancelRequest --> End5["종료"]:::requester
+
+    %% 선 스타일 설정
+    linkStyle default stroke:#fff,stroke-width:2px

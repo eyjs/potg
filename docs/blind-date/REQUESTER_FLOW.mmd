@@ -1,0 +1,151 @@
+flowchart TD
+    %% 스타일 정의
+    classDef requester fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:black
+    classDef system fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:black
+    classDef match fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:black
+    classDef warning fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black
+
+    Start["요청자"]:::requester --> EnterBlindDate["소개팅 메뉴 접속"]:::requester
+
+    %% Phase 1: 매물 탐색
+    EnterBlindDate --> ViewListings["공개 매물 리스트<br/>(status: OPEN)"]:::system
+
+    ViewListings --> HasListings{"매물 있음?"}:::system
+    HasListings -- "No" --> NoListings["⚠️ 공개된 매물이 없습니다"]:::warning
+    NoListings --> WaitOrLeave{"대기/종료"}:::requester
+    WaitOrLeave -- "대기" --> ViewListings
+    WaitOrLeave -- "종료" --> End1["종료"]:::requester
+
+    HasListings -- "Yes" --> ApplyFilters["필터 적용<br/>(선택)"]:::requester
+
+    subgraph Filters [필터 옵션]
+        direction TB
+        F1["성별 (MALE/FEMALE)"]:::requester
+        F1 --> F2["나이 범위 (예: 25~30)"]:::requester
+        F2 --> F3["거주지 (예: 서울)"]:::requester
+        F3 --> F4["직업 키워드"]:::requester
+        F4 --> F5["키 범위 (선택)"]:::requester
+    end
+
+    ApplyFilters --> Filters
+    F5 --> FilteredList["필터링된 리스트"]:::system
+
+    FilteredList --> BrowseListings["매물 탐색"]:::requester
+    BrowseListings --> SelectListing["매물 선택"]:::requester
+
+    %% Phase 2: 매물 상세 확인
+    SelectListing --> ViewDetails["매물 상세 보기"]:::system
+
+    subgraph Details [상세 정보]
+        direction TB
+        DT1["기본 정보<br/>(이름, 나이, 성별, 거주지)"]:::system
+        DT1 --> DT2["외모/스펙<br/>(키, 직업, 학력)"]:::system
+        DT2 --> DT3["자기소개"]:::system
+        DT3 --> DT4["희망 조건"]:::system
+        DT4 --> DT5["사진 (있는 경우)"]:::system
+        DT5 --> DT6["등록자 정보<br/>(battleTag)"]:::system
+    end
+
+    ViewDetails --> Details
+    DT6 --> CheckInterest{"관심 있음?"}:::requester
+
+    CheckInterest -- "No" --> BackToList["뒤로 가기"]:::requester
+    BackToList --> BrowseListings
+
+    CheckInterest -- "Yes" --> CheckOwnListing{"본인 매물?"}:::system
+    CheckOwnListing -- "Yes" --> OwnListingError["⚠️ 본인이 등록한 매물입니다"]:::warning
+    OwnListingError --> BrowseListings
+
+    CheckOwnListing -- "No" --> CheckDuplicate{"이미 요청했나?"}:::system
+    CheckDuplicate -- "Yes (PENDING)" --> DuplicateError["⚠️ 이미 요청한 매물입니다<br/>(요청 상태: 대기 중)"]:::warning
+    DuplicateError --> CheckMyRequests["내 요청 확인하기"]:::requester
+    CheckMyRequests --> BrowseListings
+
+    CheckDuplicate -- "No" --> PrepareRequest["요청 준비"]:::requester
+
+    %% Phase 3: 요청 전송
+    PrepareRequest --> WriteMessage["메시지 작성<br/>(선택)"]:::requester
+
+    subgraph Message [메시지 예시]
+        direction TB
+        MSG1["\"만나고 싶습니다!\""]:::requester
+        MSG1 --> MSG2["\"조건이 잘 맞는 것 같아요\""]:::requester
+        MSG2 --> MSG3["\"편하게 연락주세요\""]:::requester
+    end
+
+    WriteMessage --> Message
+    MSG3 --> ReviewRequest["요청 내용 확인"]:::requester
+
+    ReviewRequest --> ConfirmSend{"전송?"}:::requester
+    ConfirmSend -- "No (취소)" --> BrowseListings
+    ConfirmSend -- "Yes" --> SnapshotInfo["내 정보 스냅샷 생성"]:::system
+
+    SnapshotInfo --> CreateRequest["BlindDateRequest 생성<br/>(status: PENDING)"]:::system
+    CreateRequest --> NotifyRegister["등록자에게 알림"]:::system
+    NotifyRegister --> RequestSent["요청 전송 완료"]:::system
+
+    %% Phase 4: 승인 대기
+    RequestSent --> WaitApproval["승인 대기"]:::requester
+    WaitApproval --> CheckRequestStatus["요청 상태 확인"]:::requester
+
+    CheckRequestStatus --> GetStatus["현재 상태 조회"]:::system
+    GetStatus --> StatusCheck{"상태?"}:::system
+
+    StatusCheck -- "PENDING" --> StillWaiting["여전히 대기 중"]:::system
+    StillWaiting --> CancelOption{"취소?"}:::requester
+    CancelOption -- "No" --> WaitApproval
+    CancelOption -- "Yes" --> CancelRequest["요청 취소<br/>(status: CANCELLED)"]:::requester
+    CancelRequest --> End2["종료"]:::requester
+
+    StatusCheck -- "APPROVED" --> MatchSuccess["매칭 성공!"]:::match
+    StatusCheck -- "REJECTED" --> MatchFailed["매칭 실패<br/>(거절됨)"]:::warning
+
+    %% Phase 5: 매칭 성공
+    MatchSuccess --> ShowMatchInfo["매칭 정보 표시"]:::match
+
+    subgraph MatchInfo [매칭 정보]
+        direction TB
+        MI1["매물 이름"]:::match
+        MI1 --> MI2["연락처"]:::match
+        MI2 --> MI3["매칭 시각"]:::match
+        MI3 --> MI4["등록자 battleTag"]:::match
+    end
+
+    ShowMatchInfo --> MatchInfo
+    MI4 --> ContactExchange["연락처 교환 안내"]:::match
+    ContactExchange --> End3["종료"]:::match
+
+    %% Phase 6: 매칭 실패
+    MatchFailed --> ShowReason["거절 사유<br/>(시스템 메시지)"]:::system
+    ShowReason --> TryAgain{"다시 시도?"}:::requester
+    TryAgain -- "Yes" --> BrowseListings
+    TryAgain -- "No" --> End4["종료"]:::requester
+
+    %% 추가 기능: 내 요청 관리
+    EnterBlindDate --> ViewMyRequests["내 요청 관리"]:::requester
+    ViewMyRequests --> ShowMyRequests["전송한 요청 리스트"]:::system
+
+    ShowMyRequests --> FilterStatus["상태별 필터"]:::requester
+
+    subgraph StatusFilter [상태별 보기]
+        direction TB
+        SF1["대기 중 (PENDING)"]:::requester
+        SF1 --> SF2["승인됨 (APPROVED)"]:::requester
+        SF2 --> SF3["거절됨 (REJECTED)"]:::requester
+        SF3 --> SF4["취소됨 (CANCELLED)"]:::requester
+    end
+
+    FilterStatus --> StatusFilter
+    SF4 --> SelectMyRequest["요청 선택"]:::requester
+
+    SelectMyRequest --> MyRequestAction{"작업"}:::requester
+    MyRequestAction -- "상세 보기" --> ViewMyRequestDetail["요청 상세 정보"]:::system
+    ViewMyRequestDetail --> ShowMyRequests
+
+    MyRequestAction -- "취소 (PENDING)" --> CancelMyRequest["요청 취소"]:::requester
+    CancelMyRequest --> ShowMyRequests
+
+    MyRequestAction -- "닫기" --> EnterBlindDate
+
+    %% 선 스타일 설정
+    linkStyle default stroke:#fff,stroke-width:2px

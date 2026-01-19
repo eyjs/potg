@@ -218,21 +218,77 @@ erDiagram
         timestamp updated_at
     }
 
-    %% Blind Date Domain (Date Candidates)
-    BlindDateCandidate {
+    %% Blind Date Domain (소개팅 매물)
+    BlindDateListing {
         uuid id PK
-        uuid registerId FK "주선자(User)"
-        uuid clanId FK "소속 클랜"
+        uuid clanId FK
+        uuid registerId FK "등록자(주선자)"
+        enum status "PRIVATE, OPEN, MATCHED, CLOSED"
         string name "이름"
         int age
         enum gender "MALE, FEMALE"
-        string job "직업"
         string location "거주지"
+        int height "키(cm) - Nullable"
+        string job "직업"
+        string education "학력 - Nullable"
         text description "자기소개"
-        text idealType "원하는 이성상"
-        enum status "PRIVATE, OPEN"
-        jsonb photos "사진 URL 리스트"
-        string contactInfo "연락처"
+        text idealType "희망 조건"
+        jsonb photos "사진 URL 배열"
+        string contactInfo "연락처 - Nullable"
+        uuid matchedRequestId FK "매칭된 요청 - Nullable"
+        int pointsEarned "획득 포인트 (기본값: 0)"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BlindDateRequest {
+        uuid id PK
+        uuid listingId FK
+        uuid requesterId FK "요청자"
+        uuid clanId FK
+        enum status "PENDING, APPROVED, REJECTED, CANCELLED"
+        text message "요청 메시지 - Nullable"
+        jsonb requesterInfo "요청자 정보 스냅샷"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BlindDateMatch {
+        uuid id PK
+        uuid listingId FK
+        uuid requestId FK
+        uuid clanId FK
+        uuid registerId FK "등록자"
+        uuid requesterId FK "요청자"
+        int pointsAwarded "지급 포인트"
+        timestamp created_at
+    }
+
+    %% Shop Domain (클랜 상점)
+    ShopProduct {
+        uuid id PK
+        uuid clanId FK
+        string name "상품명"
+        string description "상품 설명 - Nullable"
+        int price "포인트 가격"
+        int stock "재고 수량"
+        string imageUrl "상품 이미지 - Nullable"
+        enum status "ACTIVE, INACTIVE, OUT_OF_STOCK"
+        int totalSold "총 판매량 (기본값: 0)"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ShopPurchase {
+        uuid id PK
+        uuid productId FK
+        uuid userId FK "구매자"
+        uuid clanId FK
+        int quantity "구매 수량"
+        int totalPrice "총 가격"
+        enum status "PENDING, APPROVED, REJECTED, CANCELLED"
+        text adminNote "관리자 메모 - Nullable"
+        timestamp approvedAt "승인 시각 - Nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -248,7 +304,8 @@ erDiagram
     Clan ||--o{ ClanShare : "shares_info_with (as Owner)"
     Clan ||--o{ ClanShare : "views_shared_info (as Viewer)"
     Clan ||--o{ ClanJoinRequest : "receives_application_from"
-    Clan ||--o{ BlindDateCandidate : "contains_candidate"
+    Clan ||--o{ BlindDateListing : "contains"
+    Clan ||--o{ ShopProduct : "sells"
 
     %% User Relationships
     User ||--o{ ClanMember : "belongs_to_clans"
@@ -262,7 +319,9 @@ erDiagram
     User ||--o{ ScrimParticipant : "joins_scrim_as"
     User ||--o{ ScrimMatch : "is_mvp_of"
     User ||--o{ ClanJoinRequest : "applies_to"
-    User ||--o{ BlindDateCandidate : "registers_candidate"
+    User ||--o{ BlindDateListing : "registers"
+    User ||--o{ BlindDateRequest : "makes_request"
+    User ||--o{ ShopPurchase : "makes_purchase"
     User ||--o{ PointLog : "has_history"
     User ||--o{ ScrimMatchEntry : "participates_in_match"
     User ||--o{ BettingQuestion : "creates_questions"
@@ -286,3 +345,11 @@ erDiagram
 
     %% Betting Relationships
     BettingQuestion ||--o{ BettingTicket : "has_bets"
+
+    %% Blind Date Relationships
+    BlindDateListing ||--o{ BlindDateRequest : "receives_requests"
+    BlindDateListing ||--o| BlindDateMatch : "results_in"
+    BlindDateRequest ||--o| BlindDateMatch : "results_in"
+
+    %% Shop Relationships
+    ShopProduct ||--o{ ShopPurchase : "has_purchases"
