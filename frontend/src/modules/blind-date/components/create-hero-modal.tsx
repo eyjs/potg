@@ -30,6 +30,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     age: 25,
+    gender: 'FEMALE' as 'MALE' | 'FEMALE',
     location: "",
     job: "",
     education: "",
@@ -53,6 +54,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
     setFormData({
       name: "",
       age: 25,
+      gender: 'FEMALE',
       location: "",
       job: "",
       education: "",
@@ -69,17 +71,17 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 text-black font-bold uppercase tracking-wide">
+        <Button className="bg-primary hover:bg-primary/90 text-black font-bold uppercase tracking-wide rounded-md">
           <Plus className="w-4 h-4 mr-2" />
-          <span>매물 등록</span>
+          <span>소개팅 등록</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold italic uppercase tracking-wide text-foreground">
-            새 매물 등록
+            새 소개팅 등록
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">소개팅 매물 정보를 입력하세요</DialogDescription>
+          <DialogDescription className="text-muted-foreground">상대방에게 보여줄 정보를 입력하세요</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -94,6 +96,24 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               />
             </div>
             <div className="space-y-2">
+              <Label className="text-foreground">성별 *</Label>
+              <Select
+                value={formData.gender}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, gender: value as 'MALE' | 'FEMALE' }))}
+              >
+                <SelectTrigger className="bg-input border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="MALE">남성</SelectItem>
+                  <SelectItem value="FEMALE">여성</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label className="text-foreground">나이 *</Label>
               <Input
                 type="number"
@@ -101,6 +121,16 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
                 max={99}
                 value={formData.age}
                 onChange={(e) => setFormData((prev) => ({ ...prev, age: Number(e.target.value) }))}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">MBTI</Label>
+              <Input
+                value={formData.mbti}
+                onChange={(e) => setFormData((prev) => ({ ...prev, mbti: e.target.value.toUpperCase() }))}
+                placeholder="예: ENFP"
+                maxLength={4}
                 className="bg-input border-border text-foreground"
               />
             </div>

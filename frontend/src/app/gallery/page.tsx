@@ -10,14 +10,14 @@ import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
-
-// ... Hero interface ...
+import { toast } from "sonner"
 
 export interface Hero {
   id: string
   registerId: string
   name: string
   age: number
+  gender: 'MALE' | 'FEMALE'
   location: string
   job: string
   mbti: string
@@ -40,15 +40,16 @@ export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (user?.clanId) {
+    if (!user) return
+    if (user.clanId) {
       fetchHeroes()
     } else {
       setIsLoading(false)
     }
-  }, [user?.clanId])
+  }, [user])
 
   const fetchHeroes = async () => {
-    if (!user) return
+    if (!user?.clanId) return
     try {
       setIsLoading(true)
       const response = await api.get(`/blind-date/listings?clanId=${user.clanId}`)
@@ -58,6 +59,7 @@ export default function GalleryPage() {
         registerId: h.registerId,
         name: h.name,
         age: h.age,
+        gender: h.gender,
         location: h.location,
         job: h.job,
         mbti: h.mbti || "Unknown",
@@ -72,15 +74,14 @@ export default function GalleryPage() {
       setHeroes(mapped)
     } catch (error) {
       console.error("Failed to fetch heroes:", error)
+      toast.error("소개팅 목록을 불러오지 못했습니다.")
     } finally {
       setIsLoading(false)
     }
   }
 
   const filteredHeroes = heroes.filter((hero) => {
-    // View mode filter (내 매물 / 전체 매물)
     if (viewMode === "my" && hero.registerId !== user?.id) return false
-    // Status filter
     if (filterStatus !== "all" && hero.status !== filterStatus) return false
     return true
   })
@@ -89,13 +90,13 @@ export default function GalleryPage() {
   const allHeroesCount = heroes.length
 
   const handleCreateHero = async (newHero: Omit<Hero, "id" | "registerId">) => {
-    if (!user) return
+    if (!user?.clanId) return
     try {
       await api.post('/blind-date/listings', {
         clanId: user.clanId,
         name: newHero.name,
         age: newHero.age,
-        gender: 'FEMALE', // Default or add to modal
+        gender: newHero.gender,
         location: newHero.location,
         job: newHero.job,
         description: newHero.bio,
@@ -105,32 +106,37 @@ export default function GalleryPage() {
         height: newHero.height,
         smoking: newHero.smoking
       })
+      toast.success("소개팅 매물이 등록되었습니다.")
       fetchHeroes()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create listing:", error)
+      toast.error(error.response?.data?.message || "매물 등록에 실패했습니다.")
     }
   }
 
   const handleUpdateStatus = async (heroId: string, status: Hero["status"]) => {
     try {
       const backendStatus = status === 'available' ? 'OPEN' : status === 'talking' ? 'MATCHED' : 'CLOSED'
-      await api.put(`/blind-date/listings/${heroId}`, {
+      await api.patch(`/blind-date/listings/${heroId}`, {
         status: backendStatus
       })
+      toast.success("상태가 업데이트되었습니다.")
       fetchHeroes()
     } catch (error) {
       console.error("Failed to update status:", error)
-      alert("상태 변경에 실패했습니다.")
+      toast.error("상태 변경에 실패했습니다.")
     }
   }
 
   const handleDeleteHero = async (heroId: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return
     try {
       await api.delete(`/blind-date/listings/${heroId}`)
+      toast.success("삭제되었습니다.")
       fetchHeroes()
     } catch (error: any) {
       console.error("Failed to delete hero:", error)
-      alert(error.response?.data?.message || "매물 삭제에 실패했습니다.")
+      toast.error(error.response?.data?.message || "매물 삭제에 실패했습니다.")
     }
   }
 
@@ -145,7 +151,7 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container px-4 py-20 text-center font-bold italic uppercase animate-pulse text-primary">
-        영웅 갤러리 로딩 중...
+        소개팅 데이터 로딩 중...
       </div>
     </div>
   )
@@ -160,14 +166,14 @@ export default function GalleryPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold italic uppercase tracking-wider text-foreground">
-                영웅 <span className="text-primary">갤러리</span>
+                소개팅 <span className="text-primary">GALLERY</span>
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">소개팅 매물 관리 - 마음에 드는 영웅을 찾아보세요</p>
+              <p className="text-sm text-muted-foreground mt-1">소개팅 매물 관리 - 마음에 드는 상대방을 찾아보세요</p>
             </div>
             {isAdmin && <CreateHeroModal onCreateHero={handleCreateHero} />}
           </div>
 
-          {/* View Mode Tabs (내 매물 / 전체 매물) */}
+          {/* View Mode Tabs */}
           <div className="flex items-center gap-2 border-b border-border pb-2">
             <Button
               variant={viewMode === "all" ? "default" : "ghost"}
@@ -181,7 +187,7 @@ export default function GalleryPage() {
               onClick={() => setViewMode("my")}
               className={viewMode === "my" ? "bg-primary text-black font-bold" : ""}
             >
-              내 매물 ({myHeroesCount})
+              내 등록 매물 ({myHeroesCount})
             </Button>
           </div>
 
