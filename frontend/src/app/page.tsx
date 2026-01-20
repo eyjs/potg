@@ -19,14 +19,18 @@ export default function LobbyPage() {
   const [votes, setVotes] = useState([])
   const [liveAuctions, setLiveAuctions] = useState([])
   const [isDataLoading, setIsDataLoading] = useState(true)
+  const [pendingRequest, setPendingRequest] = useState<any>(null)
 
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
         router.push("/login")
       } else if (!user.clanId) {
-        // user exists but no clanId
-        // fetchDashboardData won't run, setIsDataLoading(false) happens below
+        // Check for pending request
+        api.get('/clans/requests/me')
+          .then(res => setPendingRequest(res.data))
+          .catch(console.error)
+          .finally(() => setIsDataLoading(false))
       } else {
         fetchDashboardData()
       }
@@ -91,6 +95,27 @@ export default function LobbyPage() {
   if (!user) return null // Will redirect
 
   if (!user.clanId) {
+    if (pendingRequest) {
+      return (
+        <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+          <Header />
+          <main className="container flex-1 flex flex-col items-center justify-center text-center px-4 py-20 relative overflow-hidden">
+            <div className="space-y-4">
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter text-foreground">
+                가입 승인 <span className="text-primary">대기 중</span>
+              </h1>
+              <p className="text-muted-foreground text-lg uppercase tracking-widest">
+                {pendingRequest.clan?.name} 클랜의 승인을 기다리고 있습니다.
+              </p>
+              <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+                상태 확인 (새로고침)
+              </Button>
+            </div>
+          </main>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
         <Header />
@@ -199,9 +224,18 @@ export default function LobbyPage() {
                   <span className="text-muted-foreground text-sm uppercase font-bold">활동 포인트</span>
                   <span className="text-foreground font-black italic">0P</span>
                 </div>
-                <Button className="w-full skew-btn bg-muted hover:bg-muted/80 text-foreground font-bold uppercase italic text-xs h-10">
-                  클랜 상세 보기
-                </Button>
+                <div className="pt-2 space-y-2">
+                  <Button className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold uppercase italic text-xs h-10 rounded-md">
+                    클랜 상세 보기
+                  </Button>
+                  {user.role === 'ADMIN' && (
+                    <Link href="/clan/manage" className="block">
+                      <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold uppercase italic text-xs h-10 rounded-md">
+                        클랜 가입 승인
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
 
