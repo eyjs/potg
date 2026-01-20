@@ -8,6 +8,7 @@ import { RosterSection } from "@/modules/scrim/components/roster-section"
 import { MatchList } from "@/modules/scrim/components/match-list"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
+import { AuthGuard } from "@/common/components/auth-guard"
 
 // Type definition
 interface Match {
@@ -93,14 +94,8 @@ export default function ScrimDetailPage() {
   }, [scrimId])
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/login")
-      } else {
-        fetchScrimData()
-      }
-    }
-  }, [fetchScrimData, user, authLoading, router])
+    fetchScrimData()
+  }, [fetchScrimData])
 
   const handleUpdateSchedule = async (date: string, startTime: string, endTime: string) => {
     try {
@@ -158,31 +153,33 @@ export default function ScrimDetailPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Header />
+    <AuthGuard>
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
+        <Header />
 
-      <main className="container px-4 py-6 space-y-6">
-        <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
+        <main className="container px-4 py-6 space-y-6">
+          <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
 
-        <RosterSection
-          teamA={teamA}
-          teamB={teamB}
-          pool={pool}
-          isAdmin={isAdmin}
-          onMoveToTeam={handleMoveToTeam}
-          onMoveToPool={handleMoveToPool}
-          onImportFromAuction={handleImportFromAuction}
-          onShuffleTeams={handleShuffleTeams}
-        />
+          <RosterSection
+            teamA={teamA}
+            teamB={teamB}
+            pool={pool}
+            isAdmin={isAdmin}
+            onMoveToTeam={handleMoveToTeam}
+            onMoveToPool={handleMoveToPool}
+            onImportFromAuction={handleImportFromAuction}
+            onShuffleTeams={handleShuffleTeams}
+          />
 
-        <MatchList
-          matches={matches}
-          isAdmin={isAdmin}
-          maps={overwatchMaps}
-          onUpdateMatchCount={handleUpdateMatchCount}
-          onUpdateMatch={handleUpdateMatch}
-        />
-      </main>
-    </div>
+          <MatchList
+            matches={matches}
+            isAdmin={isAdmin}
+            maps={overwatchMaps}
+            onUpdateMatchCount={handleUpdateMatchCount}
+            onUpdateMatch={handleUpdateMatch}
+          />
+        </main>
+      </div>
+    </AuthGuard>
   )
 }

@@ -21,7 +21,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-[#0B0B0B]/95 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href={user ? "/" : "/login"} className="flex items-center gap-2">
           <div className="h-10 w-10 bg-primary skew-btn flex items-center justify-center">
             <span className="text-primary-foreground font-extrabold text-lg italic">P</span>
           </div>

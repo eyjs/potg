@@ -14,6 +14,7 @@ import { ArrowLeft } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { cn } from "@/lib/utils"
+import { AuthGuard } from "@/common/components/auth-guard"
 
 // 샘플 데이터 타입 유지 (UI 호환성 위해)
 export interface Player {
@@ -47,7 +48,7 @@ export default function DraftRoomPage() {
   const params = useParams()
   const auctionId = params.id as string
   const router = useRouter()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user } = useAuth()
 
   const [auctionData, setAuctionData] = useState<any>(null)
   const [participants, setParticipants] = useState<any[]>([])
@@ -81,17 +82,11 @@ export default function DraftRoomPage() {
   }, [auctionId])
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/login")
-      } else {
-        fetchRoomData()
-        // Polling every 3 seconds as fallback for WebSocket
-        const interval = setInterval(fetchRoomData, 3000)
-        return () => clearInterval(interval)
-      }
-    }
-  }, [fetchRoomData, user, authLoading, router])
+    fetchRoomData()
+    // Polling every 3 seconds as fallback for WebSocket
+    const interval = setInterval(fetchRoomData, 3000)
+    return () => clearInterval(interval)
+  }, [fetchRoomData])
 
   // Map backend to frontend models
   const teams: Team[] = useMemo(() => {
@@ -276,87 +271,89 @@ export default function DraftRoomPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
-      <Header />
+    <AuthGuard>
+      <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
+        <Header />
 
-      {/* Sub Header */}
-      <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
-        <div className="container px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push("/auction")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              목록으로
-            </Button>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="font-bold text-lg italic uppercase tracking-wide text-foreground">
-              {auctionData?.title} <span className="text-primary">드래프트</span>
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">내 역할:</span>
-            <Badge className={cn(
-              "skew-btn",
-              userRole === 'admin' ? "bg-destructive" : userRole === 'captain' ? "bg-primary" : "bg-muted"
-            )}>
-              {userRole.toUpperCase()}
-            </Badge>
+        {/* Sub Header */}
+        <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
+          <div className="container px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => router.push("/auction")}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                목록으로
+              </Button>
+              <div className="h-6 w-px bg-border" />
+              <h1 className="font-bold text-lg italic uppercase tracking-wide text-foreground">
+                {auctionData?.title} <span className="text-primary">드래프트</span>
+              </h1>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">내 역할:</span>
+              <Badge className={cn(
+                "skew-btn",
+                userRole === 'admin' ? "bg-destructive" : userRole === 'captain' ? "bg-primary" : "bg-muted"
+              )}>
+                {userRole.toUpperCase()}
+              </Badge>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex-1 container px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-          <div className="lg:col-span-3">
-            <PlayerPool
-              players={players}
-              isAdmin={userRole === "admin"}
-              teams={teams}
-              onSelectPlayer={handleSelectPlayer}
-              onForceAssign={() => {}} // TODO
-              onSetCaptain={() => {}} // TODO
-            />
-          </div>
-
-          <div className="lg:col-span-5">
-            <AuctionStage
-              currentPlayer={currentPlayer}
-              currentBid={currentBid}
-              auctionStatus={
-                auctionData?.status === 'ONGOING' ? 'bidding' : 
-                auctionData?.status === 'PENDING' ? 'waiting' : 'ended'
-              }
-              timer={timer}
-              teams={teams}
-              userRole={userRole}
-              myCaptainTeamId={myCaptainTeamId}
-              onBid={handleBid}
-            />
-
-            {userRole === "admin" && (
-              <AdminControls
-                auctionStatus={auctionData?.status === 'ONGOING' ? 'bidding' : 'waiting'}
-                currentPlayer={currentPlayer}
-                onStart={handleStartAuction}
-                onPause={handlePauseAuction}
-                onResume={handleResumeAuction}
-                onConfirm={handleConfirmBid}
-                onCancel={handleCancelBid}
+        <div className="flex-1 container px-4 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+            <div className="lg:col-span-3">
+              <PlayerPool
+                players={players}
+                isAdmin={userRole === "admin"}
+                teams={teams}
+                onSelectPlayer={handleSelectPlayer}
+                onForceAssign={() => {}} // TODO
+                onSetCaptain={() => {}} // TODO
               />
-            )}
-          </div>
+            </div>
 
-          <div className="lg:col-span-4 flex flex-col gap-4">
-            <TeamPanel
-              teams={teams}
-              isAdmin={userRole === "admin"}
-              onAddTeam={() => {}} // TODO
-              onRemoveMember={() => {}} // TODO
-            />
-            <ChatPanel messages={messages} onSendMessage={handleSendMessage} />
+            <div className="lg:col-span-5">
+              <AuctionStage
+                currentPlayer={currentPlayer}
+                currentBid={currentBid}
+                auctionStatus={
+                  auctionData?.status === 'ONGOING' ? 'bidding' : 
+                  auctionData?.status === 'PENDING' ? 'waiting' : 'ended'
+                }
+                timer={timer}
+                teams={teams}
+                userRole={userRole}
+                myCaptainTeamId={myCaptainTeamId}
+                onBid={handleBid}
+              />
+
+              {userRole === "admin" && (
+                <AdminControls
+                  auctionStatus={auctionData?.status === 'ONGOING' ? 'bidding' : 'waiting'}
+                  currentPlayer={currentPlayer}
+                  onStart={handleStartAuction}
+                  onPause={handlePauseAuction}
+                  onResume={handleResumeAuction}
+                  onConfirm={handleConfirmBid}
+                  onCancel={handleCancelBid}
+                />
+              )}
+            </div>
+
+            <div className="lg:col-span-4 flex flex-col gap-4">
+              <TeamPanel
+                teams={teams}
+                isAdmin={userRole === "admin"}
+                onAddTeam={() => {}} // TODO
+                onRemoveMember={() => {}} // TODO
+              />
+              <ChatPanel messages={messages} onSendMessage={handleSendMessage} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </AuthGuard>
   )
 }

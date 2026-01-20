@@ -7,23 +7,16 @@ import { CreateAuctionModal } from "@/modules/auction/components/create-auction-
 import { Plus } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+import { AuthGuard } from "@/common/components/auth-guard"
 
 export default function AuctionListPage() {
-  const router = useRouter()
-  const { user, isAdmin, isLoading: authLoading } = useAuth()
+  const { isAdmin } = useAuth()
   const [auctionRooms, setAuctionRooms] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push("/login")
-      } else {
-        fetchAuctions()
-      }
-    }
-  }, [user, authLoading, router])
+    fetchAuctions()
+  }, [])
 
   const fetchAuctions = async () => {
     try {
@@ -89,108 +82,110 @@ export default function AuctionListPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Header />
+    <AuthGuard>
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
+        <Header />
 
-      <main className="container px-4 py-6 space-y-6">
-        {/* Page Title */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold italic uppercase tracking-wider text-foreground">
-              경매 <span className="text-primary">목록</span>
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">진행 중인 경매방에 입장하거나 새로운 경매를 생성하세요</p>
+        <main className="container px-4 py-6 space-y-6">
+          {/* Page Title */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold italic uppercase tracking-wider text-foreground">
+                경매 <span className="text-primary">목록</span>
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">진행 중인 경매방에 입장하거나 새로운 경매를 생성하세요</p>
+            </div>
+            {isAdmin && <CreateAuctionModal onCreateAuction={handleCreateAuction} />}
           </div>
-          {isAdmin && <CreateAuctionModal onCreateAuction={handleCreateAuction} />}
-        </div>
 
-        {/* Live Auctions */}
-        {liveRooms.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="font-bold text-lg italic uppercase tracking-wide text-foreground border-l-4 border-destructive pl-3 flex items-center gap-2">
-              <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-              진행 중
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {liveRooms.map((room) => (
-                <AuctionRoomCard
-                  key={room.id}
-                  id={room.id}
-                  title={room.title}
-                  status="live"
-                  participants={room.participants?.length || 0}
-                  maxParticipants={20} // Mocked as backend doesn't have it
-                  teamCount={room.teamCount || 2} // Mocked or derived
-                  createdAt={new Date(room.createdAt).toLocaleDateString()}
-                  isAdmin={isAdmin}
-                  onDelete={() => handleDeleteAuction(room.id)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Live Auctions */}
+          {liveRooms.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="font-bold text-lg italic uppercase tracking-wide text-foreground border-l-4 border-destructive pl-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                진행 중
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {liveRooms.map((room) => (
+                  <AuctionRoomCard
+                    key={room.id}
+                    id={room.id}
+                    title={room.title}
+                    status="live"
+                    participants={room.participants?.length || 0}
+                    maxParticipants={20} // Mocked as backend doesn't have it
+                    teamCount={room.teamCount || 2} // Mocked or derived
+                    createdAt={new Date(room.createdAt).toLocaleDateString()}
+                    isAdmin={isAdmin}
+                    onDelete={() => handleDeleteAuction(room.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* Waiting Auctions */}
-        {waitingRooms.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="font-bold text-lg italic uppercase tracking-wide text-foreground border-l-4 border-accent pl-3">
-              대기 중
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {waitingRooms.map((room) => (
-                <AuctionRoomCard
-                  key={room.id}
-                  id={room.id}
-                  title={room.title}
-                  status="waiting"
-                  participants={room.participants?.length || 0}
-                  maxParticipants={20}
-                  teamCount={room.teamCount || 2}
-                  createdAt={new Date(room.createdAt).toLocaleDateString()}
-                  isAdmin={isAdmin}
-                  onDelete={() => handleDeleteAuction(room.id)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Waiting Auctions */}
+          {waitingRooms.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="font-bold text-lg italic uppercase tracking-wide text-foreground border-l-4 border-accent pl-3">
+                대기 중
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {waitingRooms.map((room) => (
+                  <AuctionRoomCard
+                    key={room.id}
+                    id={room.id}
+                    title={room.title}
+                    status="waiting"
+                    participants={room.participants?.length || 0}
+                    maxParticipants={20}
+                    teamCount={room.teamCount || 2}
+                    createdAt={new Date(room.createdAt).toLocaleDateString()}
+                    isAdmin={isAdmin}
+                    onDelete={() => handleDeleteAuction(room.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* Ended Auctions */}
-        {endedRooms.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="font-bold text-lg italic uppercase tracking-wide text-muted-foreground border-l-4 border-muted pl-3">
-              종료됨
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {endedRooms.map((room) => (
-                <AuctionRoomCard
-                  key={room.id}
-                  id={room.id}
-                  title={room.title}
-                  status="ended"
-                  participants={room.participants?.length || 0}
-                  maxParticipants={20}
-                  teamCount={room.teamCount || 2}
-                  createdAt={new Date(room.createdAt).toLocaleDateString()}
-                  isAdmin={isAdmin}
-                  onDelete={() => handleDeleteAuction(room.id)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Ended Auctions */}
+          {endedRooms.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="font-bold text-lg italic uppercase tracking-wide text-muted-foreground border-l-4 border-muted pl-3">
+                종료됨
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {endedRooms.map((room) => (
+                  <AuctionRoomCard
+                    key={room.id}
+                    id={room.id}
+                    title={room.title}
+                    status="ended"
+                    participants={room.participants?.length || 0}
+                    maxParticipants={20}
+                    teamCount={room.teamCount || 2}
+                    createdAt={new Date(room.createdAt).toLocaleDateString()}
+                    isAdmin={isAdmin}
+                    onDelete={() => handleDeleteAuction(room.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* Empty State */}
-        {auctionRooms.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Plus className="w-10 h-10 text-muted-foreground" />
+          {/* Empty State */}
+          {auctionRooms.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Plus className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">경매가 없습니다</h3>
+              <p className="text-muted-foreground">새로운 경매를 생성해보세요</p>
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-2">경매가 없습니다</h3>
-            <p className="text-muted-foreground">새로운 경매를 생성해보세요</p>
-          </div>
-        )}
-      </main>
-    </div>
+          )}
+        </main>
+      </div>
+    </AuthGuard>
   )
 }
