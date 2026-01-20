@@ -63,7 +63,7 @@ export default function VoteDetailPage() {
     } catch (error: any) {
       console.error(error)
       toast.error("투표를 불러오지 못했습니다.")
-      router.push("/vote")
+      router.push("/")
     } finally {
       setIsLoading(false)
     }
@@ -170,11 +170,11 @@ export default function VoteDetailPage() {
           {/* Back Button */}
           <Button
             variant="ghost"
-            onClick={() => router.push("/vote")}
+            onClick={() => router.push("/")}
             className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            투표 목록으로
+            로비로 이동
           </Button>
 
           {/* Vote Header */}
