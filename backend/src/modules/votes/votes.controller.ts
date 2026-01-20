@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -26,9 +28,10 @@ export class VotesController {
     return this.votesService.create(createVoteDto, req.user.userId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
-  findAll(@Query('clanId') clanId: string) {
-    return this.votesService.findAll(clanId);
+  findAll(@Query('clanId') clanId: string, @Request() req: AuthenticatedRequest) {
+    return this.votesService.findAll(clanId, req.user.userId);
   }
 
   @Get(':id')
@@ -48,5 +51,17 @@ export class VotesController {
       castVoteDto.optionId,
       req.user.userId,
     );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/close')
+  close(@Param('id') id: string) {
+    return this.votesService.close(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.votesService.remove(id);
   }
 }

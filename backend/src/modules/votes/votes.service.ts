@@ -34,10 +34,28 @@ export class VotesService {
     return this.votesRepository.save(vote);
   }
 
-  async findAll(clanId: string) {
-    return this.votesRepository.find({
+  async findAll(clanId: string, userId?: string) {
+    const votes = await this.votesRepository.find({
       where: { clanId },
       relations: ['options'],
+      order: { createdAt: 'DESC' }
+    });
+
+    if (!userId) return votes;
+
+    // Fetch user's voting records for these votes
+    const records = await this.voteRecordsRepository.find({
+      where: { userId },
+      relations: ['option']
+    });
+
+    // Map user selection to each vote
+    return votes.map(vote => {
+      const userRecord = records.find(r => r.voteId === vote.id);
+      return {
+        ...vote,
+        userSelection: userRecord ? userRecord.option.label : null
+      };
     });
   }
 
@@ -49,6 +67,7 @@ export class VotesService {
   }
 
   async castVote(voteId: string, optionId: string, userId: string) {
+    // ... existing code ...
     const vote = await this.findOne(voteId);
     if (!vote) throw new BadRequestException('Vote not found');
     if (vote.status !== VoteStatus.OPEN)
@@ -100,5 +119,23 @@ export class VotesService {
     await this.voteOptionsRepository.increment({ id: optionId }, 'count', 1);
 
     return { success: true };
+  }
+
+  async close(id: string) {
+    const vote = await this.votesRepository.findOne({ where: { id } });
+    if (!vote) throw new BadRequestException('Vote not found');
+    vote.status = VoteStatus.CLOSED;
+    return this.votesRepository.save(vote);
+  }
+
+  async remove(id: string) {
+    const vote = await this.votesRepository.findOne({ where: { id } });
+    if (!vote) throw new BadRequestException('Vote not found');
+    return this.votesRepository.remove(vote);
+  }
+
+  async update(id: string, updateData: Partial<Vote>) {
+    await this.votesRepository.update(id, updateData);
+    return this.findOne(id);
   }
 }

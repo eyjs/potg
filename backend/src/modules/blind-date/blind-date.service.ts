@@ -30,13 +30,15 @@ export class BlindDateService {
     const listing = this.listingsRepository.create({
       ...dto,
       registerId: userId,
+      status: ListingStatus.OPEN, // Set to OPEN by default
     });
     return this.listingsRepository.save(listing);
   }
 
   async findAll(clanId: string) {
     return this.listingsRepository.find({
-      where: { clanId, status: ListingStatus.OPEN },
+      where: { clanId }, // Remove status restriction to allow viewing matched/private listings
+      order: { createdAt: 'DESC' }
     });
   }
 
