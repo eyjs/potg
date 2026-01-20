@@ -59,9 +59,11 @@ export function Header() {
           )}
 
           {user ? (
-            <Button variant="ghost" size="icon" className="text-foreground hover:text-primary">
-              <User className="w-5 h-5" />
-            </Button>
+            <Link href="/my-info">
+              <Button variant="ghost" size="icon" className="text-foreground hover:text-primary">
+                <User className="w-5 h-5" />
+              </Button>
+            </Link>
           ) : (
             <Link href="/login">
               <Button variant="ghost" className="skew-btn text-foreground hover:text-primary hover:bg-primary/20 gap-2">

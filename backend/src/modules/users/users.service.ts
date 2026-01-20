@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import * as bcrypt from 'bcrypt';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -70,6 +72,42 @@ export class UsersService {
   async update(id: string, updateData: Partial<User>): Promise<User | null> {
     await this.usersRepository.update(id, updateData);
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async updateProfile(id: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      select: ['id', 'password'],
+    });
+
+    if (!user) throw new BadRequestException('User not found');
+
+    const updates: Partial<User> = {};
+
+    if (dto.avatarUrl) {
+      updates.avatarUrl = dto.avatarUrl;
+    }
+
+    if (dto.password) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current password is required to set new password');
+      }
+      if (!user.password) {
+        // Handle case where user has no password (e.g. social login) if applicable, 
+        // or just allow setting if no password exists. But for now assume password exists.
+        throw new BadRequestException('User has no password set');
+      }
+      const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Invalid current password');
+      }
+      updates.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    await this.usersRepository.update(id, updates);
+    const updatedUser = await this.usersRepository.findOne({ where: { id } });
+    if (!updatedUser) throw new BadRequestException('User not found after update');
+    return updatedUser;
   }
 
   async remove(id: string): Promise<void> {

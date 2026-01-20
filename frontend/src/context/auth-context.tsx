@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
+  username: string;
   battleTag: string;
   role: 'USER' | 'ADMIN';
   mainRole: 'TANK' | 'DPS' | 'SUPPORT' | 'FLEX';
+  rating: number;
+  avatarUrl?: string;
   clanId?: string;
 }
 

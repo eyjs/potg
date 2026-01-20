@@ -65,4 +65,19 @@ export class ClansService {
     });
     return this.clanMembersRepository.save(member);
   }
+
+  async leaveClan(userId: string) {
+    const member = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
+    if (!member) {
+      throw new BadRequestException('User is not in any clan');
+    }
+    // Prevent Master from leaving without transferring ownership or deleting clan
+    if (member.role === ClanRole.MASTER) {
+      throw new BadRequestException('Clan Master cannot leave. Delete clan or transfer ownership.');
+    }
+    
+    await this.clanMembersRepository.remove(member);
+  }
 }

@@ -40,4 +40,12 @@ export class ClansController {
   join(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.clansService.addMember(id, req.user.userId);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('leave') // Using POST for action, or DELETE if preferred. Let's stick to POST for 'leave action' or DELETE on resource.
+  // Actually DELETE /clans/membership makes sense, but context is user's membership.
+  // Let's use DELETE /clans/leave for simplicity
+  leave(@Request() req: AuthenticatedRequest) {
+    return this.clansService.leaveClan(req.user.userId);
+  }
 }
