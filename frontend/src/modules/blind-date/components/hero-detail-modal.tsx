@@ -1,6 +1,6 @@
 "use client"
 
-import { MapPin, Briefcase, Brain, Shield, Crosshair, Heart, Cigarette, Gamepad2, Trash2 } from "lucide-react"
+import { MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/common/components/ui/dialog"
@@ -16,24 +16,16 @@ interface HeroDetailModalProps {
   onDelete: (heroId: string) => void
 }
 
-const roleConfig = {
-  tank: { icon: Shield, color: "text-yellow-500", label: "탱커" },
-  dps: { icon: Crosshair, color: "text-red-500", label: "딜러" },
-  support: { icon: Heart, color: "text-green-500", label: "힐러" },
-}
-
 const statusConfig = {
-  available: { label: "절찬 판매중", color: "bg-green-500 text-white" },
-  talking: { label: "썸 진행중", color: "bg-yellow-500 text-black" },
-  taken: { label: "품절 (연애중)", color: "bg-muted text-muted-foreground" },
+  available: { label: "만남 가능", color: "bg-green-500 text-white" },
+  talking: { label: "소개팅 중", color: "bg-yellow-500 text-black" },
+  taken: { label: "매칭 완료", color: "bg-muted text-muted-foreground" },
 }
 
 export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDelete }: HeroDetailModalProps) {
   if (!hero) return null
 
-  const roleConf = roleConfig[hero.gameRole]
   const statusConf = statusConfig[hero.status]
-  const Icon = roleConf.icon
 
   return (
     <Dialog open={!!hero} onOpenChange={() => onClose()}>
@@ -45,7 +37,7 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
         {/* Hero Header */}
         <div className="flex items-start gap-4">
           {/* Avatar */}
-          <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-primary/50 shrink-0">
+          <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/50 shrink-0">
             <span className="text-4xl font-bold text-foreground">{hero.name.charAt(0)}</span>
           </div>
 
@@ -57,14 +49,12 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>{hero.age}세</span>
-              <span>·</span>
-              <span>{hero.mbti}</span>
-            </div>
-            <div className="flex items-center gap-1 mt-2">
-              <Icon className={cn("w-4 h-4", roleConf.color)} />
-              <span className="text-sm text-foreground">{roleConf.label}</span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-sm text-primary font-semibold">{hero.tier}</span>
+              {hero.mbti && (
+                <>
+                  <span>·</span>
+                  <span>{hero.mbti}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -75,21 +65,39 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
             <MapPin className="w-4 h-4 text-muted-foreground" />
             <div>
               <p className="text-xs text-muted-foreground">거주지</p>
-              <p className="text-sm font-semibold text-foreground">{hero.location}</p>
+              <p className="text-sm font-semibold text-foreground">{hero.location || "-"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
             <Briefcase className="w-4 h-4 text-muted-foreground" />
             <div>
               <p className="text-xs text-muted-foreground">직업</p>
-              <p className="text-sm font-semibold text-foreground">{hero.job}</p>
+              <p className="text-sm font-semibold text-foreground">{hero.job || "-"}</p>
             </div>
           </div>
+          {hero.education && (
+            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+              <GraduationCap className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">학력</p>
+                <p className="text-sm font-semibold text-foreground">{hero.education}</p>
+              </div>
+            </div>
+          )}
+          {hero.height && (
+            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+              <Ruler className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">키</p>
+                <p className="text-sm font-semibold text-foreground">{hero.height}cm</p>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
             <Brain className="w-4 h-4 text-muted-foreground" />
             <div>
               <p className="text-xs text-muted-foreground">MBTI</p>
-              <p className="text-sm font-semibold text-foreground">{hero.mbti}</p>
+              <p className="text-sm font-semibold text-foreground">{hero.mbti || "-"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
@@ -101,25 +109,12 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
           </div>
         </div>
 
-        {/* Most Heroes */}
-        <div className="mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Gamepad2 className="w-4 h-4 text-accent" />
-            <span className="text-sm font-semibold text-foreground">모스트 영웅</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {hero.mostHeroes.map((h) => (
-              <Badge key={h} variant="secondary" className="bg-accent/20 text-accent">
-                {h}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
         {/* Bio */}
-        <div className="mt-4 p-4 bg-muted/20 rounded border border-border/50">
-          <p className="text-sm text-muted-foreground italic">&quot;{hero.bio}&quot;</p>
-        </div>
+        {hero.bio && (
+          <div className="mt-4 p-4 bg-muted/20 rounded border border-border/50">
+            <p className="text-sm text-muted-foreground italic">&quot;{hero.bio}&quot;</p>
+          </div>
+        )}
 
         {/* Admin Controls */}
         {isAdmin && (
@@ -131,9 +126,9 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="available">판매중</SelectItem>
-                  <SelectItem value="talking">썸</SelectItem>
-                  <SelectItem value="taken">품절</SelectItem>
+                  <SelectItem value="available">만남 가능</SelectItem>
+                  <SelectItem value="talking">소개팅 중</SelectItem>
+                  <SelectItem value="taken">매칭 완료</SelectItem>
                 </SelectContent>
               </Select>
             </div>

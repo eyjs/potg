@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsEnum, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsInt, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
 import { Gender } from '../entities/blind-date-listing.entity';
 
 export class CreateListingDto {
@@ -25,20 +25,70 @@ export class CreateListingDto {
 
   @IsString()
   @IsOptional()
+  idealType?: string;
+
+  @IsString()
+  @IsOptional()
+  education?: string;
+
+  @IsInt()
+  @IsOptional()
+  height?: number;
+
+  @IsString()
+  @IsOptional()
   mbti?: string;
 
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  gameRole?: string;
-
-  @IsString()
-  @IsOptional()
-  tier?: string;
+  smoking?: boolean;
 
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  mostHeroes?: string[];
+  photos?: string[];
+}
+
+export class UpdateListingDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsInt()
+  @IsOptional()
+  age?: number;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  job?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  idealType?: string;
+
+  @IsString()
+  @IsOptional()
+  education?: string;
+
+  @IsInt()
+  @IsOptional()
+  height?: number;
+
+  @IsString()
+  @IsOptional()
+  mbti?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  smoking?: boolean;
 
   @IsArray()
   @IsString({ each: true })

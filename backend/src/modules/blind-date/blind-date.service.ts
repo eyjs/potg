@@ -12,7 +12,7 @@ import {
 import { BlindDateMatch } from './entities/blind-date-match.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
-import { CreateListingDto } from './dto/create-listing.dto';
+import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
 
 @Injectable()
 export class BlindDateService {
@@ -200,5 +200,46 @@ export class BlindDateService {
 
       return request;
     });
+  }
+
+  async updateListing(
+    id: string,
+    dto: UpdateListingDto,
+    userId: string,
+  ): Promise<BlindDateListing> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id },
+    });
+
+    if (!listing) throw new BadRequestException('Listing not found');
+
+    // Check ownership
+    if (listing.registerId !== userId)
+      throw new BadRequestException('Not authorized');
+
+    // Cannot update if matched
+    if (listing.status === ListingStatus.MATCHED)
+      throw new BadRequestException('Cannot update matched listing');
+
+    Object.assign(listing, dto);
+    return this.listingsRepository.save(listing);
+  }
+
+  async deleteListing(id: string, userId: string): Promise<void> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id },
+    });
+
+    if (!listing) throw new BadRequestException('Listing not found');
+
+    // Check ownership
+    if (listing.registerId !== userId)
+      throw new BadRequestException('Not authorized');
+
+    // Cannot delete if matched
+    if (listing.status === ListingStatus.MATCHED)
+      throw new BadRequestException('Cannot delete matched listing');
+
+    await this.listingsRepository.remove(listing);
   }
 }

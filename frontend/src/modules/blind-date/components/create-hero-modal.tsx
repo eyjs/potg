@@ -22,7 +22,7 @@ import { Switch } from "@/common/components/ui/switch"
 import type { Hero } from "@/app/gallery/page"
 
 interface CreateHeroModalProps {
-  onCreateHero: (hero: Omit<Hero, "id">) => void
+  onCreateHero: (hero: Omit<Hero, "id" | "registerId">) => void
 }
 
 export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
@@ -32,11 +32,10 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
     age: 25,
     location: "",
     job: "",
+    education: "",
+    height: undefined as number | undefined,
     mbti: "",
     status: "available" as Hero["status"],
-    gameRole: "dps" as Hero["gameRole"],
-    tier: "",
-    mostHeroes: "",
     bio: "",
     smoking: false,
   })
@@ -47,10 +46,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
 
     onCreateHero({
       ...formData,
-      mostHeroes: formData.mostHeroes
-        .split(",")
-        .map((h) => h.trim())
-        .filter(Boolean),
+      height: formData.height || undefined,
     })
 
     setFormData({
@@ -58,11 +54,10 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
       age: 25,
       location: "",
       job: "",
+      education: "",
+      height: undefined,
       mbti: "",
       status: "available",
-      gameRole: "dps",
-      tier: "",
-      mostHeroes: "",
       bio: "",
       smoking: false,
     })
@@ -72,7 +67,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="skew-btn bg-primary hover:bg-primary/90 text-primary-foreground font-semibold uppercase tracking-wide">
+        <Button className="bg-primary hover:bg-primary/90 text-black font-bold uppercase tracking-wide">
           <Plus className="w-4 h-4 mr-2" />
           <span>매물 등록</span>
         </Button>
@@ -88,7 +83,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-foreground">이름</Label>
+              <Label className="text-foreground">이름 *</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
@@ -97,7 +92,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">나이</Label>
+              <Label className="text-foreground">나이 *</Label>
               <Input
                 type="number"
                 min={18}
@@ -124,6 +119,31 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               <Input
                 value={formData.job}
                 onChange={(e) => setFormData((prev) => ({ ...prev, job: e.target.value }))}
+                placeholder="예: 회사원, 프리랜서"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-foreground">학력</Label>
+              <Input
+                value={formData.education}
+                onChange={(e) => setFormData((prev) => ({ ...prev, education: e.target.value }))}
+                placeholder="예: 대학교 졸업"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">키 (cm)</Label>
+              <Input
+                type="number"
+                min={140}
+                max={220}
+                value={formData.height || ""}
+                onChange={(e) => setFormData((prev) => ({ ...prev, height: e.target.value ? Number(e.target.value) : undefined }))}
+                placeholder="예: 175"
                 className="bg-input border-border text-foreground"
               />
             </div>
@@ -141,34 +161,6 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">티어</Label>
-              <Input
-                value={formData.tier}
-                onChange={(e) => setFormData((prev) => ({ ...prev, tier: e.target.value }))}
-                placeholder="예: 다이아몬드"
-                className="bg-input border-border text-foreground"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-foreground">포지션</Label>
-              <Select
-                value={formData.gameRole}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, gameRole: value as Hero["gameRole"] }))}
-              >
-                <SelectTrigger className="bg-input border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="tank">탱커</SelectItem>
-                  <SelectItem value="dps">딜러</SelectItem>
-                  <SelectItem value="support">힐러</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label className="text-foreground">상태</Label>
               <Select
                 value={formData.status}
@@ -178,22 +170,12 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="available">판매중</SelectItem>
-                  <SelectItem value="talking">썸</SelectItem>
-                  <SelectItem value="taken">품절</SelectItem>
+                  <SelectItem value="available">만남 가능</SelectItem>
+                  <SelectItem value="talking">소개팅 중</SelectItem>
+                  <SelectItem value="taken">매칭 완료</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-foreground">모스트 영웅 (콤마로 구분)</Label>
-            <Input
-              value={formData.mostHeroes}
-              onChange={(e) => setFormData((prev) => ({ ...prev, mostHeroes: e.target.value }))}
-              placeholder="예: 겐지, 트레이서, 솜브라"
-              className="bg-input border-border text-foreground"
-            />
           </div>
 
           <div className="space-y-2">
@@ -221,9 +203,9 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
             </Button>
             <Button
               type="submit"
-              className="skew-btn bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              className="bg-primary hover:bg-primary/90 text-black font-bold"
             >
-              <span>등록</span>
+              등록
             </Button>
           </DialogFooter>
         </form>
