@@ -38,6 +38,7 @@ export class UsersService {
       select: [
         'id',
         'username',
+        'nickname',
         'battleTag',
         'password',
         'role',
@@ -56,6 +57,7 @@ export class UsersService {
       where: { battleTag },
       select: [
         'id',
+        'nickname',
         'battleTag',
         'password',
         'role',

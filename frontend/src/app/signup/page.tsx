@@ -74,13 +74,26 @@ export default function SignupPage() {
     }
     setIsLoading(true)
     
+    // Map tier to initial rating
+    const rankToRating: Record<string, number> = {
+      bronze: 1000,
+      silver: 1500,
+      gold: 2000,
+      platinum: 2500,
+      diamond: 3000,
+      master: 3500,
+      grandmaster: 4000,
+      champion: 4500,
+    }
+
     try {
       const payload = {
         username: formData.username,
         battleTag: formData.battleTag,
         password: formData.password,
+        nickname: formData.nickname,
         mainRole: formData.mainRole === 'damage' ? 'DPS' : formData.mainRole.toUpperCase(),
-        // Backend default rating is 1000
+        rating: rankToRating[formData.rank] || 1000,
       }
       
       await api.post('/auth/register', payload)

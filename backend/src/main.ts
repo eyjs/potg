@@ -5,14 +5,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   app.enableCors({
-    origin: [
-      'https://potg-psi.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://potg.joonbi.co.kr'
-    ],
+    origin: true, // Allow all origins for now to fix CORS issues, or you can keep the specific array
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   await app.listen(process.env.PORT ?? 3000);

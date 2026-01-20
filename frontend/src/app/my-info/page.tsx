@@ -7,6 +7,7 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/common/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
+import { Badge } from "@/common/components/ui/badge"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
@@ -23,6 +24,7 @@ export default function MyInfoPage() {
     newPassword: "",
     confirmNewPassword: "",
   })
+  const [clanDetails, setClanDetails] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -32,8 +34,31 @@ export default function MyInfoPage() {
         battleTag: user.battleTag || "",
         avatarUrl: user.avatarUrl || ""
       }))
+      if (user.clanId) {
+        fetchClanDetails(user.clanId)
+      }
     }
   }, [user])
+
+  const fetchClanDetails = async (clanId: string) => {
+    try {
+      const response = await api.get(`/clans/${clanId}`)
+      setClanDetails(response.data)
+    } catch (error) {
+      console.error("Failed to fetch clan details:", error)
+    }
+  }
+
+  const getTier = (rating: number = 0) => {
+    if (rating >= 4500) return "Champion"
+    if (rating >= 4000) return "Grandmaster"
+    if (rating >= 3500) return "Master"
+    if (rating >= 3000) return "Diamond"
+    if (rating >= 2500) return "Platinum"
+    if (rating >= 2000) return "Gold"
+    if (rating >= 1500) return "Silver"
+    return "Bronze"
+  }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -128,8 +153,8 @@ export default function MyInfoPage() {
                   
                   <div className="w-full grid grid-cols-2 gap-2 mt-6">
                     <div className="bg-muted/30 p-3 rounded-md text-center border border-border/50">
-                      <p className="text-[10px] text-muted-foreground uppercase font-black">Rating</p>
-                      <p className="text-lg font-black italic text-foreground">{user?.rating}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-black">Tier</p>
+                      <p className="text-lg font-black italic text-foreground">{getTier(user?.rating)}</p>
                     </div>
                     <div className="bg-muted/30 p-3 rounded-md text-center border border-border/50">
                       <p className="text-[10px] text-muted-foreground uppercase font-black">Position</p>
@@ -147,11 +172,32 @@ export default function MyInfoPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {user?.clanId ? (
+                  {user?.clanId && clanDetails ? (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">상태</span>
-                        <span className="text-sm font-bold text-green-500">가입됨</span>
+                      <div className="p-3 bg-muted/20 rounded-md border border-border/50">
+                        <p className="text-lg font-black italic text-foreground mb-1">{clanDetails.name}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
+                          멤버 {clanDetails.members?.length || 0}명 · 마스터 {clanDetails.owner?.nickname || clanDetails.owner?.username || "미지정"}
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">운영진</p>
+                        <div className="flex flex-wrap gap-1">
+                          {clanDetails.members?.filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER').slice(0, 3).map((m: any) => (
+                            <Badge key={m.id} variant="outline" className="text-[10px] border-primary/30 text-primary">
+                              {m.user?.nickname || m.user?.username}
+                            </Badge>
+                          ))}
+                          {clanDetails.members?.filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER').length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">...</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-muted-foreground uppercase font-bold">내 권한</span>
+                        <span className="text-xs font-bold text-primary italic uppercase">{user?.role}</span>
                       </div>
                       <Button 
                         variant="destructive" 
