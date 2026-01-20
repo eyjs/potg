@@ -14,7 +14,8 @@ import {
 } from "@/common/components/ui/dropdown-menu"
 
 const navItems = [
-  { href: "/", label: "로비" },
+  { href: "/", label: "대시보드" },
+  { href: "/vote", label: "투표" },
   { href: "/auction", label: "경매장" },
   { href: "/betting", label: "베팅" },
   { href: "/utility", label: "유틸리티" },

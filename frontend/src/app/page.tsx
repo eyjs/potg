@@ -3,22 +3,31 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { VoteCard } from "@/modules/vote/components/vote-card"
 import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
 import { AuctionBanner } from "@/modules/auction/components/auction-banner"
 import { CreateVoteModal } from "@/modules/vote/components/create-vote-modal"
 import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
+import { QuickActionGrid } from "@/components/dashboard/quick-action-grid"
+import { VotePreview } from "@/components/dashboard/vote-preview"
+import { PriorityAlerts } from "@/components/dashboard/priority-alerts"
+import { MyStatsCard } from "@/components/dashboard/my-stats-card"
+import { CountdownCard } from "@/components/dashboard/countdown-card"
+import { ClanOverviewBanner } from "@/components/dashboard/clan-overview-banner"
+import { ActivitySummary } from "@/components/dashboard/activity-summary"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import Link from "next/link"
 import { Button } from "@/common/components/ui/button"
 import { toast } from "sonner"
 
-export default function LobbyPage() {
+export default function DashboardPage() {
   const router = useRouter()
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, isAdmin } = useAuth()
   const [votes, setVotes] = useState([])
   const [liveAuctions, setLiveAuctions] = useState([])
+  const [bettingQuestions, setBettingQuestions] = useState([])
+  const [myPoints, setMyPoints] = useState(0)
+  const [clanDetails, setClanDetails] = useState<any>(null)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [pendingRequest, setPendingRequest] = useState<any>(null)
 
@@ -40,12 +49,19 @@ export default function LobbyPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [votesRes, auctionsRes] = await Promise.all([
+      const [votesRes, auctionsRes, bettingRes, walletRes, clanRes] = await Promise.all([
         api.get(`/votes?clanId=${user?.clanId}`),
-        api.get(`/auctions?clanId=${user?.clanId}`)
+        api.get(`/auctions?clanId=${user?.clanId}`),
+        api.get('/betting/questions').catch(() => ({ data: [] })),
+        api.get('/wallet/balance').catch(() => ({ data: { balance: 0 } })),
+        api.get(`/clans/${user?.clanId}`).catch(() => ({ data: null }))
       ])
+
       setVotes(votesRes.data)
       setLiveAuctions(auctionsRes.data.filter((a: any) => a.status === 'ONGOING' || a.status === 'PENDING'))
+      setBettingQuestions(bettingRes.data.filter((b: any) => b.status === 'OPEN'))
+      setMyPoints(walletRes.data.balance || 0)
+      setClanDetails(clanRes.data)
     } catch (error) {
       console.error(error)
     } finally {
@@ -99,7 +115,6 @@ export default function LobbyPage() {
   }
 
   const handleCastVote = async (voteId: string, type: "attend" | "absent" | "late") => {
-    // ... same as before
     const vote = votes.find((v: any) => v.id === voteId) as any
     if (!vote) return
 
@@ -142,14 +157,14 @@ export default function LobbyPage() {
     try {
       const response = await api.patch(`/votes/${id}/close`)
       toast.success("투표가 마감되었습니다.")
-      
+
       // If a scrim was generated, notify and redirect
       if (response.data.generatedScrimId) {
         if (confirm("10명 이상이 참석하여 내전이 생성되었습니다! 내전 관리 페이지로 이동하시겠습니까?")) {
           router.push(`/scrim/${response.data.generatedScrimId}`)
         }
       }
-      
+
       fetchDashboardData()
     } catch (error) {
       console.error(error)
@@ -158,10 +173,62 @@ export default function LobbyPage() {
   }
 
   const handleEditVote = (id: string) => {
-    // Redirect to a dedicated edit page or open a modal
-    // For now, redirect to detail page where edit can be implemented or just show a message
     router.push(`/vote/${id}`)
   }
+
+  const getTier = (rating: number = 0) => {
+    if (rating >= 4500) return "Champion"
+    if (rating >= 4000) return "Grandmaster"
+    if (rating >= 3500) return "Master"
+    if (rating >= 3000) return "Diamond"
+    if (rating >= 2500) return "Platinum"
+    if (rating >= 2000) return "Gold"
+    if (rating >= 1500) return "Silver"
+    return "Bronze"
+  }
+
+  // Calculate priority alerts
+  const priorityAlerts: Array<{
+    type: "vote" | "auction" | "betting"
+    title: string
+    description: string
+    href: string
+    urgency: "high" | "medium" | "low"
+  }> = []
+
+  // Urgent votes (closing in 24 hours)
+  const urgentVotes = votes.filter((v: any) => {
+    if (v.status !== 'OPEN') return false
+    const timeLeft = new Date(v.deadline).getTime() - new Date().getTime()
+    return timeLeft > 0 && timeLeft < 24 * 60 * 60 * 1000
+  })
+
+  urgentVotes.forEach((vote: any) => {
+    const hours = Math.floor((new Date(vote.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60))
+    priorityAlerts.push({
+      type: "vote" as const,
+      title: vote.title,
+      description: `${hours}시간 후 마감`,
+      href: `/vote/${vote.id}`,
+      urgency: hours < 6 ? "high" as const : "medium" as const
+    })
+  })
+
+  // Live auctions
+  if (liveAuctions.length > 0) {
+    priorityAlerts.push({
+      type: "auction" as const,
+      title: "진행 중인 경매",
+      description: `${liveAuctions.length}개의 경매가 진행중입니다`,
+      href: "/auction",
+      urgency: "medium" as const
+    })
+  }
+
+  // Find next event for countdown
+  const nextEvent: any = votes
+    .filter((v: any) => v.status === 'OPEN' && new Date(v.deadline) > new Date())
+    .sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())[0]
 
   if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">접속 확인 중...</div>
 
@@ -193,9 +260,8 @@ export default function LobbyPage() {
       <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
         <Header />
         <main className="container flex-1 flex flex-col items-center justify-center text-center px-4 py-20 relative overflow-hidden">
-          {/* Background decoration */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10" />
-          
+
           <div className="space-y-2 mb-8">
             <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-foreground">
               대기 <span className="text-primary">상태</span>
@@ -229,104 +295,91 @@ export default function LobbyPage() {
   return (
     <div className="min-h-screen bg-[#0B0B0B] flex flex-col pb-20 md:pb-0">
       <Header />
-      
-      <main className="container px-4 py-6 space-y-8 flex-1">
-        {/* Top Section: Auction Banner */}
+
+      <main className="container px-4 py-6 space-y-6 md:space-y-8 flex-1">
+        {/* Clan Overview Banner */}
+        <ClanOverviewBanner
+          clanName={clanDetails?.name || "클랜"}
+          voteCount={votes.filter((v: any) => v.status === 'OPEN').length}
+          auctionCount={liveAuctions.length}
+          bettingCount={bettingQuestions.length}
+        />
+
+        {/* Auction Banner */}
         <section>
-          <AuctionBanner 
-            hasLiveAuction={liveAuctions.length > 0} 
-            roomCount={liveAuctions.length} 
+          <AuctionBanner
+            hasLiveAuction={liveAuctions.length > 0}
+            roomCount={liveAuctions.length}
           />
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Votes (Main Content) */}
-          <div className="lg:col-span-2 space-y-6">
+        {/* Quick Action Grid */}
+        <QuickActionGrid
+          voteCount={votes.filter((v: any) => v.status === 'OPEN').length}
+          auctionCount={liveAuctions.length}
+          bettingCount={bettingQuestions.length}
+          scrimCount={0}
+        />
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+          {/* Left Column: Main Content */}
+          <div className="lg:col-span-2 space-y-6 md:space-y-8">
+            {/* Priority Alerts */}
+            {priorityAlerts.length > 0 && (
+              <PriorityAlerts alerts={priorityAlerts} />
+            )}
+
+            {/* Vote Preview */}
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">
-                진행 중인 <span className="text-primary">투표</span>
-              </h2>
               {isAdmin && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 ml-auto">
                   <CreateScrimModal onCreateScrim={handleCreateScrim} />
                   <CreateVoteModal onCreateVote={handleCreateVote} />
                 </div>
               )}
             </div>
+            <VotePreview
+              votes={votes}
+              isAdmin={isAdmin}
+              onVote={handleCastVote}
+              onDelete={handleDeleteVote}
+              onClose={handleCloseVote}
+              onEdit={handleEditVote}
+            />
 
-            {votes.length === 0 ? (
-              <div className="p-12 border-2 border-dashed border-border/50 rounded-lg flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">🗳️</span>
-                </div>
-                <div>
-                  <p className="text-foreground font-bold uppercase italic">등록된 투표가 없습니다</p>
-                  <p className="text-muted-foreground text-sm">새로운 투표를 생성하여 의견을 모아보세요.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {votes.map((vote: any) => {
-                  const selectionMap: Record<string, "attend" | "absent" | "late"> = {
-                    "참석": "attend",
-                    "불참": "absent",
-                    "지각": "late"
-                  }
-                  
-                  return (
-                    <VoteCard
-                      key={vote.id}
-                      id={vote.id}
-                      title={vote.title}
-                      deadline={new Date(vote.deadline).toLocaleDateString()}
-                      currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
-                      maxVotes={vote.maxParticipants || 20}
-                      status={vote.status === 'OPEN' ? 'open' : 'closed'}
-                      isAdmin={isAdmin}
-                      userVote={vote.userSelection ? selectionMap[vote.userSelection] : null}
-                      onVote={(type) => handleCastVote(vote.id, type)}
-                      onDelete={() => handleDeleteVote(vote.id)}
-                      onClose={() => handleCloseVote(vote.id)}
-                      onEdit={() => handleEditVote(vote.id)}
-                    />
-                  )
-                })}
-              </div>
-            )}
+            {/* Activity Summary - Only on larger screens */}
+            <div className="hidden md:block">
+              <ActivitySummary
+                scrimCount={0}
+                bettingCount={bettingQuestions.length}
+                totalParticipants={0}
+              />
+            </div>
           </div>
 
-          {/* Right Column: Sidebar (Widgets) */}
+          {/* Right Column: Sidebar Widgets */}
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-black italic uppercase tracking-tighter text-foreground mb-4">
-                클랜 <span className="text-primary">정보</span>
-              </h2>
-              <div className="bg-card border border-border p-4 rounded-lg space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm uppercase font-bold">내 등급</span>
-                  <span className="text-primary font-black italic">{user.role}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm uppercase font-bold">활동 포인트</span>
-                  <span className="text-foreground font-black italic">0P</span>
-                </div>
-                <div className="pt-2 space-y-2">
-                  <Button className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold uppercase italic text-xs h-10 rounded-md">
-                    클랜 상세 보기
-                  </Button>
-                  {isAdmin && (
-                    <Link href="/clan/manage" className="block">
-                      <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold uppercase italic text-xs h-10 rounded-md">
-                        클랜 가입 승인
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* My Stats Card */}
+            <MyStatsCard
+              userRole={user.role}
+              userTier={getTier(user.rating)}
+              points={myPoints}
+              isAdmin={isAdmin}
+            />
 
+            {/* Countdown Card */}
+            {nextEvent && (
+              <CountdownCard
+                nextEventDate={nextEvent.deadline}
+                nextEventTitle={nextEvent.title}
+              />
+            )}
+
+            {/* Penalty Tracker */}
             <PenaltyTracker users={[]} />
 
+            {/* Shop Promotion */}
             <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span className="text-4xl">🎁</span>
