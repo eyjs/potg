@@ -144,11 +144,7 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (confirm("정말 삭제하시겠습니까?")) {
-                  onDelete(hero.id)
-                }
-              }}
+              onClick={() => onDelete(hero.id)}
             >
               <Trash2 className="w-4 h-4 mr-1" />
               삭제
