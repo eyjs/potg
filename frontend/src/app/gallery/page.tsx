@@ -23,6 +23,7 @@ export interface Hero {
   mbti: string
   status: "available" | "talking" | "taken"
   bio: string
+  idealType?: string
   smoking: boolean
   education?: string
   height?: number
@@ -62,6 +63,7 @@ export default function GalleryPage() {
         mbti: h.mbti || "Unknown",
         status: h.status === 'OPEN' ? 'available' : h.status === 'MATCHED' ? 'talking' : 'taken',
         bio: h.description,
+        idealType: h.idealType,
         smoking: h.smoking || false,
         education: h.education,
         height: h.height,
@@ -97,6 +99,7 @@ export default function GalleryPage() {
         location: newHero.location,
         job: newHero.job,
         description: newHero.bio,
+        idealType: newHero.idealType,
         mbti: newHero.mbti,
         education: newHero.education,
         height: newHero.height,
@@ -109,12 +112,26 @@ export default function GalleryPage() {
   }
 
   const handleUpdateStatus = async (heroId: string, status: Hero["status"]) => {
-    // Placeholder as backend status update endpoints are different
-    alert("준비 중인 기능입니다.")
+    try {
+      const backendStatus = status === 'available' ? 'OPEN' : status === 'talking' ? 'MATCHED' : 'CLOSED'
+      await api.put(`/blind-date/listings/${heroId}`, {
+        status: backendStatus
+      })
+      fetchHeroes()
+    } catch (error) {
+      console.error("Failed to update status:", error)
+      alert("상태 변경에 실패했습니다.")
+    }
   }
 
   const handleDeleteHero = async (heroId: string) => {
-    // Placeholder
+    try {
+      await api.delete(`/blind-date/listings/${heroId}`)
+      fetchHeroes()
+    } catch (error: any) {
+      console.error("Failed to delete hero:", error)
+      alert(error.response?.data?.message || "매물 삭제에 실패했습니다.")
+    }
   }
 
   const statusCounts = {

@@ -37,6 +37,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
     mbti: "",
     status: "available" as Hero["status"],
     bio: "",
+    idealType: "",
     smoking: false,
   })
 
@@ -59,6 +60,7 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
       mbti: "",
       status: "available",
       bio: "",
+      idealType: "",
       smoking: false,
     })
     setOpen(false)
@@ -186,6 +188,17 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               placeholder="간단한 자기소개를 작성하세요"
               className="bg-input border-border text-foreground"
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-foreground">원하는 상대 조건</Label>
+            <Textarea
+              value={formData.idealType}
+              onChange={(e) => setFormData((prev) => ({ ...prev, idealType: e.target.value }))}
+              placeholder="예: 성실하고 유머 감각 있는 분, 운동을 좋아하시는 분 등"
+              className="bg-input border-border text-foreground"
+              rows={2}
             />
           </div>
 

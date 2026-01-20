@@ -112,7 +112,16 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
         {/* Bio */}
         {hero.bio && (
           <div className="mt-4 p-4 bg-muted/20 rounded border border-border/50">
-            <p className="text-sm text-muted-foreground italic">&quot;{hero.bio}&quot;</p>
+            <p className="text-xs text-muted-foreground font-bold mb-1">소개</p>
+            <p className="text-sm text-foreground">&quot;{hero.bio}&quot;</p>
+          </div>
+        )}
+
+        {/* Ideal Type */}
+        {hero.idealType && (
+          <div className="mt-4 p-4 bg-primary/5 rounded border border-primary/20">
+            <p className="text-xs text-primary font-bold mb-1">원하는 상대 조건</p>
+            <p className="text-sm text-foreground">{hero.idealType}</p>
           </div>
         )}
 
