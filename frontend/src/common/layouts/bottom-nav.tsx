@@ -13,6 +13,8 @@ export function BottomNav() {
   const { user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
+  if (!user) return null
+
   const mainItems = [
     { href: "/", label: "로비", icon: Home },
     { href: "/auction", label: "경매장", icon: Gavel },

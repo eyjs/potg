@@ -10,18 +10,27 @@ import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { cn } from "@/lib/utils"
 
+import { useRouter } from "next/navigation"
+
 export default function ShopPage() {
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, isLoading: authLoading } = useAuth()
   const [products, setProducts] = useState<any[]>([])
   const [myCoupons, setMyCoupons] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
 
   useEffect(() => {
-    if (user?.clanId) {
-      fetchData()
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login")
+      } else if (user.clanId) {
+        fetchData()
+      } else {
+        setIsLoading(false)
+      }
     }
-  }, [user?.clanId])
+  }, [user, authLoading, router])
 
   const fetchData = async () => {
     if (!user) return

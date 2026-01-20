@@ -7,15 +7,23 @@ import { CreateAuctionModal } from "@/modules/auction/components/create-auction-
 import { Plus } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
 
 export default function AuctionListPage() {
-  const { user, isAdmin } = useAuth()
+  const router = useRouter()
+  const { user, isAdmin, isLoading: authLoading } = useAuth()
   const [auctionRooms, setAuctionRooms] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetchAuctions()
-  }, [])
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login")
+      } else {
+        fetchAuctions()
+      }
+    }
+  }, [user, authLoading, router])
 
   const fetchAuctions = async () => {
     try {

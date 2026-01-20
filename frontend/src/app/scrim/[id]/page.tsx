@@ -33,10 +33,13 @@ const overwatchMaps = [
   { name: "Blizzard World", image: "/placeholder.svg?height=80&width=140", type: "Hybrid" },
 ]
 
+import { useRouter } from "next/navigation"
+
 export default function ScrimDetailPage() {
   const params = useParams()
   const scrimId = params.id as string
-  const { user, isAdmin } = useAuth()
+  const router = useRouter()
+  const { user, isAdmin, isLoading: authLoading } = useAuth()
 
   const [scrim, setScrim] = useState<any>(null)
   const [pool, setPool] = useState<any[]>([])
@@ -90,8 +93,14 @@ export default function ScrimDetailPage() {
   }, [scrimId])
 
   useEffect(() => {
-    fetchScrimData()
-  }, [fetchScrimData])
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login")
+      } else {
+        fetchScrimData()
+      }
+    }
+  }, [fetchScrimData, user, authLoading, router])
 
   const handleUpdateSchedule = async (date: string, startTime: string, endTime: string) => {
     try {

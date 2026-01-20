@@ -30,22 +30,24 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-2">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "skew-btn px-6 py-6 font-bold uppercase tracking-wider text-base",
-                  "hover:bg-primary/20 hover:text-primary transition-all",
-                )}
-              >
-                <span>{item.label}</span>
-              </Button>
-            </Link>
-          ))}
-        </nav>
+        {/* Desktop Navigation - Only show if logged in */}
+        {user && (
+          <nav className="hidden md:flex items-center gap-2">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "skew-btn px-6 py-6 font-bold uppercase tracking-wider text-base",
+                    "hover:bg-primary/20 hover:text-primary transition-all",
+                  )}
+                >
+                  <span>{item.label}</span>
+                </Button>
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {/* User & Admin Badge */}
         <div className="flex items-center gap-2">

@@ -278,7 +278,7 @@ export default function SignupPage() {
                     <Input
                       id="nickname"
                       type="text"
-                      placeholder="JoonBi에서 사용할 닉네임"
+                      placeholder="POTG에서 사용할 닉네임"
                       value={formData.nickname}
                       onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                       required

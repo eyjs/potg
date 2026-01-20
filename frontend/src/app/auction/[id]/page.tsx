@@ -47,7 +47,7 @@ export default function DraftRoomPage() {
   const params = useParams()
   const auctionId = params.id as string
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
 
   const [auctionData, setAuctionData] = useState<any>(null)
   const [participants, setParticipants] = useState<any[]>([])
@@ -81,11 +81,17 @@ export default function DraftRoomPage() {
   }, [auctionId])
 
   useEffect(() => {
-    fetchRoomData()
-    // Polling every 3 seconds as fallback for WebSocket
-    const interval = setInterval(fetchRoomData, 3000)
-    return () => clearInterval(interval)
-  }, [fetchRoomData])
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login")
+      } else {
+        fetchRoomData()
+        // Polling every 3 seconds as fallback for WebSocket
+        const interval = setInterval(fetchRoomData, 3000)
+        return () => clearInterval(interval)
+      }
+    }
+  }, [fetchRoomData, user, authLoading, router])
 
   // Map backend to frontend models
   const teams: Team[] = useMemo(() => {

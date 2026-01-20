@@ -8,6 +8,7 @@ import { CreateHeroModal } from "@/modules/blind-date/components/create-hero-mod
 import { Button } from "@/common/components/ui/button"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
 
 export interface Hero {
   id: string
@@ -26,7 +27,8 @@ export interface Hero {
 }
 
 export default function GalleryPage() {
-  const { user, isAdmin } = useAuth()
+  const router = useRouter()
+  const { user, isAdmin, isLoading: authLoading } = useAuth()
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [selectedHero, setSelectedHero] = useState<Hero | null>(null)
   const [filterStatus, setFilterStatus] = useState<"all" | "available" | "talking" | "taken">("all")
@@ -34,10 +36,16 @@ export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (user?.clanId) {
-      fetchHeroes()
+    if (!authLoading) {
+      if (!user) {
+        router.push("/login")
+      } else if (user.clanId) {
+        fetchHeroes()
+      } else {
+        setIsLoading(false)
+      }
     }
-  }, [user?.clanId])
+  }, [user, authLoading, router])
 
   const fetchHeroes = async () => {
     if (!user) return
