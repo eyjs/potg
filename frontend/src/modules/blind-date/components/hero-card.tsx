@@ -1,6 +1,6 @@
 "use client"
 
-import { Shield, Crosshair, Heart } from "lucide-react"
+import { MapPin, Briefcase } from "lucide-react"
 import { Badge } from "@/common/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { Hero } from "@/app/gallery/page"
@@ -10,22 +10,14 @@ interface HeroCardProps {
   onClick: () => void
 }
 
-const roleConfig = {
-  tank: { icon: Shield, color: "text-yellow-500", bg: "from-yellow-500/20" },
-  dps: { icon: Crosshair, color: "text-red-500", bg: "from-red-500/20" },
-  support: { icon: Heart, color: "text-green-500", bg: "from-green-500/20" },
-}
-
 const statusConfig = {
-  available: { label: "판매중", color: "bg-green-500 text-white" },
-  talking: { label: "썸", color: "bg-yellow-500 text-black" },
-  taken: { label: "품절", color: "bg-muted text-muted-foreground" },
+  available: { label: "만남 가능", color: "bg-green-500 text-white" },
+  talking: { label: "소개팅 중", color: "bg-yellow-500 text-black" },
+  taken: { label: "매칭 완료", color: "bg-muted text-muted-foreground" },
 }
 
 export function HeroCard({ hero, onClick }: HeroCardProps) {
-  const roleConf = roleConfig[hero.gameRole]
   const statusConf = statusConfig[hero.status]
-  const Icon = roleConf.icon
 
   return (
     <div
@@ -41,21 +33,25 @@ export function HeroCard({ hero, onClick }: HeroCardProps) {
       <Badge className={cn("absolute top-2 right-2 z-10 text-xs", statusConf.color)}>{statusConf.label}</Badge>
 
       {/* Avatar Area */}
-      <div className={cn("aspect-[3/4] flex items-center justify-center bg-gradient-to-b to-transparent", roleConf.bg)}>
+      <div className="aspect-[3/4] flex items-center justify-center bg-gradient-to-b from-primary/10 to-transparent">
         <div className="w-20 h-20 rounded-full bg-muted/80 flex items-center justify-center border-2 border-border/50 group-hover:border-primary/50 transition-colors">
           <span className="text-3xl font-bold text-foreground">{hero.name.charAt(0)}</span>
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-3 bg-card/90">
-        <div className="flex items-center gap-1 mb-1">
-          <Icon className={cn("w-4 h-4", roleConf.color)} />
+      <div className="p-3 bg-card/90 space-y-1">
+        <div className="flex items-center justify-between">
           <span className="font-bold text-foreground truncate">{hero.name}</span>
+          <span className="text-xs text-muted-foreground">{hero.age}세</span>
         </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{hero.age}세</span>
-          <span>{hero.tier}</span>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="w-3 h-3" />
+          <span className="truncate">{hero.location}</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Briefcase className="w-3 h-3" />
+          <span className="truncate">{hero.job}</span>
         </div>
       </div>
 

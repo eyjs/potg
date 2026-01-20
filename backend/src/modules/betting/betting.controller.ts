@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Param,
@@ -43,5 +44,21 @@ export class BettingController {
   @Post('questions/:id/settle')
   settle(@Param('id') id: string, @Body('result') result: BettingAnswer) {
     return this.bettingService.settleQuestion(id, result);
+  }
+
+  @Get('questions')
+  findAll() {
+    return this.bettingService.findAll();
+  }
+
+  @Get('questions/:id')
+  findOne(@Param('id') id: string) {
+    return this.bettingService.findOne(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('tickets/my')
+  findMyTickets(@Request() req: AuthenticatedRequest) {
+    return this.bettingService.findMyTickets(req.user.userId);
   }
 }

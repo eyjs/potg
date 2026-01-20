@@ -62,13 +62,6 @@ const allMaps: OWMap[] = [
     type: "escort",
     image: "/overwatch-watchpoint-gibraltar-map-rocket-base.jpg",
   },
-  {
-    id: "junkCity",
-    name: "Junk City",
-    nameKr: "폐품 도시",
-    type: "escort",
-    image: "/placeholder.svg?height=180&width=320",
-  },
 
   // Hybrid
   {
@@ -97,7 +90,7 @@ const allMaps: OWMap[] = [
     name: "King's Row",
     nameKr: "왕의 길",
     type: "hybrid",
-    image: "/placeholder.svg?height=180&width=320",
+    image: "/overwatch-kings-row-map.jpg",
   },
   {
     id: "midtown",
@@ -113,6 +106,13 @@ const allMaps: OWMap[] = [
     nameKr: "파라이소",
     type: "hybrid",
     image: "/placeholder.svg?height=180&width=320",
+  },
+  {
+    id: "hanamura",
+    name: "Hanamura",
+    nameKr: "하나무라",
+    type: "hybrid",
+    image: "/overwatch-hanamura.jpg",
   },
 
   // Push
@@ -158,6 +158,13 @@ const allMaps: OWMap[] = [
     id: "newjunkCity",
     name: "New Junk City",
     nameKr: "뉴 정크 시티",
+    type: "flashpoint",
+    image: "/placeholder.svg?height=180&width=320",
+  },
+  {
+    id: "junkCity",
+    name: "Junk City",
+    nameKr: "폐품 도시",
     type: "flashpoint",
     image: "/placeholder.svg?height=180&width=320",
   },

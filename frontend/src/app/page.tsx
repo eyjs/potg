@@ -249,8 +249,8 @@ export default function LobbyPage() {
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                 모은 포인트로 기프티콘이나<br />특별 아이템을 구매하세요!
               </p>
-              <Link href="/shop">
-                <Button variant="link" className="p-0 h-auto text-primary font-bold uppercase italic text-xs">
+              <Link href="/shop" className="block">
+                <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold uppercase italic text-sm h-10 rounded-md">
                   상점 바로가기 →
                 </Button>
               </Link>

@@ -15,17 +15,17 @@ import { AuthGuard } from "@/common/components/auth-guard"
 
 export interface Hero {
   id: string
+  registerId: string
   name: string
   age: number
   location: string
   job: string
   mbti: string
   status: "available" | "talking" | "taken"
-  gameRole: "tank" | "dps" | "support"
-  tier: string
-  mostHeroes: string[]
   bio: string
   smoking: boolean
+  education?: string
+  height?: number
   avatar?: string
 }
 
@@ -34,8 +34,8 @@ export default function GalleryPage() {
   const { user, isAdmin } = useAuth()
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [selectedHero, setSelectedHero] = useState<Hero | null>(null)
+  const [viewMode, setViewMode] = useState<"all" | "my">("all")
   const [filterStatus, setFilterStatus] = useState<"all" | "available" | "talking" | "taken">("all")
-  const [filterRole, setFilterRole] = useState<"all" | "tank" | "dps" | "support">("all")
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -54,17 +54,17 @@ export default function GalleryPage() {
       
       const mapped = response.data.map((h: any) => ({
         id: h.id,
+        registerId: h.registerId,
         name: h.name,
         age: h.age,
         location: h.location,
         job: h.job,
         mbti: h.mbti || "Unknown",
         status: h.status === 'OPEN' ? 'available' : h.status === 'MATCHED' ? 'talking' : 'taken',
-        gameRole: (h.gameRole?.toLowerCase() || "support") as any,
-        tier: h.tier || "Gold",
-        mostHeroes: h.mostHeroes || [],
         bio: h.description,
         smoking: h.smoking || false,
+        education: h.education,
+        height: h.height,
         avatar: h.photos?.[0]
       }))
       setHeroes(mapped)
@@ -76,12 +76,17 @@ export default function GalleryPage() {
   }
 
   const filteredHeroes = heroes.filter((hero) => {
+    // View mode filter (내 매물 / 전체 매물)
+    if (viewMode === "my" && hero.registerId !== user?.id) return false
+    // Status filter
     if (filterStatus !== "all" && hero.status !== filterStatus) return false
-    if (filterRole !== "all" && hero.gameRole !== filterRole) return false
     return true
   })
 
-  const handleCreateHero = async (newHero: Omit<Hero, "id">) => {
+  const myHeroesCount = heroes.filter(h => h.registerId === user?.id).length
+  const allHeroesCount = heroes.length
+
+  const handleCreateHero = async (newHero: Omit<Hero, "id" | "registerId">) => {
     if (!user) return
     try {
       await api.post('/blind-date/listings', {
@@ -93,9 +98,8 @@ export default function GalleryPage() {
         job: newHero.job,
         description: newHero.bio,
         mbti: newHero.mbti,
-        gameRole: newHero.gameRole,
-        tier: newHero.tier,
-        mostHeroes: newHero.mostHeroes,
+        education: newHero.education,
+        height: newHero.height,
         smoking: newHero.smoking
       })
       fetchHeroes()
@@ -146,6 +150,24 @@ export default function GalleryPage() {
             {isAdmin && <CreateHeroModal onCreateHero={handleCreateHero} />}
           </div>
 
+          {/* View Mode Tabs (내 매물 / 전체 매물) */}
+          <div className="flex items-center gap-2 border-b border-border pb-2">
+            <Button
+              variant={viewMode === "all" ? "default" : "ghost"}
+              onClick={() => setViewMode("all")}
+              className={viewMode === "all" ? "bg-primary text-black font-bold" : ""}
+            >
+              전체 매물 ({allHeroesCount})
+            </Button>
+            <Button
+              variant={viewMode === "my" ? "default" : "ghost"}
+              onClick={() => setViewMode("my")}
+              className={viewMode === "my" ? "bg-primary text-black font-bold" : ""}
+            >
+              내 매물 ({myHeroesCount})
+            </Button>
+          </div>
+
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-4">
             {/* Status Filter */}
@@ -161,30 +183,9 @@ export default function GalleryPage() {
                     onClick={() => setFilterStatus(status)}
                   >
                     {status === "all" && `전체 (${statusCounts.all})`}
-                    {status === "available" && `판매중 (${statusCounts.available})`}
-                    {status === "talking" && `썸 (${statusCounts.talking})`}
-                    {status === "taken" && `품절 (${statusCounts.taken})`}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Role Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">포지션:</span>
-              <div className="flex gap-1">
-                {(["all", "tank", "dps", "support"] as const).map((role) => (
-                  <Button
-                    key={role}
-                    size="sm"
-                    variant={filterRole === role ? "default" : "ghost"}
-                    className={filterRole === role ? "bg-accent text-accent-foreground" : ""}
-                    onClick={() => setFilterRole(role)}
-                  >
-                    {role === "all" && "전체"}
-                    {role === "tank" && "탱커"}
-                    {role === "dps" && "딜러"}
-                    {role === "support" && "힐러"}
+                    {status === "available" && `만남 가능 (${statusCounts.available})`}
+                    {status === "talking" && `소개팅 중 (${statusCounts.talking})`}
+                    {status === "taken" && `매칭 완료 (${statusCounts.taken})`}
                   </Button>
                 ))}
               </div>

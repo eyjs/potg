@@ -20,17 +20,17 @@ interface Match {
 }
 
 const overwatchMaps = [
-  { name: "King's Row", image: "/overwatch-kings-row.jpg", type: "Hybrid" },
-  { name: "Dorado", image: "/overwatch-dorado.jpg", type: "Escort" },
+  { name: "King's Row", image: "/overwatch-kings-row-map.jpg", type: "Hybrid" },
+  { name: "Dorado", image: "/overwatch-dorado-map.jpg", type: "Escort" },
   { name: "Hanamura", image: "/overwatch-hanamura.jpg", type: "Assault" },
   { name: "Eichenwalde", image: "/placeholder.svg?height=80&width=140", type: "Hybrid" },
-  { name: "Ilios", image: "/placeholder.svg?height=80&width=140", type: "Control" },
-  { name: "Lijiang Tower", image: "/placeholder.svg?height=80&width=140", type: "Control" },
+  { name: "Ilios", image: "/overwatch-ilios-map-greek-islands.jpg", type: "Control" },
+  { name: "Lijiang Tower", image: "/overwatch-lijiang-tower-map-chinese-architecture-n.jpg", type: "Control" },
   { name: "Numbani", image: "/placeholder.svg?height=80&width=140", type: "Hybrid" },
-  { name: "Route 66", image: "/placeholder.svg?height=80&width=140", type: "Escort" },
-  { name: "Watchpoint: Gibraltar", image: "/placeholder.svg?height=80&width=140", type: "Escort" },
-  { name: "Oasis", image: "/placeholder.svg?height=80&width=140", type: "Control" },
-  { name: "Busan", image: "/placeholder.svg?height=80&width=140", type: "Control" },
+  { name: "Route 66", image: "/overwatch-route-66-map-american-desert-highway.jpg", type: "Escort" },
+  { name: "Watchpoint: Gibraltar", image: "/overwatch-watchpoint-gibraltar-map-rocket-base.jpg", type: "Escort" },
+  { name: "Oasis", image: "/overwatch-oasis-map-futuristic-desert-city.jpg", type: "Control" },
+  { name: "Busan", image: "/overwatch-busan-map-futuristic-korean-city.jpg", type: "Control" },
   { name: "Blizzard World", image: "/placeholder.svg?height=80&width=140", type: "Hybrid" },
 ]
 

@@ -164,4 +164,26 @@ export class BettingService {
       return { updatedCount };
     });
   }
+
+  async findAll(): Promise<BettingQuestion[]> {
+    return this.questionsRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string): Promise<BettingQuestion> {
+    const question = await this.questionsRepository.findOne({
+      where: { id },
+    });
+    if (!question) throw new BadRequestException('Question not found');
+    return question;
+  }
+
+  async findMyTickets(userId: string): Promise<BettingTicket[]> {
+    return this.ticketsRepository.find({
+      where: { userId },
+      relations: ['question'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }

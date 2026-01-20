@@ -6,6 +6,7 @@
 /* Overwatch 2 themed color palette */
 :root {
   --ow-orange: #f99e1a;
+  --ow-gold: #FFB800;
   --ow-blue: #00c3ff;
   --ow-red: #ff4649;
   --ow-dark: #1a1a1a;
@@ -18,7 +19,7 @@
   --card-foreground: #f0edf2;
   --popover: #1a1a1a;
   --popover-foreground: #f0edf2;
-  --primary: #f99e1a;
+  --primary: #FFB800;
   --primary-foreground: #0b0b0b;
   --secondary: #1a1a1a;
   --secondary-foreground: #f0edf2;
@@ -30,7 +31,7 @@
   --destructive-foreground: #f0edf2;
   --border: #333333;
   --input: #2a2a2a;
-  --ring: #f99e1a;
+  --ring: #FFB800;
   --radius: 0.25rem;
 }
 
@@ -130,10 +131,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 5px var(--ow-orange);
+    box-shadow: 0 0 5px var(--ow-gold);
   }
   50% {
-    box-shadow: 0 0 20px var(--ow-orange), 0 0 30px var(--ow-orange);
+    box-shadow: 0 0 20px var(--ow-gold), 0 0 30px var(--ow-gold);
   }
 }
 .pulse-live {
@@ -150,7 +151,7 @@
   }
 }
 .progress-animated {
-  background: linear-gradient(90deg, var(--ow-orange) 0%, #ffcc00 50%, var(--ow-orange) 100%);
+  background: linear-gradient(90deg, var(--ow-gold) 0%, #ffcc00 50%, var(--ow-gold) 100%);
   background-size: 200% 100%;
   animation: progress-shine 2s linear infinite;
 }

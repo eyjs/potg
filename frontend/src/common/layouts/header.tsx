@@ -15,10 +15,11 @@ import {
 
 const navItems = [
   { href: "/", label: "로비" },
+  { href: "/vote", label: "투표" },
   { href: "/auction", label: "경매장" },
   { href: "/betting", label: "베팅" },
   { href: "/utility", label: "유틸리티" },
-  { href: "/gallery", label: "영웅 갤러리" },
+  { href: "/gallery", label: "소개팅" },
 ]
 
 export function Header() {
