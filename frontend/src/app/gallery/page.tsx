@@ -15,6 +15,7 @@ import { toast } from "sonner"
 export interface Hero {
   id: string
   registerId: string
+  registerNickname?: string
   name: string
   age: number
   gender: 'MALE' | 'FEMALE'
@@ -57,6 +58,7 @@ export default function GalleryPage() {
       const mapped = response.data.map((h: any) => ({
         id: h.id,
         registerId: h.registerId,
+        registerNickname: h.register?.nickname || h.register?.username || "Unknown",
         name: h.name,
         age: h.age,
         gender: h.gender,
@@ -171,7 +173,7 @@ export default function GalleryPage() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1">소개팅 매물 관리 - 마음에 드는 상대방을 찾아보세요</p>
             </div>
-            {isAdmin && <CreateHeroModal onCreateHero={handleCreateHero} />}
+            <CreateHeroModal onCreateHero={handleCreateHero} />
           </div>
 
           {/* View Mode Tabs */}

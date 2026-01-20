@@ -1,6 +1,7 @@
-import { Entity, Column, OneToMany } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { BlindDateRequest } from './blind-date-request.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum ListingStatus {
   PRIVATE = 'PRIVATE',
@@ -21,6 +22,10 @@ export class BlindDateListing extends BaseEntity {
 
   @Column()
   registerId: string; // User who registered this profile (Manager/Friend)
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'registerId' })
+  register: User;
 
   @Column({ type: 'enum', enum: ListingStatus, default: ListingStatus.PRIVATE })
   status: ListingStatus;

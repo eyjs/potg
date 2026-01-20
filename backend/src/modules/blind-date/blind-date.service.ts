@@ -37,7 +37,8 @@ export class BlindDateService {
 
   async findAll(clanId: string) {
     return this.listingsRepository.find({
-      where: { clanId }, // Remove status restriction to allow viewing matched/private listings
+      where: { clanId },
+      relations: ['register'],
       order: { createdAt: 'DESC' }
     });
   }

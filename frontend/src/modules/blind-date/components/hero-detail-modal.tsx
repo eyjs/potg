@@ -1,12 +1,15 @@
 "use client"
 
-import { MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler } from "lucide-react"
+import { MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/common/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { cn } from "@/lib/utils"
 import type { Hero } from "@/app/gallery/page"
+import api from "@/lib/api"
+import { toast } from "sonner"
+import { useAuth } from "@/context/auth-context"
 
 interface HeroDetailModalProps {
   hero: Hero | null
@@ -23,9 +26,25 @@ const statusConfig = {
 }
 
 export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDelete }: HeroDetailModalProps) {
+  const { user } = useAuth()
   if (!hero) return null
 
   const statusConf = statusConfig[hero.status]
+  const isOwner = user?.id === hero.registerId
+
+  const handleApply = async () => {
+    const message = prompt("상대방에게 전달할 한마디를 입력해주세요 (선택):", "안녕하세요! 프로필 보고 연락드렸습니다.")
+    if (message === null) return // Cancelled
+
+    try {
+      await api.post(`/blind-date/listings/${hero.id}/request`, { message })
+      toast.success("신청이 완료되었습니다! 매니저의 확인을 기다려주세요.")
+      onClose()
+    } catch (error: any) {
+      console.error("Failed to apply:", error)
+      toast.error(error.response?.data?.message || "신청에 실패했습니다.")
+    }
+  }
 
   return (
     <Dialog open={!!hero} onOpenChange={() => onClose()}>
@@ -37,8 +56,12 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
         {/* Hero Header */}
         <div className="flex items-start gap-4">
           {/* Avatar */}
-          <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/50 shrink-0">
-            <span className="text-4xl font-bold text-foreground">{hero.name.charAt(0)}</span>
+          <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/50 shrink-0 overflow-hidden">
+            {hero.avatar ? (
+              <img src={hero.avatar} alt={hero.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-4xl font-bold text-foreground">{hero.name.charAt(0)}</span>
+            )}
           </div>
 
           {/* Basic Info */}
@@ -55,6 +78,10 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
                   <span>{hero.mbti}</span>
                 </>
               )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-primary font-bold bg-primary/10 w-fit px-2 py-1 rounded">
+              <UserIcon className="w-3 h-3" />
+              <span>등록자: {hero.registerNickname}</span>
             </div>
           </div>
         </div>
@@ -124,6 +151,21 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
             <p className="text-sm text-foreground">{hero.idealType}</p>
           </div>
         )}
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex flex-col gap-2">
+          {hero.status === "available" && !isOwner && (
+            <Button onClick={handleApply} className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-6 text-lg skew-btn">
+              <Send className="w-5 h-5 mr-2" />
+              소개팅 신청하기
+            </Button>
+          )}
+          {isOwner && (
+            <div className="text-center p-3 bg-muted/20 rounded border border-dashed border-border text-xs text-muted-foreground">
+              내가 등록한 매물입니다. 신청 내역은 매니저를 통해 확인해주세요.
+            </div>
+          )}
+        </div>
 
         {/* Admin Controls */}
         {isAdmin && (
