@@ -239,22 +239,31 @@ export default function LobbyPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {votes.map((vote: any) => (
-                  <VoteCard
-                    key={vote.id}
-                    id={vote.id}
-                    title={vote.title}
-                    deadline={new Date(vote.deadline).toLocaleDateString()}
-                    currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
-                    maxVotes={vote.maxParticipants || 20}
-                    status={vote.status === 'OPEN' ? 'open' : 'closed'}
-                    isAdmin={user.role === 'ADMIN'}
-                    onVote={(type) => handleCastVote(vote.id, type)}
-                    onDelete={() => handleDeleteVote(vote.id)}
-                    onClose={() => handleCloseVote(vote.id)}
-                    onEdit={() => handleEditVote(vote.id)}
-                  />
-                ))}
+                {votes.map((vote: any) => {
+                  const selectionMap: Record<string, "attend" | "absent" | "late"> = {
+                    "참석": "attend",
+                    "불참": "absent",
+                    "지각": "late"
+                  }
+                  
+                  return (
+                    <VoteCard
+                      key={vote.id}
+                      id={vote.id}
+                      title={vote.title}
+                      deadline={new Date(vote.deadline).toLocaleDateString()}
+                      currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
+                      maxVotes={vote.maxParticipants || 20}
+                      status={vote.status === 'OPEN' ? 'open' : 'closed'}
+                      isAdmin={user.role === 'ADMIN'}
+                      userVote={vote.userSelection ? selectionMap[vote.userSelection] : null}
+                      onVote={(type) => handleCastVote(vote.id, type)}
+                      onDelete={() => handleDeleteVote(vote.id)}
+                      onClose={() => handleCloseVote(vote.id)}
+                      onEdit={() => handleEditVote(vote.id)}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>
