@@ -23,6 +23,13 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async findByIdWithClan(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { id },
+      relations: ['clanMembers'],
+    });
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { username },

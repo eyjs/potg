@@ -9,13 +9,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service'; // Import UsersService
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService, // Inject UsersService
+  ) {}
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
@@ -40,7 +44,18 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
-  getProfile(@Request() req: AuthenticatedRequest) {
-    return req.user;
+  async getProfile(@Request() req: AuthenticatedRequest) {
+    // req.user has basic info from JWT. Fetch full info with clan.
+    const user = await this.usersService.findByIdWithClan(req.user.userId);
+    if (!user) return null;
+
+    // Flatten clanId for frontend convenience (assuming single clan active for now)
+    const clanId = user.clanMembers?.[0]?.clanId || null;
+    
+    return {
+      ...user,
+      id: user.id, // Ensure ID is explicit
+      clanId,
+    };
   }
 }
