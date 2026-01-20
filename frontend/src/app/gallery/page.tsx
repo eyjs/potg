@@ -133,6 +133,7 @@ export default function GalleryPage() {
     try {
       await api.delete(`/blind-date/listings/${heroId}`)
       toast.success("삭제되었습니다.")
+      setSelectedHero(null) // Close the modal
       fetchHeroes()
     } catch (error: any) {
       console.error("Failed to delete hero:", error)

@@ -12,6 +12,7 @@ import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import Link from "next/link"
 import { Button } from "@/common/components/ui/button"
+import { toast } from "sonner"
 
 export default function LobbyPage() {
   const router = useRouter()
@@ -79,6 +80,7 @@ export default function LobbyPage() {
   }
 
   const handleCastVote = async (voteId: string, type: "attend" | "absent" | "late") => {
+    // ... same as before
     const vote = votes.find((v: any) => v.id === voteId) as any
     if (!vote) return
 
@@ -96,11 +98,42 @@ export default function LobbyPage() {
 
     try {
       await api.post(`/votes/${voteId}/cast`, { optionId: option.id })
-      fetchDashboardData() // Refresh list
+      toast.success("투표가 완료되었습니다.")
+      fetchDashboardData()
     } catch (error: any) {
       console.error("Failed to cast vote:", error)
       alert(error.response?.data?.message || "투표 실패")
     }
+  }
+
+  const handleDeleteVote = async (id: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return
+    try {
+      await api.delete(`/votes/${id}`)
+      toast.success("투표가 삭제되었습니다.")
+      fetchDashboardData()
+    } catch (error) {
+      console.error(error)
+      toast.error("삭제 실패")
+    }
+  }
+
+  const handleCloseVote = async (id: string) => {
+    if (!confirm("투표를 마감하시겠습니까?")) return
+    try {
+      await api.patch(`/votes/${id}/close`)
+      toast.success("투표가 마감되었습니다.")
+      fetchDashboardData()
+    } catch (error) {
+      console.error(error)
+      toast.error("마감 실패")
+    }
+  }
+
+  const handleEditVote = (id: string) => {
+    // Redirect to a dedicated edit page or open a modal
+    // For now, redirect to detail page where edit can be implemented or just show a message
+    router.push(`/vote/${id}`)
   }
 
   if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">접속 확인 중...</div>
@@ -217,6 +250,9 @@ export default function LobbyPage() {
                     status={vote.status === 'OPEN' ? 'open' : 'closed'}
                     isAdmin={user.role === 'ADMIN'}
                     onVote={(type) => handleCastVote(vote.id, type)}
+                    onDelete={() => handleDeleteVote(vote.id)}
+                    onClose={() => handleCloseVote(vote.id)}
+                    onEdit={() => handleEditVote(vote.id)}
                   />
                 ))}
               </div>
