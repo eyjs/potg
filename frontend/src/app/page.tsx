@@ -3,17 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
-import { AuctionBanner } from "@/modules/auction/components/auction-banner"
+import { VoteCard } from "@/modules/vote/components/vote-card"
 import { CreateVoteModal } from "@/modules/vote/components/create-vote-modal"
 import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
-import { QuickActionGrid } from "@/components/dashboard/quick-action-grid"
-import { VotePreview } from "@/components/dashboard/vote-preview"
-import { PriorityAlerts } from "@/components/dashboard/priority-alerts"
-import { MyStatsCard } from "@/components/dashboard/my-stats-card"
-import { CountdownCard } from "@/components/dashboard/countdown-card"
-import { ClanOverviewBanner } from "@/components/dashboard/clan-overview-banner"
-import { ActivitySummary } from "@/components/dashboard/activity-summary"
+import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
+import { Announcements } from "@/components/dashboard/announcements"
+import { HallOfFame } from "@/components/dashboard/hall-of-fame"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import Link from "next/link"
@@ -24,10 +19,6 @@ export default function DashboardPage() {
   const router = useRouter()
   const { user, isLoading, isAdmin } = useAuth()
   const [votes, setVotes] = useState([])
-  const [liveAuctions, setLiveAuctions] = useState([])
-  const [bettingQuestions, setBettingQuestions] = useState([])
-  const [myPoints, setMyPoints] = useState(0)
-  const [clanDetails, setClanDetails] = useState<any>(null)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [pendingRequest, setPendingRequest] = useState<any>(null)
 
@@ -49,19 +40,8 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [votesRes, auctionsRes, bettingRes, walletRes, clanRes] = await Promise.all([
-        api.get(`/votes?clanId=${user?.clanId}`),
-        api.get(`/auctions?clanId=${user?.clanId}`),
-        api.get('/betting/questions').catch(() => ({ data: [] })),
-        api.get('/wallet/balance').catch(() => ({ data: { balance: 0 } })),
-        api.get(`/clans/${user?.clanId}`).catch(() => ({ data: null }))
-      ])
-
+      const votesRes = await api.get(`/votes?clanId=${user?.clanId}`)
       setVotes(votesRes.data)
-      setLiveAuctions(auctionsRes.data.filter((a: any) => a.status === 'ONGOING' || a.status === 'PENDING'))
-      setBettingQuestions(bettingRes.data.filter((b: any) => b.status === 'OPEN'))
-      setMyPoints(walletRes.data.balance || 0)
-      setClanDetails(clanRes.data)
     } catch (error) {
       console.error(error)
     } finally {
@@ -176,60 +156,6 @@ export default function DashboardPage() {
     router.push(`/vote/${id}`)
   }
 
-  const getTier = (rating: number = 0) => {
-    if (rating >= 4500) return "Champion"
-    if (rating >= 4000) return "Grandmaster"
-    if (rating >= 3500) return "Master"
-    if (rating >= 3000) return "Diamond"
-    if (rating >= 2500) return "Platinum"
-    if (rating >= 2000) return "Gold"
-    if (rating >= 1500) return "Silver"
-    return "Bronze"
-  }
-
-  // Calculate priority alerts
-  const priorityAlerts: Array<{
-    type: "vote" | "auction" | "betting"
-    title: string
-    description: string
-    href: string
-    urgency: "high" | "medium" | "low"
-  }> = []
-
-  // Urgent votes (closing in 24 hours)
-  const urgentVotes = votes.filter((v: any) => {
-    if (v.status !== 'OPEN') return false
-    const timeLeft = new Date(v.deadline).getTime() - new Date().getTime()
-    return timeLeft > 0 && timeLeft < 24 * 60 * 60 * 1000
-  })
-
-  urgentVotes.forEach((vote: any) => {
-    const hours = Math.floor((new Date(vote.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60))
-    priorityAlerts.push({
-      type: "vote" as const,
-      title: vote.title,
-      description: `${hours}시간 후 마감`,
-      href: `/vote/${vote.id}`,
-      urgency: hours < 6 ? "high" as const : "medium" as const
-    })
-  })
-
-  // Live auctions
-  if (liveAuctions.length > 0) {
-    priorityAlerts.push({
-      type: "auction" as const,
-      title: "진행 중인 경매",
-      description: `${liveAuctions.length}개의 경매가 진행중입니다`,
-      href: "/auction",
-      urgency: "medium" as const
-    })
-  }
-
-  // Find next event for countdown
-  const nextEvent: any = votes
-    .filter((v: any) => v.status === 'OPEN' && new Date(v.deadline) > new Date())
-    .sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())[0]
-
   if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">접속 확인 중...</div>
 
   if (!user) return null // Will redirect
@@ -296,104 +222,76 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#0B0B0B] flex flex-col pb-20 md:pb-0">
       <Header />
 
-      <main className="container px-4 py-6 space-y-6 md:space-y-8 flex-1">
-        {/* Clan Overview Banner */}
-        <ClanOverviewBanner
-          clanName={clanDetails?.name || "클랜"}
-          voteCount={votes.filter((v: any) => v.status === 'OPEN').length}
-          auctionCount={liveAuctions.length}
-          bettingCount={bettingQuestions.length}
-        />
-
-        {/* Auction Banner */}
-        <section>
-          <AuctionBanner
-            hasLiveAuction={liveAuctions.length > 0}
-            roomCount={liveAuctions.length}
-          />
-        </section>
-
-        {/* Quick Action Grid */}
-        <QuickActionGrid
-          voteCount={votes.filter((v: any) => v.status === 'OPEN').length}
-          auctionCount={liveAuctions.length}
-          bettingCount={bettingQuestions.length}
-          scrimCount={0}
-        />
-
-        {/* Main Content Grid */}
+      <main className="container px-4 py-6 flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          {/* Left Column: Main Content */}
+          {/* Main Content - 2/3 width */}
           <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            {/* Priority Alerts */}
-            {priorityAlerts.length > 0 && (
-              <PriorityAlerts alerts={priorityAlerts} />
-            )}
+            {/* Announcements */}
+            <Announcements />
 
-            {/* Vote Preview */}
-            <div className="flex items-center justify-between">
-              {isAdmin && (
-                <div className="flex gap-2 ml-auto">
-                  <CreateScrimModal onCreateScrim={handleCreateScrim} />
-                  <CreateVoteModal onCreateVote={handleCreateVote} />
+            {/* Vote Section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-foreground">
+                  진행 중인 <span className="text-primary">투표</span>
+                </h2>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <CreateScrimModal onCreateScrim={handleCreateScrim} />
+                    <CreateVoteModal onCreateVote={handleCreateVote} />
+                  </div>
+                )}
+              </div>
+
+              {votes.length === 0 ? (
+                <div className="p-8 md:p-12 border-2 border-dashed border-border/50 rounded-lg flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center">
+                    <span className="text-3xl">🗳️</span>
+                  </div>
+                  <div>
+                    <p className="text-foreground font-bold uppercase italic">등록된 투표가 없습니다</p>
+                    <p className="text-muted-foreground text-sm">새로운 투표를 생성하여 의견을 모아보세요.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {votes.map((vote: any) => {
+                    const selectionMap: Record<string, "attend" | "absent" | "late"> = {
+                      "참석": "attend",
+                      "불참": "absent",
+                      "지각": "late"
+                    }
+
+                    return (
+                      <VoteCard
+                        key={vote.id}
+                        id={vote.id}
+                        title={vote.title}
+                        deadline={new Date(vote.deadline).toLocaleDateString()}
+                        currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
+                        maxVotes={vote.maxParticipants || 20}
+                        status={vote.status === 'OPEN' ? 'open' : 'closed'}
+                        isAdmin={isAdmin}
+                        userVote={vote.userSelection ? selectionMap[vote.userSelection] : null}
+                        onVote={(type) => handleCastVote(vote.id, type)}
+                        onDelete={() => handleDeleteVote(vote.id)}
+                        onClose={() => handleCloseVote(vote.id)}
+                        onEdit={() => handleEditVote(vote.id)}
+                      />
+                    )
+                  })}
                 </div>
               )}
-            </div>
-            <VotePreview
-              votes={votes}
-              isAdmin={isAdmin}
-              onVote={handleCastVote}
-              onDelete={handleDeleteVote}
-              onClose={handleCloseVote}
-              onEdit={handleEditVote}
-            />
-
-            {/* Activity Summary - Only on larger screens */}
-            <div className="hidden md:block">
-              <ActivitySummary
-                scrimCount={0}
-                bettingCount={bettingQuestions.length}
-                totalParticipants={0}
-              />
-            </div>
+            </section>
           </div>
 
-          {/* Right Column: Sidebar Widgets */}
+          {/* Sidebar - 1/3 width */}
           <div className="space-y-6">
-            {/* My Stats Card */}
-            <MyStatsCard
-              userRole={user.role}
-              userTier={getTier(user.rating)}
-              points={myPoints}
-              isAdmin={isAdmin}
-            />
-
-            {/* Countdown Card */}
-            {nextEvent && (
-              <CountdownCard
-                nextEventDate={nextEvent.deadline}
-                nextEventTitle={nextEvent.title}
-              />
-            )}
-
             {/* Penalty Tracker */}
             <PenaltyTracker users={[]} />
 
-            {/* Shop Promotion */}
-            <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <span className="text-4xl">🎁</span>
-              </div>
-              <h3 className="font-bold text-foreground mb-1 uppercase italic">포인트 상점</h3>
-              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                모은 포인트로 기프티콘이나<br />특별 아이템을 구매하세요!
-              </p>
-              <Link href="/shop" className="block">
-                <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold uppercase italic text-sm h-10 rounded-md">
-                  상점 바로가기 →
-                </Button>
-              </Link>
-            </div>
+            {/* Hall of Fame & Donors */}
+            <HallOfFame />
           </div>
         </div>
       </main>

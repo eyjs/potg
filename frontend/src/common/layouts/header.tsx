@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { User, Shield, LogIn, LogOut, Coins } from "lucide-react"
+import { Menu, Shield, LogIn, LogOut, User } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -70,7 +70,7 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-foreground hover:text-primary">
-                  <User className="w-5 h-5" />
+                  <Menu className="w-6 h-6" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-card border-border min-w-[150px]">
