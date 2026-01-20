@@ -5,13 +5,19 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   UseGuards,
   Request,
   Query,
 } from '@nestjs/common';
 import { ScrimsService } from './scrims.service';
 import { AuthGuard } from '@nestjs/passport';
-import { CreateScrimDto, UpdateScrimDto } from './dto/scrim.dto';
+import {
+  CreateScrimDto,
+  UpdateScrimDto,
+  AddParticipantDto,
+} from './dto/scrim.dto';
+import { AssignedTeam } from './entities/scrim-participant.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('scrims')
@@ -41,5 +47,30 @@ export class ScrimsController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateScrimDto: UpdateScrimDto) {
     return this.scrimsService.update(id, updateScrimDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/participants')
+  addParticipant(@Param('id') scrimId: string, @Body() dto: AddParticipantDto) {
+    return this.scrimsService.addParticipant(scrimId, dto.userId, dto.source);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/participants/:userId/team')
+  assignTeam(
+    @Param('id') scrimId: string,
+    @Param('userId') userId: string,
+    @Body('team') team: AssignedTeam,
+  ) {
+    return this.scrimsService.assignTeam(scrimId, userId, team);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id/participants/:userId')
+  removeParticipant(
+    @Param('id') scrimId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.scrimsService.removeParticipant(scrimId, userId);
   }
 }

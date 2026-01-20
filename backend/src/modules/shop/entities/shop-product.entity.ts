@@ -8,10 +8,20 @@ export enum ProductStatus {
   OUT_OF_STOCK = 'OUT_OF_STOCK',
 }
 
+export enum ProductCategory {
+  VOUCHER = 'VOUCHER',
+  GOODS = 'GOODS',
+  GAME_ITEM = 'GAME_ITEM',
+  ETC = 'ETC',
+}
+
 @Entity('shop_products')
 export class ShopProduct extends BaseEntity {
   @Column()
   clanId: string;
+
+  @Column({ type: 'enum', enum: ProductCategory, default: ProductCategory.ETC })
+  category: ProductCategory;
 
   @Column()
   name: string;
@@ -24,6 +34,9 @@ export class ShopProduct extends BaseEntity {
 
   @Column()
   stock: number;
+
+  @Column({ default: 0 })
+  purchaseLimit: number;
 
   @Column({ nullable: true })
   imageUrl: string;

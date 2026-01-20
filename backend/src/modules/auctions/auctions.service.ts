@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Auction } from './entities/auction.entity';
+import { Auction, AuctionStatus } from './entities/auction.entity';
 import {
   AuctionParticipant,
   AuctionRole,
@@ -92,6 +92,42 @@ export class AuctionsService {
       await manager.save(participant);
 
       return bid;
+    });
+  }
+
+  async start(auctionId: string, userId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const auction = await manager.findOne(Auction, {
+        where: { id: auctionId },
+      });
+      if (!auction) throw new BadRequestException('Auction not found');
+      if (auction.creatorId !== userId)
+        throw new BadRequestException('Only creator can start auction');
+      if (auction.status !== AuctionStatus.PENDING)
+        throw new BadRequestException('Auction already started or finished');
+
+      auction.status = AuctionStatus.ONGOING;
+      await manager.save(auction);
+
+      return auction;
+    });
+  }
+
+  async complete(auctionId: string, userId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const auction = await manager.findOne(Auction, {
+        where: { id: auctionId },
+      });
+      if (!auction) throw new BadRequestException('Auction not found');
+      if (auction.creatorId !== userId)
+        throw new BadRequestException('Only creator can complete auction');
+      if (auction.status !== AuctionStatus.ONGOING)
+        throw new BadRequestException('Auction not ongoing');
+
+      auction.status = AuctionStatus.COMPLETED;
+      await manager.save(auction);
+
+      return auction;
     });
   }
 }

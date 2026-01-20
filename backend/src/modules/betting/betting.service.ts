@@ -50,29 +50,59 @@ export class BettingService {
           `Minimum bet is ${question.minBetAmount}`,
         );
 
+      // Check for existing ticket (docs/betting/PROCESS.md:40-46)
+      const existingTicket = await manager.findOne(BettingTicket, {
+        where: { questionId, userId },
+      });
+
       // Check user points
       const clanMember = await manager.findOne(ClanMember, {
         where: { userId, clanId: betDto.clanId },
       });
       if (!clanMember)
         throw new BadRequestException('User not in clan or wallet not found');
-      if (clanMember.totalPoints < betDto.amount)
-        throw new BadRequestException('Insufficient points');
 
-      // Deduct (Lock) points
-      clanMember.totalPoints -= betDto.amount;
-      clanMember.lockedPoints += betDto.amount;
-      await manager.save(clanMember);
+      if (existingTicket) {
+        // Update existing bet (modification)
+        const pointDifference = betDto.amount - existingTicket.betAmount;
 
-      const ticket = manager.create(BettingTicket, {
-        questionId,
-        userId,
-        clanId: betDto.clanId,
-        prediction: betDto.prediction,
-        betAmount: betDto.amount,
-      });
+        if (pointDifference > 0) {
+          // Need more points
+          if (clanMember.totalPoints < pointDifference)
+            throw new BadRequestException('Insufficient points');
+          clanMember.totalPoints -= pointDifference;
+          clanMember.lockedPoints += pointDifference;
+        } else if (pointDifference < 0) {
+          // Refund difference
+          clanMember.totalPoints += Math.abs(pointDifference);
+          clanMember.lockedPoints -= Math.abs(pointDifference);
+        }
 
-      return manager.save(ticket);
+        await manager.save(clanMember);
+
+        existingTicket.prediction = betDto.prediction;
+        existingTicket.betAmount = betDto.amount;
+        return manager.save(existingTicket);
+      } else {
+        // New bet
+        if (clanMember.totalPoints < betDto.amount)
+          throw new BadRequestException('Insufficient points');
+
+        // Deduct (Lock) points
+        clanMember.totalPoints -= betDto.amount;
+        clanMember.lockedPoints += betDto.amount;
+        await manager.save(clanMember);
+
+        const ticket = manager.create(BettingTicket, {
+          questionId,
+          userId,
+          clanId: betDto.clanId,
+          prediction: betDto.prediction,
+          betAmount: betDto.amount,
+        });
+
+        return manager.save(ticket);
+      }
     });
   }
 
@@ -103,7 +133,8 @@ export class BettingService {
         if (ticket.prediction === result) {
           ticket.status = TicketStatus.WON;
           if (clanMember) {
-            const reward = Math.floor(
+            // CONVENTIONS.md 4.4: Use Math.ceil for user benefit
+            const reward = Math.ceil(
               ticket.betAmount * question.rewardMultiplier,
             );
             // Return reward (which includes original bet) and unlock points

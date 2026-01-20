@@ -6,6 +6,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { ScrimStatus, RecruitmentType } from '../entities/scrim.entity';
+import { ParticipantSource } from '../entities/scrim-participant.entity';
 
 export class CreateScrimDto {
   @IsString()
@@ -53,4 +54,13 @@ export class UpdateScrimDto {
 
   @IsOptional()
   teamBScore?: number;
+}
+
+export class AddParticipantDto {
+  @IsUUID()
+  userId: string;
+
+  @IsOptional()
+  @IsEnum(ParticipantSource)
+  source?: ParticipantSource;
 }

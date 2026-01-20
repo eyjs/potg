@@ -58,9 +58,28 @@ export class VotesService {
     const existing = await this.voteRecordsRepository.findOne({
       where: { voteId, userId },
     });
+
     if (existing && !vote.multipleChoice) {
-      throw new BadRequestException('Already voted');
+      // Update existing vote (docs/vote/PROCESS.md:26-30)
+      const oldOptionId = existing.optionId;
+
+      // Decrement old option count
+      await this.voteOptionsRepository.decrement(
+        { id: oldOptionId },
+        'count',
+        1,
+      );
+
+      // Update to new option
+      existing.optionId = optionId;
+      await this.voteRecordsRepository.save(existing);
+
+      // Increment new option count
+      await this.voteOptionsRepository.increment({ id: optionId }, 'count', 1);
+
+      return { success: true };
     }
+
     // If multiple choice allowed, check if already voted for THIS option
     if (existing && vote.multipleChoice) {
       const specificVote = await this.voteRecordsRepository.findOne({

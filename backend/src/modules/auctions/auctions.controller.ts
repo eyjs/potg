@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -62,5 +63,17 @@ export class AuctionsController {
       bidDto.targetPlayerId,
       bidDto.amount,
     );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/start')
+  start(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.auctionsService.start(id, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/complete')
+  complete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.auctionsService.complete(id, req.user.userId);
   }
 }

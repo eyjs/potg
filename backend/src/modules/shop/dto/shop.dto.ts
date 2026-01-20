@@ -7,11 +7,18 @@ import {
   IsPositive,
   Min,
 } from 'class-validator';
-import { ProductStatus } from '../entities/shop-product.entity';
+import {
+  ProductStatus,
+  ProductCategory,
+} from '../entities/shop-product.entity';
 
 export class CreateProductDto {
   @IsUUID()
   clanId: string;
+
+  @IsOptional()
+  @IsEnum(ProductCategory)
+  category?: ProductCategory;
 
   @IsString()
   name: string;
@@ -27,6 +34,11 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   stock: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  purchaseLimit?: number;
 
   @IsOptional()
   @IsString()

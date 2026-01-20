@@ -98,17 +98,142 @@ Mock 데이터를 실제 백엔드 API로 교체합니다.
 
 ---
 
-## 5. Implementation Checklist
+## 5. Implementation Checklist (Updated)
 
-| 단계 | 작업 항목 | 우선순위 | 상태 |
-|:---:|:---|:---:|:---:|
-| **1** | `axios` 설정 및 `api.ts` 생성 | P0 | ⬜ |
-| **1** | `AuthContext` 및 로그인 연동 | P0 | ⬜ |
-| **2** | 로비(Dashboard) API 연동 | P1 | ⬜ |
-| **3** | **백엔드 Auction Gateway 구현** | **P0** | ⬜ |
-| **3** | 프론트엔드 Socket 연결 및 경매방 연동 | P0 | ⬜ |
-| **2** | 상점(Shop) 페이지 구현 | P2 | ⬜ |
-| **4** | 타입 정의 파일(`api.d.ts`) 생성 및 적용 | P1 | ⬜ |
+| 단계 | 작업 항목 | 우선순위 | 상태 | Backend 준비 |
+|:---:|:---|:---:|:---:|:---:|
+| **1** | `axios` 설정 및 `api.ts` 생성 | P0 | ⬜ | ✅ Ready |
+| **1** | `AuthContext` 및 로그인 연동 | P0 | ⬜ | ✅ Ready |
+| **2** | 로비(Dashboard) API 연동 | P1 | ⬜ | ✅ Ready |
+| **3** | **백엔드 Auction Gateway 구현** | **P0** | ⬜ | ❌ **Not Started** |
+| **3** | 프론트엔드 Socket 연결 및 경매방 연동 | P0 | ⬜ | ❌ Blocked |
+| **2** | 상점(Shop) 페이지 구현 - 기본 UI | P2 | ⬜ | ⚠️ Partial (승인 프로세스 누락) |
+| **2** | 상점(Shop) 쿠폰 시스템 연동 | P1 | ⬜ | ❌ **Backend 미구현** |
+| **4** | 타입 정의 파일(`api.d.ts`) 생성 및 적용 | P1 | ⬜ | ✅ Ready |
+| **NEW** | 베팅 시스템 UI 구현 | P1 | ⬜ | ⚠️ Partial (Math.ceil 수정 필요) |
+| **NEW** | 내전 팀 배정 드래그앤드롭 UI | P2 | ⬜ | ⚠️ Partial (API 누락) |
+| **NEW** | 소개팅 추천 시스템 UI | P3 | ⬜ | ❌ **Backend 미구현** |
+
+---
+
+## 6. Backend Blocker Issues (백엔드 대기 이슈)
+
+다음 기능들은 **백엔드 구현 완료 후** 진행 가능합니다. SYNC_ANALYSIS.md 참조.
+
+### 🔴 Critical Blockers (즉시 해결 필요)
+1. **경매 실시간 입찰** - WebSocket Gateway 미구현
+   - **영향:** 경매 시스템의 핵심 기능 불가능
+   - **대안:** 임시로 Polling (5초마다 GET /auctions/:id) 사용 가능
+   - **상태:** Backend P0
+
+2. **상점 쿠폰 발급** - ShopCoupon 할당 로직 없음
+   - **영향:** 기프티콘 판매 불가
+   - **대안:** Mock 쿠폰 번호 표시 ("승인 후 표시됨")
+   - **상태:** Backend P0
+
+3. **소개팅 매칭 보상** - 포인트 지급 로직 없음
+   - **영향:** 등록자에게 포인트 지급 안 됨
+   - **대안:** UI만 구현, 실제 포인트는 수동 지급
+   - **상태:** Backend P0
+
+### 🟡 High Priority (다음 스프린트)
+1. **상점 구매 승인 플로우** - 현재 자동 승인만 됨
+   - **영향:** 클랜마스터의 재고 관리 불가
+   - **현재:** 구매 즉시 승인 (status: APPROVED)
+   - **필요:** PENDING → 클랜마스터 승인 → APPROVED
+   - **상태:** Backend P1
+
+2. **내전 팀 스냅샷** - teamSnapshot 저장 안 됨
+   - **영향:** 과거 내전 기록 조회 시 당시 팀 구성 확인 불가
+   - **대안:** 현재 유저 정보 기반으로 표시 (부정확)
+   - **상태:** Backend P0
+
+3. **베팅 정산 정확도** - Math.ceil 미적용
+   - **영향:** 소수점 발생 시 사용자 손해
+   - **예시:** 333 × 1.5 = 499.5 → 499 지급 (500이어야 함)
+   - **대안:** 프론트엔드에서 Math.ceil로 예상 보상 표시
+   - **상태:** Backend P0 (1시간 작업)
+
+### 🟢 Medium Priority (백로그)
+1. **소개팅 추천 알고리즘** - BlindDatePreference 미구현
+   - **대안:** 전체 매물 리스트만 표시
+   - **상태:** Backend P2
+
+2. **투표 → 내전 연동** - API 없음
+   - **대안:** 수동으로 내전 생성
+   - **상태:** Backend P2
+
+3. **베팅 수정 기능** - upsert 로직 없음
+   - **대안:** 삭제 후 재등록으로 안내
+   - **상태:** Backend P2
+
+---
+
+## 7. Temporary Workarounds (임시 해결책)
+
+백엔드 수정 전까지 프론트엔드에서 가능한 대응:
+
+### 상점 시스템
+```typescript
+// Mock 승인 플로우
+const handlePurchase = async () => {
+  // API 호출 (현재는 바로 APPROVED)
+  const purchase = await shopApi.purchase(productId, quantity);
+
+  // UI에서는 "승인 대기" 상태로 표시
+  showToast("구매 요청이 전송되었습니다. 클랜마스터 승인 대기 중...");
+
+  // 실제로는 이미 승인됨 (Backend 수정 후 제거)
+  setTimeout(() => {
+    showToast("구매가 승인되었습니다!");
+    router.push('/my-coupons');
+  }, 1000);
+};
+```
+
+### 경매 시스템 (WebSocket 대체)
+```typescript
+// Polling 방식으로 임시 구현
+useEffect(() => {
+  const interval = setInterval(async () => {
+    const auction = await auctionApi.get(auctionId);
+    setAuctionData(auction);
+  }, 5000); // 5초마다 갱신
+
+  return () => clearInterval(interval);
+}, [auctionId]);
+
+// TODO: WebSocket 구현 후 교체
+// const socket = io('/auction');
+// socket.on('bidPlaced', (data) => { ... });
+```
+
+### 베팅 시스템 (정산 오류 대응)
+```typescript
+// 프론트엔드에서 Math.ceil로 예상 보상 표시
+const expectedReward = Math.ceil(betAmount * rewardMultiplier);
+
+// Backend 수정 전까지 경고 메시지
+<Alert>
+  예상 보상: {expectedReward}P<br />
+  <small>※ 실제 보상은 소수점 처리에 따라 다를 수 있습니다</small>
+</Alert>
+```
+
+---
+
+## 8. Backend 수정 의존성 매핑
+
+| Frontend 기능 | Backend 의존성 | 우선순위 | 예상 소요 |
+|--------------|---------------|---------|----------|
+| 경매 실시간 입찰 UI | Auction WebSocket Gateway | P0 | 2일 |
+| 상점 쿠폰 확인 페이지 | ShopCoupon 할당 로직 | P0 | 4시간 |
+| 상점 승인 대기 플로우 | Purchase PENDING → APPROVED | P1 | 2시간 |
+| 베팅 예상 보상 정확도 | Math.ceil 수정 | P0 | 30분 |
+| 내전 과거 기록 상세 | teamSnapshot 저장 | P1 | 2시간 |
+| 소개팅 추천 탭 | BlindDatePreference API | P2 | 1일 |
+
+**총 예상 소요:** 약 3.5일 (Backend 작업)
 
 ---
 

@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Scrim } from './scrim.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum ParticipantSource {
   VOTE = 'VOTE',
@@ -36,6 +37,10 @@ export class ScrimParticipant extends BaseEntity {
   })
   @JoinColumn({ name: 'scrimId' })
   scrim: Scrim;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column({
     type: 'enum',

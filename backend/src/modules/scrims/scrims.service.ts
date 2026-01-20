@@ -5,6 +5,8 @@ import { Scrim, ScrimStatus } from './entities/scrim.entity';
 import {
   ScrimParticipant,
   AssignedTeam,
+  ParticipantSource,
+  ParticipantStatus,
 } from './entities/scrim-participant.entity';
 import { CreateScrimDto, UpdateScrimDto } from './dto/scrim.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
@@ -48,8 +50,68 @@ export class ScrimsService {
     if (updateScrimDto.status === ScrimStatus.FINISHED) {
       return this.finishScrim(id, updateScrimDto);
     }
+    if (updateScrimDto.status === ScrimStatus.SCHEDULED) {
+      return this.confirmTeams(id);
+    }
     await this.scrimsRepository.update(id, updateScrimDto);
     return this.findOne(id);
+  }
+
+  private async confirmTeams(id: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id },
+        relations: ['participants', 'participants.user'],
+      });
+      if (!scrim) throw new BadRequestException('Scrim not found');
+      if (scrim.status !== ScrimStatus.DRAFT)
+        throw new BadRequestException('Can only confirm teams in DRAFT status');
+
+      // Create teamSnapshot
+      const teamAPlayers = scrim.participants.filter(
+        (p) => p.assignedTeam === AssignedTeam.TEAM_A,
+      );
+      const teamBPlayers = scrim.participants.filter(
+        (p) => p.assignedTeam === AssignedTeam.TEAM_B,
+      );
+      const benchPlayers = scrim.participants.filter(
+        (p) => p.assignedTeam === AssignedTeam.BENCH,
+      );
+
+      const teamSnapshot = {
+        recruitmentType: scrim.recruitmentType,
+        sourceId: scrim.voteId || scrim.auctionId || null,
+        teamA: {
+          players: teamAPlayers.map((p) => ({
+            userId: p.userId,
+            battleTag: p.user?.battleTag || 'Unknown',
+            role: p.user?.mainRole || 'FLEX',
+            rating: p.user?.rating || 0,
+          })),
+        },
+        teamB: {
+          players: teamBPlayers.map((p) => ({
+            userId: p.userId,
+            battleTag: p.user?.battleTag || 'Unknown',
+            role: p.user?.mainRole || 'FLEX',
+            rating: p.user?.rating || 0,
+          })),
+        },
+        bench: benchPlayers.map((p) => ({
+          userId: p.userId,
+          battleTag: p.user?.battleTag || 'Unknown',
+          role: p.user?.mainRole || 'FLEX',
+          rating: p.user?.rating || 0,
+        })),
+        snapshotAt: new Date().toISOString(),
+      };
+
+      scrim.teamSnapshot = teamSnapshot;
+      scrim.status = ScrimStatus.SCHEDULED;
+      await manager.save(scrim);
+
+      return scrim;
+    });
   }
 
   private async finishScrim(id: string, updateDto: UpdateScrimDto) {
@@ -100,5 +162,72 @@ export class ScrimsService {
 
       return scrim;
     });
+  }
+
+  // Participant management APIs (docs/scrim/PROCESS.md:209-259)
+  async addParticipant(
+    scrimId: string,
+    userId: string,
+    source: ParticipantSource = ParticipantSource.MANUAL,
+  ) {
+    const scrim = await this.scrimsRepository.findOne({
+      where: { id: scrimId },
+    });
+    if (!scrim) throw new BadRequestException('Scrim not found');
+    if (scrim.status !== ScrimStatus.DRAFT)
+      throw new BadRequestException(
+        'Can only add participants in DRAFT status',
+      );
+
+    const existing = await this.participantsRepository.findOne({
+      where: { scrimId, userId },
+    });
+    if (existing) throw new BadRequestException('User already participating');
+
+    const participant = this.participantsRepository.create({
+      scrimId,
+      userId,
+      source,
+      status: ParticipantStatus.CONFIRMED,
+      assignedTeam: AssignedTeam.UNASSIGNED,
+    });
+
+    return this.participantsRepository.save(participant);
+  }
+
+  async assignTeam(scrimId: string, userId: string, team: AssignedTeam) {
+    const scrim = await this.scrimsRepository.findOne({
+      where: { id: scrimId },
+    });
+    if (!scrim) throw new BadRequestException('Scrim not found');
+    if (scrim.status !== ScrimStatus.DRAFT)
+      throw new BadRequestException('Can only assign teams in DRAFT status');
+
+    const participant = await this.participantsRepository.findOne({
+      where: { scrimId, userId },
+    });
+    if (!participant) throw new BadRequestException('Participant not found');
+
+    participant.assignedTeam = team;
+    return this.participantsRepository.save(participant);
+  }
+
+  async removeParticipant(scrimId: string, userId: string) {
+    const scrim = await this.scrimsRepository.findOne({
+      where: { id: scrimId },
+    });
+    if (!scrim) throw new BadRequestException('Scrim not found');
+    if (scrim.status !== ScrimStatus.DRAFT)
+      throw new BadRequestException(
+        'Can only remove participants in DRAFT status',
+      );
+
+    const participant = await this.participantsRepository.findOne({
+      where: { scrimId, userId },
+    });
+    if (!participant) throw new BadRequestException('Participant not found');
+
+    participant.status = ParticipantStatus.REMOVED;
+    return this.participantsRepository.save(participant);
   }
 }

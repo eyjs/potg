@@ -49,4 +49,10 @@ export class BlindDateController {
   ) {
     return this.blindDateService.approveRequest(id, req.user.userId);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('requests/:id/reject')
+  rejectRequest(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.blindDateService.rejectRequest(id, req.user.userId);
+  }
 }

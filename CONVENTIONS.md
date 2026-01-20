@@ -57,9 +57,134 @@
 
 ## 4. Backend Guidelines (Nest.js)
 
+### 4.1 Architecture & Patterns
 -   **Architecture**: Controller-Service-Module 패턴을 준수합니다.
 -   **DTO**: 데이터 전송 객체(DTO)는 `class-validator`를 사용하여 유효성 검사를 수행해야 합니다.
 -   **Configuration**: 환경 변수는 `@nestjs/config`를 통해 관리합니다.
+
+### 4.2 Error Handling
+적절한 HttpException을 사용하여 의미 있는 에러를 반환합니다:
+-   **BadRequestException** (400): 유효하지 않은 요청, 입력 값 오류
+-   **UnauthorizedException** (401): 인증 실패, 토큰 없음/만료
+-   **ForbiddenException** (403): 권한 없음 (로그인은 됐으나 접근 불가)
+-   **NotFoundException** (404): 리소스를 찾을 수 없음
+-   **ConflictException** (409): 중복된 데이터 (예: 이미 투표함)
+
+```typescript
+// Good
+if (!user) throw new NotFoundException('User not found');
+if (user.role !== 'ADMIN') throw new ForbiddenException('Admin only');
+
+// Bad - 모든 에러를 BadRequestException으로
+if (!user) throw new BadRequestException('User not found');
+```
+
+### 4.3 Transaction Usage
+포인트 변경을 포함하는 모든 작업은 **트랜잭션 필수**:
+-   베팅 참여 및 정산
+-   상점 구매 및 승인
+-   소개팅 매칭 승인
+-   포인트 전송 (선물하기)
+-   내전 완료 및 보상 지급
+
+```typescript
+// 트랜잭션 사용 예시
+return this.dataSource.transaction(async (manager) => {
+  // 1. Lock이 필요한 엔티티 조회
+  const clanMember = await manager.findOne(ClanMember, {
+    where: { userId, clanId }
+  });
+
+  // 2. 포인트 업데이트
+  clanMember.totalPoints += reward;
+  await manager.save(clanMember);
+
+  // 3. PointLog 생성
+  const log = manager.create(PointLog, {
+    userId, clanId, amount: reward, reason: 'BET_WIN:...'
+  });
+  await manager.save(log);
+});
+```
+
+### 4.4 Numeric Precision
+포인트 계산 시 **사용자에게 유리하도록** `Math.ceil` 사용:
+```typescript
+// Good - 사용자에게 유리
+const reward = Math.ceil(betAmount * rewardMultiplier);
+// 예: 333 × 1.5 = 499.5 → 500
+
+// Bad - 사용자에게 불리
+const reward = Math.floor(betAmount * rewardMultiplier);
+// 예: 333 × 1.5 = 499.5 → 499
+```
+
+**예외:** 명시적으로 버림이 필요한 경우 (할인율 적용 등)
+
+### 4.5 Point Operations
+모든 포인트 변동은 **PointLog 생성 필수**:
+```typescript
+// PointLog reason 포맷 규칙
+await manager.save(
+  manager.create(PointLog, {
+    userId,
+    clanId,
+    amount: reward,
+    reason: `BET_WIN:${questionId}`  // 승리
+  })
+);
+
+// 다른 포맷 예시:
+// - BET_LOSS:{questionId}
+// - SCRIM_WIN:{scrimId}
+// - SEND_TO:{recipientId} - {message}
+// - RECEIVE_FROM:{senderId} - {message}
+// - SHOP_PURCHASE:{productId}
+// - BLIND_DATE_MATCH:{listingId}
+```
+
+### 4.6 WebSocket Guidelines (Socket.io)
+실시간 통신이 필요한 기능에만 사용:
+-   **Auction** (경매): 실시간 입찰 경쟁
+-   **Scrim** (내전): 실시간 관전 (선택)
+
+#### 인증
+```typescript
+// Socket Handshake 시 JWT 검증
+@WebSocketGateway({ namespace: '/auction' })
+export class AuctionsGateway {
+  @UseGuards(WsJwtGuard)
+  handleConnection(client: Socket) {
+    const user = client.data.user; // JWT에서 추출
+    // ...
+  }
+}
+```
+
+#### Room 명명 규칙
+-   `auction:{id}` (예: `auction:123e4567-e89b-12d3-a456-426614174000`)
+-   `scrim:{id}`
+
+#### 이벤트 명명 규칙
+-   **camelCase** 사용 (예: `placeBid`, `timerUpdate`, `chatMessage`)
+-   클라이언트 → 서버: 동사형 (`joinRoom`, `placeBid`)
+-   서버 → 클라이언트: 과거형 또는 상태 (`bidPlaced`, `timerUpdate`)
+
+#### 이벤트 구조
+```typescript
+interface SocketEvent<T> {
+  event: string;
+  data: T;
+  timestamp: string;
+}
+
+// 사용 예시
+socket.emit('bidPlaced', {
+  event: 'bidPlaced',
+  data: { bidderId, amount, targetPlayerId },
+  timestamp: new Date().toISOString()
+});
+```
 
 ---
 
@@ -108,4 +233,84 @@ Use these specific patterns instead of generic styles:
 
 ---
 
-*Last Updated: 2026-01-15*
+---
+
+## 7. Data Integrity Rules (데이터 무결성)
+
+### 7.1 Clan-Scoped Points
+포인트는 **클랜별로 독립적**으로 관리됩니다:
+-   `ClanMember.totalPoints`: 해당 클랜에서만 사용 가능한 포인트
+-   `ClanMember.lockedPoints`: 베팅으로 잠긴 포인트 (사용 불가)
+-   **가용 포인트**: `totalPoints - lockedPoints`
+
+```typescript
+// 포인트 잠금 (베팅 시)
+clanMember.totalPoints -= betAmount;    // 즉시 차감
+clanMember.lockedPoints += betAmount;   // 잠금 처리
+
+// 포인트 해제 (정산 시)
+// 승리: 보상 지급 + 잠금 해제
+clanMember.totalPoints += reward;
+clanMember.lockedPoints -= betAmount;
+
+// 패배: 잠금만 해제 (이미 차감됨)
+clanMember.lockedPoints -= betAmount;
+```
+
+### 7.2 Snapshot Immutability
+확정된 데이터는 **스냅샷으로 보존**:
+-   `Scrim.teamSnapshot`: 내전 확정 시점의 팀 구성 저장
+-   `BlindDateRequest.requesterInfo`: 요청 시점의 요청자 정보 저장
+-   **목적**: 향후 유저 정보 변경되어도 과거 기록 유지
+
+```typescript
+// 내전 확정 시 teamSnapshot 생성
+const teamSnapshot = {
+  recruitmentType: scrim.recruitmentType,
+  sourceId: scrim.voteId || scrim.auctionId,
+  teamA: {
+    players: teamAPlayers.map(p => ({
+      userId: p.userId,
+      battleTag: p.user.battleTag,  // 현재 값 저장
+      role: p.user.mainRole,
+      rating: p.user.rating
+    }))
+  },
+  teamB: { /* 동일 */ },
+  bench: [...],
+  snapshotAt: new Date().toISOString()
+};
+scrim.teamSnapshot = teamSnapshot;
+```
+
+---
+
+## 8. API Design Principles
+
+### 8.1 RESTful Conventions
+-   **GET**: 조회 (멱등성 O, 부작용 X)
+-   **POST**: 생성, 복잡한 조회 (검색 등)
+-   **PATCH**: 부분 수정
+-   **PUT**: 전체 교체 (거의 사용 안 함)
+-   **DELETE**: 삭제
+
+### 8.2 Endpoint Naming
+-   **복수형** 사용: `/users`, `/auctions`, `/scrims`
+-   **하위 리소스**: `/auctions/:id/bids`, `/scrims/:id/participants`
+-   **액션**: 동사는 URL 끝에 (`/votes/:id/close`, `/requests/:id/approve`)
+
+```typescript
+// Good
+POST   /clans/:clanId/blind-date/listings
+PATCH  /clans/:clanId/blind-date/requests/:id/approve
+GET    /scrims/:id/participants
+
+// Bad
+POST   /clan/:id/blindDate/createListing
+PATCH  /request/:id/approve
+GET    /getScrimParticipants/:id
+```
+
+---
+
+*Last Updated: 2026-01-20*
