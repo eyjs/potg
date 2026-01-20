@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import api from "@/lib/api"
 
 const RANK_OPTIONS = [
   { value: "bronze", label: "브론즈" },
@@ -72,10 +73,23 @@ export default function SignupPage() {
       return
     }
     setIsLoading(true)
-    // TODO: 실제 회원가입 API 호출
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
-    router.push("/login?registered=true")
+    
+    try {
+      const payload = {
+        battleTag: formData.battleTag,
+        password: formData.password,
+        mainRole: formData.mainRole === 'damage' ? 'DPS' : formData.mainRole.toUpperCase(),
+        // Backend default rating is 1000, we ignore rank/email/nickname for now as backend doesn't support them
+      }
+      
+      await api.post('/auth/register', payload)
+      router.push("/login?registered=true")
+    } catch (error) {
+      console.error(error)
+      alert("회원가입 실패: 배틀태그가 중복되었거나 입력 정보를 확인해주세요.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const PasswordCheck = ({ valid, label }: { valid: boolean; label: string }) => (

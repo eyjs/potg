@@ -10,13 +10,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useAuth } from "@/context/auth-context"
+import api from "@/lib/api"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    email: "",
+    battleTag: "",
     password: "",
     rememberMe: false,
   })
@@ -24,10 +27,19 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: 실제 로그인 API 호출
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
-    router.push("/")
+    try {
+      const response = await api.post('/auth/login', {
+        battleTag: formData.battleTag,
+        password: formData.password
+      })
+      await login(response.data.access_token)
+      router.push("/")
+    } catch (error) {
+      console.error(error)
+      alert("로그인 실패: 배틀태그나 비밀번호를 확인해주세요.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -74,17 +86,17 @@ export default function LoginPage() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-accent" />
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
+              {/* BattleTag */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  이메일
+                <Label htmlFor="battleTag" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  배틀태그
                 </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  id="battleTag"
+                  type="text"
+                  placeholder="Player#12345"
+                  value={formData.battleTag}
+                  onChange={(e) => setFormData({ ...formData, battleTag: e.target.value })}
                   required
                   className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                 />

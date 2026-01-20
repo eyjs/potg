@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Exo_2 } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
+import { AuthProvider } from "@/context/auth-context"
 
 const exo2 = Exo_2({
   subsets: ["latin"],
@@ -28,7 +29,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${exo2.className} antialiased`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

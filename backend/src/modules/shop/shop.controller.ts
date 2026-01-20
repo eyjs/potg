@@ -16,6 +16,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
+import { UserRole } from '../users/entities/user.entity';
+
 @Controller('shop')
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
@@ -49,7 +51,7 @@ export class ShopController {
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('ADMIN') // Or use ClanRoles.MASTER with clan-specific guard
+  @Roles(UserRole.ADMIN) // Or use ClanRoles.MASTER with clan-specific guard
   @Patch('purchases/:id/approve')
   approvePurchase(
     @Param('id') purchaseId: string,
@@ -59,7 +61,7 @@ export class ShopController {
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('ADMIN')
+  @Roles(UserRole.ADMIN)
   @Patch('purchases/:id/reject')
   rejectPurchase(
     @Param('id') purchaseId: string,

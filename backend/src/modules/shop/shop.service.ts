@@ -139,14 +139,14 @@ export class ShopService {
 
         for (const coupon of coupons) {
           coupon.isUsed = true;
-          coupon.assignedTo = purchase.userId;
+          coupon.assignedToUserId = purchase.userId;
           await manager.save(coupon);
         }
       }
 
       // Update purchase status
       purchase.status = PurchaseStatus.APPROVED;
-      purchase.adminNote = adminNote;
+      purchase.adminNote = adminNote || '';
       purchase.approvedAt = new Date();
       await manager.save(purchase);
 
@@ -164,7 +164,7 @@ export class ShopService {
         throw new BadRequestException('Purchase already processed');
 
       purchase.status = PurchaseStatus.REJECTED;
-      purchase.adminNote = adminNote;
+      purchase.adminNote = adminNote || '';
       await manager.save(purchase);
 
       return purchase;
@@ -173,7 +173,7 @@ export class ShopService {
 
   async getMyCoupons(userId: string) {
     return this.couponsRepository.find({
-      where: { assignedTo: userId },
+      where: { assignedToUserId: userId },
       relations: ['product'],
     });
   }
