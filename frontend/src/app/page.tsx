@@ -140,8 +140,16 @@ export default function LobbyPage() {
   const handleCloseVote = async (id: string) => {
     if (!confirm("투표를 마감하시겠습니까?")) return
     try {
-      await api.patch(`/votes/${id}/close`)
+      const response = await api.patch(`/votes/${id}/close`)
       toast.success("투표가 마감되었습니다.")
+      
+      // If a scrim was generated, notify and redirect
+      if (response.data.generatedScrimId) {
+        if (confirm("10명 이상이 참석하여 내전이 생성되었습니다! 내전 관리 페이지로 이동하시겠습니까?")) {
+          router.push(`/scrim/${response.data.generatedScrimId}`)
+        }
+      }
+      
       fetchDashboardData()
     } catch (error) {
       console.error(error)
