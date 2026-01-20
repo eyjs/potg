@@ -76,7 +76,26 @@ export default function LobbyPage() {
   }
 
   const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string }) => {
-    // ...
+    try {
+      await api.post('/votes', {
+        clanId: user?.clanId,
+        title: scrimData.title,
+        deadline: new Date(scrimData.scheduledDate).toISOString(),
+        scrimType: 'NORMAL',
+        multipleChoice: false,
+        anonymous: false,
+        options: [
+          { label: "참석" },
+          { label: "불참" },
+          { label: "지각" },
+        ]
+      })
+      toast.success("내전 투표가 생성되었습니다.")
+      fetchDashboardData()
+    } catch (error: any) {
+      console.error("Failed to create scrim:", error)
+      toast.error(error.response?.data?.message || "내전 생성 실패")
+    }
   }
 
   const handleCastVote = async (voteId: string, type: "attend" | "absent" | "late") => {
@@ -219,7 +238,7 @@ export default function LobbyPage() {
               <h2 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">
                 진행 중인 <span className="text-primary">투표</span>
               </h2>
-              {user.role === 'ADMIN' && (
+              {isAdmin && (
                 <div className="flex gap-2">
                   <CreateScrimModal onCreateScrim={handleCreateScrim} />
                   <CreateVoteModal onCreateVote={handleCreateVote} />
@@ -255,7 +274,7 @@ export default function LobbyPage() {
                       currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
                       maxVotes={vote.maxParticipants || 20}
                       status={vote.status === 'OPEN' ? 'open' : 'closed'}
-                      isAdmin={user.role === 'ADMIN'}
+                      isAdmin={isAdmin}
                       userVote={vote.userSelection ? selectionMap[vote.userSelection] : null}
                       onVote={(type) => handleCastVote(vote.id, type)}
                       onDelete={() => handleDeleteVote(vote.id)}
@@ -287,7 +306,7 @@ export default function LobbyPage() {
                   <Button className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold uppercase italic text-xs h-10 rounded-md">
                     클랜 상세 보기
                   </Button>
-                  {user.role === 'ADMIN' && (
+                  {isAdmin && (
                     <Link href="/clan/manage" className="block">
                       <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold uppercase italic text-xs h-10 rounded-md">
                         클랜 가입 승인
