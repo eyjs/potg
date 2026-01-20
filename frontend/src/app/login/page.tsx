@@ -34,7 +34,7 @@ export default function LoginPage() {
         password: formData.password
       })
       await login(response.data.access_token)
-      router.push("/")
+      router.replace("/")
     } catch (error) {
       console.error(error)
       toast.error("로그인 실패: 아이디나 비밀번호를 확인해주세요.")
@@ -170,38 +170,6 @@ export default function LoginPage() {
                 </span>
               </Button>
             </form>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-3 bg-card text-sm text-muted-foreground">또는</span>
-              </div>
-            </div>
-
-            {/* Social Login */}
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-12 border-border/50 hover:bg-[#FEE500] hover:text-black hover:border-[#FEE500] transition-all bg-transparent"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.47 1.607 4.647 4.045 5.89l-.925 3.42a.3.3 0 0 0 .454.334l4.026-2.68c.776.112 1.575.172 2.4.172 5.523 0 10-3.477 10-7.636S17.523 3 12 3z" />
-                </svg>
-                카카오로 로그인
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-12 border-border/50 hover:bg-[#03C75A] hover:text-white hover:border-[#03C75A] transition-all bg-transparent"
-              >
-                <span className="font-bold text-lg mr-2">N</span>
-                네이버로 로그인
-              </Button>
-            </div>
           </div>
 
           {/* Sign Up Link */}

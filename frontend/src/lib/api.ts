@@ -23,7 +23,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('access_token');
-        window.location.href = '/login';
+        // Do not force reload, let AuthContext handle the state change and redirection
       }
     }
     return Promise.reject(error);

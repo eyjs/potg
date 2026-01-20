@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchUser = async () => {
+    setIsLoading(true);
     try {
       const response = await api.get('/auth/profile');
       setUser(response.data);
@@ -60,7 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('access_token');
     setUser(null);
-    router.push('/login');
+    setIsLoading(false);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      router.replace('/login');
+    }
   };
 
   const isAdmin = user?.role === 'ADMIN';
