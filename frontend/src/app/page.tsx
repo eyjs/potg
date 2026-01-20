@@ -75,18 +75,31 @@ export default function LobbyPage() {
   }
 
   const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string }) => {
+    // ...
+  }
+
+  const handleCastVote = async (voteId: string, type: "attend" | "absent" | "late") => {
+    const vote = votes.find((v: any) => v.id === voteId) as any
+    if (!vote) return
+
+    const labelMap = {
+      attend: "참석",
+      absent: "불참",
+      late: "지각",
+    }
+
+    const option = vote.options?.find((opt: any) => opt.label === labelMap[type])
+    if (!option) {
+      alert("해당 투표 옵션을 찾을 수 없습니다.")
+      return
+    }
+
     try {
-      await api.post('/scrims', {
-        title: scrimData.title,
-        scheduledDate: new Date(scrimData.scheduledDate).toISOString(),
-        recruitmentType: 'MANUAL',
-        clanId: user?.clanId,
-      })
-      alert("내전이 생성되었습니다.")
-      // Might want to redirect to scrim page or refresh, but we don't list scrims on dashboard yet.
-    } catch (error) {
-      console.error("Failed to create scrim:", error)
-      alert("내전 생성 실패")
+      await api.post(`/votes/${voteId}/cast`, { optionId: option.id })
+      fetchDashboardData() // Refresh list
+    } catch (error: any) {
+      console.error("Failed to cast vote:", error)
+      alert(error.response?.data?.message || "투표 실패")
     }
   }
 
@@ -199,10 +212,11 @@ export default function LobbyPage() {
                     id={vote.id}
                     title={vote.title}
                     deadline={new Date(vote.deadline).toLocaleDateString()}
-                    currentVotes={vote.participants?.length || 0}
-                    maxVotes={vote.maxParticipants || 0}
+                    currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
+                    maxVotes={vote.maxParticipants || 20}
                     status={vote.status === 'OPEN' ? 'open' : 'closed'}
                     isAdmin={user.role === 'ADMIN'}
+                    onVote={(type) => handleCastVote(vote.id, type)}
                   />
                 ))}
               </div>
