@@ -7,6 +7,7 @@ import { VoteCard } from "@/modules/vote/components/vote-card"
 import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
 import { AuctionBanner } from "@/modules/auction/components/auction-banner"
 import { CreateVoteModal } from "@/modules/vote/components/create-vote-modal"
+import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import Link from "next/link"
@@ -47,20 +48,41 @@ export default function LobbyPage() {
     }
   }
 
-  const handleCreateVote = async (voteData: { title: string; deadline: string; maxVotes: number }) => {
+  const handleCreateVote = async (voteData: { title: string; deadline: string }) => {
     try {
       await api.post('/votes', {
         clanId: user?.clanId,
         title: voteData.title,
         deadline: new Date(voteData.deadline).toISOString(),
-        scrimType: 'NORMAL', // Default
+        scrimType: 'NORMAL',
         multipleChoice: false,
-        anonymous: false
+        anonymous: false,
+        options: [
+          { label: "참석" },
+          { label: "불참" },
+          { label: "지각" },
+        ]
       })
-      fetchDashboardData() // Refresh list
+      fetchDashboardData()
     } catch (error) {
       console.error("Failed to create vote:", error)
       alert("투표 생성 실패")
+    }
+  }
+
+  const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string }) => {
+    try {
+      await api.post('/scrims', {
+        title: scrimData.title,
+        scheduledDate: new Date(scrimData.scheduledDate).toISOString(),
+        recruitmentType: 'MANUAL',
+        clanId: user?.clanId,
+      })
+      alert("내전이 생성되었습니다.")
+      // Might want to redirect to scrim page or refresh, but we don't list scrims on dashboard yet.
+    } catch (error) {
+      console.error("Failed to create scrim:", error)
+      alert("내전 생성 실패")
     }
   }
 
@@ -127,7 +149,10 @@ export default function LobbyPage() {
                 진행 중인 <span className="text-primary">투표</span>
               </h2>
               {user.role === 'ADMIN' && (
-                <CreateVoteModal onCreateVote={handleCreateVote} />
+                <div className="flex gap-2">
+                  <CreateScrimModal onCreateScrim={handleCreateScrim} />
+                  <CreateVoteModal onCreateVote={handleCreateVote} />
+                </div>
               )}
             </div>
 

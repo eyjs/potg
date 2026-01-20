@@ -30,6 +30,12 @@ export class Auction extends BaseEntity {
   @Column({ default: 60 })
   turnTimeLimit: number; // seconds
 
+  @Column({ default: 20 })
+  maxParticipants: number;
+
+  @Column({ default: 2 })
+  teamCount: number;
+
   @Column({ nullable: true })
   currentBiddingPlayerId: string;
 

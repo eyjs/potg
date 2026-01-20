@@ -36,11 +36,13 @@ export default function AuctionListPage() {
     teamCount: number
   }) => {
     try {
-      // Backend CreateAuctionDto: title, startingPoints, turnTimeLimit, accessCode
+      // Backend CreateAuctionDto now includes maxParticipants and teamCount
       await api.post('/auctions', {
         title: newAuction.title,
-        startingPoints: 10000, // Default for now
-        turnTimeLimit: 60,      // Default for now
+        startingPoints: 10000,
+        turnTimeLimit: 60,
+        maxParticipants: newAuction.maxParticipants,
+        teamCount: newAuction.teamCount,
       })
       fetchAuctions()
     } catch (error) {

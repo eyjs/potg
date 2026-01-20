@@ -5,6 +5,8 @@ export class CreateAuctionDto {
   startingPoints: number;
   turnTimeLimit?: number;
   accessCode?: string;
+  maxParticipants?: number;
+  teamCount?: number;
 }
 
 export class JoinAuctionDto {
