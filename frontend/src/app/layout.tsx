@@ -4,6 +4,7 @@ import { Exo_2 } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/context/auth-context"
+import { Toaster } from "sonner"
 
 import { BottomNav } from "@/common/layouts/bottom-nav"
 
@@ -35,6 +36,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <BottomNav />
+          <Toaster position="top-center" richColors />
         </AuthProvider>
         <Analytics />
       </body>

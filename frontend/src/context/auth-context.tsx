@@ -13,6 +13,7 @@ interface User {
   rating: number;
   avatarUrl?: string;
   clanId?: string;
+  bettingFloatingEnabled: boolean;
 }
 
 interface AuthContextType {
