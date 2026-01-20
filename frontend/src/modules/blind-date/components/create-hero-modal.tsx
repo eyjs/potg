@@ -183,16 +183,6 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-foreground">MBTI</Label>
-              <Input
-                value={formData.mbti}
-                onChange={(e) => setFormData((prev) => ({ ...prev, mbti: e.target.value.toUpperCase() }))}
-                placeholder="예: ENFP"
-                maxLength={4}
-                className="bg-input border-border text-foreground"
-              />
-            </div>
-            <div className="space-y-2">
               <Label className="text-foreground">상태</Label>
               <Select
                 value={formData.status}
@@ -207,6 +197,13 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
                   <SelectItem value="taken">매칭 완료</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center justify-between pt-8">
+              <Label className="text-foreground">흡연 여부</Label>
+              <Switch
+                checked={formData.smoking}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, smoking: checked }))}
+              />
             </div>
           </div>
 
@@ -229,14 +226,6 @@ export function CreateHeroModal({ onCreateHero }: CreateHeroModalProps) {
               placeholder="예: 성실하고 유머 감각 있는 분, 운동을 좋아하시는 분 등"
               className="bg-input border-border text-foreground"
               rows={2}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label className="text-foreground">흡연 여부</Label>
-            <Switch
-              checked={formData.smoking}
-              onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, smoking: checked }))}
             />
           </div>
 
