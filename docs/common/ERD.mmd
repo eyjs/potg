@@ -13,7 +13,8 @@ erDiagram
     %% User Domain (Global Account)
     User {
         uuid id PK
-        string battleTag UK
+        string username UK "로그인 ID"
+        string battleTag UK "표시용 배틀태그"
         string password "Nullable"
         enum role "USER, ADMIN"
         enum mainRole "TANK, DPS, SUPPORT, FLEX"

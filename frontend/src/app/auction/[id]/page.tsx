@@ -9,9 +9,11 @@ import { TeamPanel } from "@/modules/scrim/components/team-panel"
 import { ChatPanel } from "@/modules/chat/components/chat-panel"
 import { AdminControls } from "@/modules/auction/components/admin-controls"
 import { Button } from "@/common/components/ui/button"
+import { Badge } from "@/common/components/ui/badge"
 import { ArrowLeft } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
+import { cn } from "@/lib/utils"
 
 // 샘플 데이터 타입 유지 (UI 호환성 위해)
 export interface Player {
@@ -344,105 +346,6 @@ export default function DraftRoomPage() {
               isAdmin={userRole === "admin"}
               onAddTeam={() => {}} // TODO
               onRemoveMember={() => {}} // TODO
-            />
-            <ChatPanel messages={messages} onSendMessage={handleSendMessage} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      {/* Sub Header with Controls */}
-      <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
-        <div className="container px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push("/auction")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              목록으로
-            </Button>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="font-bold text-lg italic uppercase tracking-wide text-foreground">
-              드래프트 <span className="text-primary">룸</span>
-            </h1>
-          </div>
-
-          {/* Role Switcher (Demo) */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">ROLE:</span>
-            <div className="flex gap-1">
-              {(["admin", "captain", "spectator"] as const).map((role) => (
-                <Button
-                  key={role}
-                  size="sm"
-                  variant={userRole === role ? "default" : "ghost"}
-                  className={userRole === role ? "bg-primary text-primary-foreground" : ""}
-                  onClick={() => {
-                    setUserRole(role)
-                    if (role === "captain") setMyCaptainTeamId(teams[0]?.id || null)
-                  }}
-                >
-                  {role.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Draft Room Layout */}
-      <div className="flex-1 container px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-          {/* Left: Player Pool */}
-          <div className="lg:col-span-3">
-            <PlayerPool
-              players={players}
-              isAdmin={userRole === "admin"}
-              teams={teams}
-              onSelectPlayer={handleSelectPlayer}
-              onForceAssign={handleForceAssign}
-              onSetCaptain={handleSetCaptain}
-            />
-          </div>
-
-          {/* Center: Auction Stage */}
-          <div className="lg:col-span-5">
-            <AuctionStage
-              currentPlayer={currentPlayer}
-              currentBid={currentBid}
-              auctionStatus={auctionStatus}
-              timer={timer}
-              teams={teams}
-              userRole={userRole}
-              myCaptainTeamId={myCaptainTeamId}
-              onBid={handleBid}
-            />
-
-            {/* Admin Controls */}
-            {userRole === "admin" && (
-              <AdminControls
-                auctionStatus={auctionStatus}
-                currentPlayer={currentPlayer}
-                onStart={handleStartAuction}
-                onPause={handlePauseAuction}
-                onResume={handleResumeAuction}
-                onConfirm={handleConfirmBid}
-                onCancel={handleCancelBid}
-              />
-            )}
-          </div>
-
-          {/* Right: Teams & Chat */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
-            <TeamPanel
-              teams={teams}
-              isAdmin={userRole === "admin"}
-              onAddTeam={handleAddTeam}
-              onRemoveMember={handleRemoveMember}
             />
             <ChatPanel messages={messages} onSendMessage={handleSendMessage} />
           </div>

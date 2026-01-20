@@ -12,10 +12,10 @@ export class AuthService {
   ) {}
 
   async validateUser(
-    battleTag: string,
+    username: string,
     pass: string,
   ): Promise<Omit<User, 'password'> | null> {
-    const user = await this.usersService.findByBattleTag(battleTag);
+    const user = await this.usersService.findByUsername(username);
     if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...result } = user;
@@ -24,14 +24,17 @@ export class AuthService {
     return null;
   }
 
-  async login(user: { battleTag: string; id: string; role: string }) {
-    const payload = { username: user.battleTag, sub: user.id, role: user.role };
+  async login(user: { username: string; id: string; role: string }) {
+    const payload = { username: user.username, sub: user.id, role: user.role };
     return {
       access_token: await this.jwtService.signAsync(payload),
     };
   }
 
   async register(userDto: Partial<User>) {
+    if (!userDto.username) {
+      throw new BadRequestException('Username is required');
+    }
     if (!userDto.password) {
       throw new BadRequestException('Password is required');
     }
@@ -42,11 +45,19 @@ export class AuthService {
       throw new BadRequestException('Main role is required');
     }
 
-    // Check for duplicate battleTag
-    const existingUser = await this.usersService.findByBattleTag(
-      userDto.battleTag,
+    // Check for duplicate username
+    const existingUser = await this.usersService.findByUsername(
+      userDto.username,
     );
     if (existingUser) {
+      throw new BadRequestException('Username already exists');
+    }
+
+    // Check for duplicate battleTag
+    const existingTag = await this.usersService.findByBattleTag(
+      userDto.battleTag,
+    );
+    if (existingTag) {
       throw new BadRequestException('BattleTag already exists');
     }
 
@@ -69,7 +80,9 @@ export class AuthService {
         error.code === '23505'
       ) {
         // PostgreSQL unique constraint violation
-        throw new BadRequestException('BattleTag already exists');
+        // We can't easily distinguish which field caused it without parsing error detail,
+        // but we did pre-checks.
+        throw new BadRequestException('Username or BattleTag already exists');
       }
       throw error;
     }

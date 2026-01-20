@@ -39,11 +39,28 @@ export default function LobbyPage() {
         api.get(`/auctions?clanId=${user?.clanId}`)
       ])
       setVotes(votesRes.data)
-      setLiveAuctions(auctionsRes.data.filter((a: any) => a.status === 'PENDING'))
+      setLiveAuctions(auctionsRes.data.filter((a: any) => a.status === 'ONGOING' || a.status === 'PENDING'))
     } catch (error) {
       console.error(error)
     } finally {
       setIsDataLoading(false)
+    }
+  }
+
+  const handleCreateVote = async (voteData: { title: string; deadline: string; maxVotes: number }) => {
+    try {
+      await api.post('/votes', {
+        clanId: user?.clanId,
+        title: voteData.title,
+        deadline: new Date(voteData.deadline).toISOString(),
+        scrimType: 'NORMAL', // Default
+        multipleChoice: false,
+        anonymous: false
+      })
+      fetchDashboardData() // Refresh list
+    } catch (error) {
+      console.error("Failed to create vote:", error)
+      alert("투표 생성 실패")
     }
   }
 
@@ -110,7 +127,7 @@ export default function LobbyPage() {
                 진행 중인 <span className="text-primary">투표</span>
               </h2>
               {user.role === 'ADMIN' && (
-                <CreateVoteModal />
+                <CreateVoteModal onCreateVote={handleCreateVote} />
               )}
             </div>
 

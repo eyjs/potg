@@ -177,33 +177,3 @@ export default function ScrimDetailPage() {
     </div>
   )
 }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
-
-      <main className="container px-4 py-6 space-y-6">
-        <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
-
-        <RosterSection
-          teamA={teamA}
-          teamB={teamB}
-          pool={pool}
-          isAdmin={isAdmin}
-          onMoveToTeam={handleMoveToTeam}
-          onMoveToPool={handleMoveToPool}
-          onImportFromAuction={handleImportFromAuction}
-          onShuffleTeams={handleShuffleTeams}
-        />
-
-        <MatchList
-          matches={matches}
-          isAdmin={isAdmin}
-          maps={overwatchMaps}
-          onUpdateMatchCount={handleUpdateMatchCount}
-          onUpdateMatch={handleUpdateMatch}
-        />
-      </main>
-    </div>
-  )
-}

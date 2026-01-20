@@ -8,7 +8,22 @@ import { AuthProvider } from "@/context/auth-context"
 import { BottomNav } from "@/common/layouts/bottom-nav"
 
 const exo2 = Exo_2({
-// ...
+  subsets: ["latin"],
+  variable: "--font-exo2",
+})
+
+export const metadata: Metadata = {
+  title: "POTG Auction",
+  description: "Overwatch Clan Auction System",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{

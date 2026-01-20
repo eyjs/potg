@@ -24,7 +24,7 @@ export class AuthController {
       throw new BadRequestException('Password required');
     }
     const user = await this.authService.validateUser(
-      loginDto.battleTag,
+      loginDto.username,
       loginDto.password,
     );
     if (!user) {

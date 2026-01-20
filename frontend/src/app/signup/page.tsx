@@ -38,7 +38,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState(1) // 1: 기본정보, 2: 게임정보
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
     confirmPassword: "",
     nickname: "",
@@ -57,7 +57,7 @@ export default function SignupPage() {
     match: formData.password === formData.confirmPassword && formData.confirmPassword.length > 0,
   }
 
-  const isStep1Valid = formData.email && passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
+  const isStep1Valid = formData.username && passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
   const isStep2Valid =
     formData.nickname &&
     formData.battleTag &&
@@ -76,17 +76,18 @@ export default function SignupPage() {
     
     try {
       const payload = {
+        username: formData.username,
         battleTag: formData.battleTag,
         password: formData.password,
         mainRole: formData.mainRole === 'damage' ? 'DPS' : formData.mainRole.toUpperCase(),
-        // Backend default rating is 1000, we ignore rank/email/nickname for now as backend doesn't support them
+        // Backend default rating is 1000
       }
       
       await api.post('/auth/register', payload)
       router.push("/login?registered=true")
     } catch (error) {
       console.error(error)
-      alert("회원가입 실패: 배틀태그가 중복되었거나 입력 정보를 확인해주세요.")
+      alert("회원가입 실패: 아이디 또는 배틀태그가 중복되었거나 입력 정보를 확인해주세요.")
     } finally {
       setIsLoading(false)
     }
@@ -174,20 +175,20 @@ export default function SignupPage() {
               {step === 1 ? (
                 <>
                   {/* Step 1: Basic Info */}
-                  {/* Email */}
+                  {/* Username */}
                   <div className="space-y-2">
                     <Label
-                      htmlFor="email"
+                      htmlFor="username"
                       className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                     >
-                      이메일
+                      아이디
                     </Label>
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      id="username"
+                      type="text"
+                      placeholder="사용할 아이디를 입력하세요"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                       required
                       className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                     />

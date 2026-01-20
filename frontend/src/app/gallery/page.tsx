@@ -40,6 +40,7 @@ export default function GalleryPage() {
   }, [user?.clanId])
 
   const fetchHeroes = async () => {
+    if (!user) return
     try {
       setIsLoading(true)
       const response = await api.get(`/blind-date/listings?clanId=${user.clanId}`)
@@ -74,6 +75,7 @@ export default function GalleryPage() {
   })
 
   const handleCreateHero = async (newHero: Omit<Hero, "id">) => {
+    if (!user) return
     try {
       await api.post('/blind-date/listings', {
         clanId: user.clanId,

@@ -17,6 +17,9 @@ export enum MainRole {
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
+  username: string;
+
+  @Column({ unique: true }) // BattleTag should likely still be unique per Blizzard rules, or at least in our system
   battleTag: string;
 
   @Column({ nullable: true, select: false }) // Password should not be selected by default

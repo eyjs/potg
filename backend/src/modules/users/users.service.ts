@@ -23,6 +23,25 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { username },
+      select: [
+        'id',
+        'username',
+        'battleTag',
+        'password',
+        'role',
+        'mainRole',
+        'rating',
+        'avatarUrl',
+        'bettingFloatingEnabled',
+        'createdAt',
+        'updatedAt',
+      ],
+    });
+  }
+
   async findByBattleTag(battleTag: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { battleTag },

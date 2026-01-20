@@ -24,6 +24,7 @@ export default function ShopPage() {
   }, [user?.clanId])
 
   const fetchData = async () => {
+    if (!user) return
     try {
       setIsLoading(true)
       const [productsRes, couponsRes] = await Promise.all([
