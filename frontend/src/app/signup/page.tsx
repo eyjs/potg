@@ -119,10 +119,10 @@ export default function SignupPage() {
       <header className="relative z-10 p-6">
         <Link href="/" className="flex items-center gap-2 w-fit">
           <div className="h-10 w-10 bg-primary skew-btn flex items-center justify-center">
-            <span className="text-primary-foreground font-extrabold text-lg italic">J</span>
+            <span className="text-primary-foreground font-extrabold text-lg italic">P</span>
           </div>
           <span className="font-extrabold text-xl italic tracking-wider text-foreground">
-            JOONBI <span className="text-primary">HQ</span>
+            POTG
           </span>
         </Link>
       </header>
@@ -133,7 +133,7 @@ export default function SignupPage() {
           {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-extrabold italic uppercase tracking-wider text-foreground mb-2">회원가입</h1>
-            <p className="text-muted-foreground">JoonBi HQ의 멤버가 되어보세요</p>
+            <p className="text-muted-foreground">POTG의 멤버가 되어보세요</p>
           </div>
 
           {/* Step Indicator */}
@@ -435,7 +435,7 @@ export default function SignupPage() {
       <footer className="relative z-10 p-6 text-center text-sm text-muted-foreground">
         <div className="flex items-center justify-center gap-1">
           <Shield className="w-4 h-4 text-primary" />
-          <span>JoonBi HQ는 오버워치 팬 커뮤니티입니다</span>
+          <span>POTG는 오버워치 팬 커뮤니티입니다</span>
         </div>
       </footer>
     </div>

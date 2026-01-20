@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useParams } from "next/navigation"
 import { Header } from "@/common/layouts/header"
 import { ScrimHeader } from "@/modules/scrim/components/scrim-header"
 import { RosterSection } from "@/modules/scrim/components/roster-section"
 import { MatchList } from "@/modules/scrim/components/match-list"
+import api from "@/lib/api"
+import { useAuth } from "@/context/auth-context"
 
 // Type definition
 interface Match {
@@ -14,55 +17,6 @@ interface Match {
   result: "teamA" | "teamB" | "draw" | null
   screenshot: string | null
 }
-
-// Mock data
-const mockScrim = {
-  id: "1",
-  title: "금요일 내전",
-  status: "finished" as const,
-  date: "2026-01-14",
-  startTime: "20:00",
-  endTime: "22:00",
-}
-
-const mockMembers = [
-  { id: "1", name: "김철수", avatar: "/avatar-male-gamer.jpg", role: "tank" as const },
-  { id: "2", name: "이영희", avatar: "/avatar-female-gamer.jpg", role: "dps" as const },
-  { id: "3", name: "박지민", avatar: "/avatar-male-esports.jpg", role: "dps" as const },
-  { id: "4", name: "최수연", avatar: "/avatar-female-player.jpg", role: "support" as const },
-  { id: "5", name: "정민호", avatar: "/avatar-male-streamer.jpg", role: "support" as const },
-  { id: "6", name: "한소희", avatar: "/avatar-female-korean.jpg", role: "tank" as const },
-  { id: "7", name: "윤성민", avatar: "/avatar-male-korean-gamer.jpg", role: "dps" as const },
-  { id: "8", name: "강지우", avatar: "/avatar-female-streamer.jpg", role: "dps" as const },
-  { id: "9", name: "조현우", avatar: "/avatar-male-esports-player.jpg", role: "support" as const },
-  { id: "10", name: "임세라", avatar: "/avatar-female-gamer-korean.jpg", role: "support" as const },
-  { id: "11", name: "오지현", avatar: "/avatar-person.png", role: "tank" as const },
-  { id: "12", name: "신동욱", avatar: "/male-avatar.png", role: "dps" as const },
-]
-
-const mockMatches: Match[] = [
-  {
-    id: "1",
-    gameNumber: 1,
-    map: { name: "King's Row", image: "/overwatch-kings-row-map.jpg" },
-    result: "teamA",
-    screenshot: "/overwatch-scoreboard-screenshot-tab.jpg",
-  },
-  {
-    id: "2",
-    gameNumber: 2,
-    map: { name: "Dorado", image: "/overwatch-dorado-map.jpg" },
-    result: "teamB",
-    screenshot: "/overwatch-match-result-scoreboard.jpg",
-  },
-  {
-    id: "3",
-    gameNumber: 3,
-    map: null,
-    result: null,
-    screenshot: null,
-  },
-]
 
 const overwatchMaps = [
   { name: "King's Row", image: "/overwatch-kings-row.jpg", type: "Hybrid" },
@@ -80,84 +34,149 @@ const overwatchMaps = [
 ]
 
 export default function ScrimDetailPage() {
-  const [scrim, setScrim] = useState(mockScrim)
-  const [pool, setPool] = useState(mockMembers)
-  const [teamA, setTeamA] = useState<typeof mockMembers>([])
-  const [teamB, setTeamB] = useState<typeof mockMembers>([])
-  const [matches, setMatches] = useState<Match[]>(mockMatches)
-  const [isAdmin] = useState(true)
+  const params = useParams()
+  const scrimId = params.id as string
+  const { user, isAdmin } = useAuth()
 
-  const handleUpdateSchedule = (date: string, startTime: string, endTime: string) => {
-    setScrim((prev) => ({ ...prev, date, startTime, endTime }))
-  }
+  const [scrim, setScrim] = useState<any>(null)
+  const [pool, setPool] = useState<any[]>([])
+  const [teamA, setTeamA] = useState<any[]>([])
+  const [teamB, setTeamB] = useState<any[]>([])
+  const [matches, setMatches] = useState<Match[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleMoveToTeam = (memberId: string, team: "A" | "B") => {
-    const member = pool.find((m) => m.id === memberId)
-    if (!member) return
+  const fetchScrimData = useCallback(async () => {
+    try {
+      const response = await api.get(`/scrims/${scrimId}`)
+      const data = response.data
+      setScrim({
+        id: data.id,
+        title: data.title,
+        status: data.status.toLowerCase(),
+        date: data.scheduledDate ? new Date(data.scheduledDate).toLocaleDateString() : "",
+        startTime: data.scheduledDate ? new Date(data.scheduledDate).toLocaleTimeString() : "",
+        endTime: "",
+      })
 
-    setPool((prev) => prev.filter((m) => m.id !== memberId))
-    if (team === "A") {
-      setTeamA((prev) => [...prev, member])
-    } else {
-      setTeamB((prev) => [...prev, member])
+      const participants = data.participants || []
+      setPool(participants.filter((p: any) => p.team === 'UNASSIGNED').map((p: any) => ({
+        id: p.userId,
+        name: p.user?.battleTag?.split('#')[0] || "선수",
+        role: p.user?.mainRole?.toLowerCase() || 'flex',
+      })))
+      setTeamA(participants.filter((p: any) => p.team === 'TEAM_A').map((p: any) => ({
+        id: p.userId,
+        name: p.user?.battleTag?.split('#')[0] || "선수",
+        role: p.user?.mainRole?.toLowerCase() || 'flex',
+      })))
+      setTeamB(participants.filter((p: any) => p.team === 'TEAM_B').map((p: any) => ({
+        id: p.userId,
+        name: p.user?.battleTag?.split('#')[0] || "선수",
+        role: p.user?.mainRole?.toLowerCase() || 'flex',
+      })))
+
+      setMatches(data.matches?.map((m: any, index: number) => ({
+        id: m.id,
+        gameNumber: index + 1,
+        map: m.mapName ? { name: m.mapName, image: "/placeholder.svg" } : null,
+        result: m.result === 'TEAM_A_WIN' ? 'teamA' : m.result === 'TEAM_B_WIN' ? 'teamB' : m.result === 'DRAW' ? 'draw' : null,
+        screenshot: m.screenshotUrl,
+      })) || [])
+    } catch (error) {
+      console.error("Failed to fetch scrim data:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [scrimId])
+
+  useEffect(() => {
+    fetchScrimData()
+  }, [fetchScrimData])
+
+  const handleUpdateSchedule = async (date: string, startTime: string, endTime: string) => {
+    try {
+      await api.patch(`/scrims/${scrimId}`, {
+        scheduledDate: new Date(`${date} ${startTime}`)
+      })
+      fetchScrimData()
+    } catch (error) {
+      console.error("Failed to update schedule:", error)
     }
   }
 
-  const handleMoveToPool = (memberId: string) => {
-    let member = teamA.find((m) => m.id === memberId)
-    if (member) {
-      setTeamA((prev) => prev.filter((m) => m.id !== memberId))
-      setPool((prev) => [...prev, member!])
-      return
+  const handleMoveToTeam = async (memberId: string, team: "A" | "B") => {
+    try {
+      await api.patch(`/scrims/${scrimId}/participants/${memberId}/team`, {
+        team: team === "A" ? 'TEAM_A' : 'TEAM_B'
+      })
+      fetchScrimData()
+    } catch (error) {
+      console.error("Failed to move to team:", error)
     }
+  }
 
-    member = teamB.find((m) => m.id === memberId)
-    if (member) {
-      setTeamB((prev) => prev.filter((m) => m.id !== memberId))
-      setPool((prev) => [...prev, member!])
+  const handleMoveToPool = async (memberId: string) => {
+    try {
+      await api.patch(`/scrims/${scrimId}/participants/${memberId}/team`, {
+        team: 'UNASSIGNED'
+      })
+      fetchScrimData()
+    } catch (error) {
+      console.error("Failed to move to pool:", error)
     }
   }
 
   const handleImportFromAuction = () => {
-    // Reset and apply auction results
-    const auctionTeamA = mockMembers.slice(0, 5)
-    const auctionTeamB = mockMembers.slice(5, 10)
-    const remaining = mockMembers.slice(10)
-
-    setTeamA(auctionTeamA)
-    setTeamB(auctionTeamB)
-    setPool(remaining)
+    alert("준비 중인 기능입니다.")
   }
 
   const handleShuffleTeams = () => {
-    const allMembers = [...pool, ...teamA, ...teamB]
-    const shuffled = [...allMembers].sort(() => Math.random() - 0.5)
-    const half = Math.ceil(shuffled.length / 2)
-
-    setTeamA(shuffled.slice(0, half))
-    setTeamB(shuffled.slice(half))
-    setPool([])
+    alert("준비 중인 기능입니다.")
   }
 
   const handleUpdateMatchCount = (count: number) => {
-    const currentCount = matches.length
-    if (count > currentCount) {
-      const newMatches = Array.from({ length: count - currentCount }, (_, i) => ({
-        id: String(Date.now() + i),
-        gameNumber: currentCount + i + 1,
-        map: null,
-        result: null,
-        screenshot: null,
-      }))
-      setMatches((prev) => [...prev, ...newMatches])
-    } else {
-      setMatches((prev) => prev.slice(0, count))
-    }
+    alert("준비 중인 기능입니다.")
   }
 
   const handleUpdateMatch = (matchId: string, updates: Partial<Match>) => {
-    setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, ...updates } : m)))
+    // Placeholder
   }
+
+  if (isLoading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">
+      내전 데이터 로딩 중...
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <Header />
+
+      <main className="container px-4 py-6 space-y-6">
+        <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
+
+        <RosterSection
+          teamA={teamA}
+          teamB={teamB}
+          pool={pool}
+          isAdmin={isAdmin}
+          onMoveToTeam={handleMoveToTeam}
+          onMoveToPool={handleMoveToPool}
+          onImportFromAuction={handleImportFromAuction}
+          onShuffleTeams={handleShuffleTeams}
+        />
+
+        <MatchList
+          matches={matches}
+          isAdmin={isAdmin}
+          maps={overwatchMaps}
+          onUpdateMatchCount={handleUpdateMatchCount}
+          onUpdateMatch={handleUpdateMatch}
+        />
+      </main>
+    </div>
+  )
+}
 
   return (
     <div className="min-h-screen bg-background">

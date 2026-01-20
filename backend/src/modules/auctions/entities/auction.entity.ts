@@ -30,6 +30,12 @@ export class Auction extends BaseEntity {
   @Column({ default: 60 })
   turnTimeLimit: number; // seconds
 
+  @Column({ nullable: true })
+  currentBiddingPlayerId: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  currentBiddingEndTime: Date;
+
   @OneToMany(() => AuctionParticipant, (participant) => participant.auction)
   participants: AuctionParticipant[];
 

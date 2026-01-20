@@ -1,71 +1,87 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/common/layouts/header"
 import { AuctionRoomCard } from "@/modules/auction/components/auction-room-card"
 import { CreateAuctionModal } from "@/modules/auction/components/create-auction-modal"
 import { Plus } from "lucide-react"
-
-// 샘플 데이터
-const initialAuctionRooms = [
-  {
-    id: "1",
-    title: "금요일 내전 경매",
-    status: "live" as const,
-    participants: 12,
-    maxParticipants: 20,
-    teamCount: 2,
-    createdAt: "2026-01-13 19:00",
-  },
-  {
-    id: "2",
-    title: "토요일 외부전 드래프트",
-    status: "waiting" as const,
-    participants: 8,
-    maxParticipants: 16,
-    teamCount: 4,
-    createdAt: "2026-01-14 15:00",
-  },
-  {
-    id: "3",
-    title: "지난주 내전 기록",
-    status: "ended" as const,
-    participants: 20,
-    maxParticipants: 20,
-    teamCount: 2,
-    createdAt: "2026-01-10 20:00",
-  },
-]
+import api from "@/lib/api"
+import { useAuth } from "@/context/auth-context"
 
 export default function AuctionListPage() {
-  const [auctionRooms, setAuctionRooms] = useState(initialAuctionRooms)
-  const isAdmin = true // TODO: 실제 권한 체크
+  const { user, isAdmin } = useAuth()
+  const [auctionRooms, setAuctionRooms] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleCreateAuction = (newAuction: {
+  useEffect(() => {
+    fetchAuctions()
+  }, [])
+
+  const fetchAuctions = async () => {
+    try {
+      setIsLoading(true)
+      const response = await api.get('/auctions')
+      setAuctionRooms(response.data)
+    } catch (error) {
+      console.error("Failed to fetch auctions:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCreateAuction = async (newAuction: {
     title: string
     maxParticipants: number
     teamCount: number
   }) => {
-    const auction = {
-      id: String(Date.now()),
-      ...newAuction,
-      status: "waiting" as const,
-      participants: 0,
-      createdAt: new Date().toISOString(),
+    try {
+      // Backend CreateAuctionDto: title, startingPoints, turnTimeLimit, accessCode
+      await api.post('/auctions', {
+        title: newAuction.title,
+        startingPoints: 10000, // Default for now
+        turnTimeLimit: 60,      // Default for now
+      })
+      fetchAuctions()
+    } catch (error) {
+      console.error("Failed to create auction:", error)
+      alert("경매 생성 실패")
     }
-    setAuctionRooms((prev) => [auction, ...prev])
   }
 
-  const handleDeleteAuction = (id: string) => {
-    setAuctionRooms((prev) => prev.filter((room) => room.id !== id))
+  const handleDeleteAuction = async (id: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return
+    try {
+      await api.delete(`/auctions/${id}`)
+      fetchAuctions()
+    } catch (error) {
+      console.error("Failed to delete auction:", error)
+    }
   }
 
-  const liveRooms = auctionRooms.filter((r) => r.status === "live")
-  const waitingRooms = auctionRooms.filter((r) => r.status === "waiting")
-  const endedRooms = auctionRooms.filter((r) => r.status === "ended")
+  const mapStatus = (status: string): "live" | "waiting" | "ended" => {
+    switch (status) {
+      case 'ONGOING': return 'live'
+      case 'PENDING': return 'waiting'
+      case 'COMPLETED': return 'ended'
+      default: return 'ended'
+    }
+  }
+
+  const liveRooms = auctionRooms.filter((r) => mapStatus(r.status) === "live")
+  const waitingRooms = auctionRooms.filter((r) => mapStatus(r.status) === "waiting")
+  const endedRooms = auctionRooms.filter((r) => mapStatus(r.status) === "ended")
+
+  if (isLoading) return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <div className="container px-4 py-20 text-center font-bold italic uppercase animate-pulse text-primary">
+        경매 목록 로딩 중...
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
 
       <main className="container px-4 py-6 space-y-6">
@@ -91,7 +107,13 @@ export default function AuctionListPage() {
               {liveRooms.map((room) => (
                 <AuctionRoomCard
                   key={room.id}
-                  {...room}
+                  id={room.id}
+                  title={room.title}
+                  status="live"
+                  participants={room.participants?.length || 0}
+                  maxParticipants={20} // Mocked as backend doesn't have it
+                  teamCount={room.teamCount || 2} // Mocked or derived
+                  createdAt={new Date(room.createdAt).toLocaleDateString()}
                   isAdmin={isAdmin}
                   onDelete={() => handleDeleteAuction(room.id)}
                 />
@@ -110,7 +132,13 @@ export default function AuctionListPage() {
               {waitingRooms.map((room) => (
                 <AuctionRoomCard
                   key={room.id}
-                  {...room}
+                  id={room.id}
+                  title={room.title}
+                  status="waiting"
+                  participants={room.participants?.length || 0}
+                  maxParticipants={20}
+                  teamCount={room.teamCount || 2}
+                  createdAt={new Date(room.createdAt).toLocaleDateString()}
                   isAdmin={isAdmin}
                   onDelete={() => handleDeleteAuction(room.id)}
                 />
@@ -129,7 +157,13 @@ export default function AuctionListPage() {
               {endedRooms.map((room) => (
                 <AuctionRoomCard
                   key={room.id}
-                  {...room}
+                  id={room.id}
+                  title={room.title}
+                  status="ended"
+                  participants={room.participants?.length || 0}
+                  maxParticipants={20}
+                  teamCount={room.teamCount || 2}
+                  createdAt={new Date(room.createdAt).toLocaleDateString()}
                   isAdmin={isAdmin}
                   onDelete={() => handleDeleteAuction(room.id)}
                 />

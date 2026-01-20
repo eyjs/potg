@@ -113,6 +113,27 @@ export class AuctionsService {
     });
   }
 
+  async selectPlayer(auctionId: string, userId: string, playerId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const auction = await manager.findOne(Auction, {
+        where: { id: auctionId },
+      });
+      if (!auction) throw new BadRequestException('Auction not found');
+      if (auction.creatorId !== userId)
+        throw new BadRequestException('Only creator can select player');
+      if (auction.status !== AuctionStatus.ONGOING)
+        throw new BadRequestException('Auction is not ongoing');
+
+      auction.currentBiddingPlayerId = playerId;
+      auction.currentBiddingEndTime = new Date(
+        Date.now() + auction.turnTimeLimit * 1000,
+      );
+      await manager.save(auction);
+
+      return auction;
+    });
+  }
+
   async complete(auctionId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
       const auction = await manager.findOne(Auction, {

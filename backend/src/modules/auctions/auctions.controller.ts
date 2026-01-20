@@ -72,6 +72,16 @@ export class AuctionsController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/select-player')
+  selectPlayer(
+    @Param('id') id: string,
+    @Body('playerId') playerId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.auctionsService.selectPlayer(id, req.user.userId, playerId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id/complete')
   complete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.auctionsService.complete(id, req.user.userId);

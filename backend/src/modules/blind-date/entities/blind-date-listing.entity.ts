@@ -52,6 +52,21 @@ export class BlindDateListing extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   idealType: string;
 
+  @Column({ nullable: true })
+  mbti: string;
+
+  @Column({ nullable: true })
+  gameRole: string;
+
+  @Column({ nullable: true })
+  tier: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  mostHeroes: string[];
+
+  @Column({ default: false })
+  smoking: boolean;
+
   @Column({ type: 'jsonb', nullable: true })
   photos: string[];
 

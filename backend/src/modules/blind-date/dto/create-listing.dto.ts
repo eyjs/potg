@@ -23,6 +23,23 @@ export class CreateListingDto {
   @IsString()
   description: string;
 
+  @IsString()
+  @IsOptional()
+  mbti?: string;
+
+  @IsString()
+  @IsOptional()
+  gameRole?: string;
+
+  @IsString()
+  @IsOptional()
+  tier?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  mostHeroes?: string[];
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

@@ -50,11 +50,8 @@ erDiagram
         int turnTimeLimit
         
         %% Real-time Status Fields
-        uuid currentTurnUserId FK "현재 입찰 순서(팀장)"
-        uuid currentTargetUserId FK "현재 경매 대상(선수)"
-        int currentBiddingPrice "현재 최고 입찰가"
-        uuid currentHighBidderId FK "현재 최고 입찰자"
-        timestamp currentTurnEndTime "현재 턴 종료 예정 시간(타이머)"
+        uuid currentBiddingPlayerId FK "Nullable - 현재 경매 대상(선수)"
+        timestamp currentBiddingEndTime "Nullable - 현재 턴 종료 예정 시간"
         
         timestamp created_at
         timestamp updated_at
@@ -233,6 +230,11 @@ erDiagram
         string education "학력 - Nullable"
         text description "자기소개"
         text idealType "희망 조건"
+        string mbti "MBTI - Nullable"
+        string gameRole "게임 포지션 - Nullable"
+        string tier "티어 - Nullable"
+        jsonb mostHeroes "모스트 영웅 목록 - Nullable"
+        boolean smoking "흡연 여부"
         jsonb photos "사진 URL 배열"
         string contactInfo "연락처 - Nullable"
         uuid matchedRequestId FK "매칭된 요청 - Nullable"
