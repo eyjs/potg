@@ -111,9 +111,9 @@ export class BettingService {
     result: BettingAnswer,
   ): Promise<{ updatedCount: number }> {
     return this.dataSource.transaction(async (manager) => {
+      // 1. Fetch question and lock/update status first
       const question = await manager.findOne(BettingQuestion, {
         where: { id: questionId },
-        relations: ['tickets'],
       });
       if (!question) throw new BadRequestException('Question not found');
       if (question.status === BettingStatus.SETTLED)
@@ -123,9 +123,15 @@ export class BettingService {
       question.correctAnswer = result;
       await manager.save(question);
 
+      // 2. Fetch tickets AFTER status update to capture any that slipped in
+      // Any new placeBet attempts will now fail due to status check
+      const tickets = await manager.find(BettingTicket, {
+        where: { questionId },
+      });
+
       let updatedCount = 0;
 
-      for (const ticket of question.tickets) {
+      for (const ticket of tickets) {
         const clanMember = await manager.findOne(ClanMember, {
           where: { userId: ticket.userId, clanId: ticket.clanId },
         });
