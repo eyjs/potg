@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    username: "",
+    battleTag: "",
     password: "",
     rememberMe: false,
   })
@@ -30,14 +30,14 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const response = await api.post('/auth/login', {
-        username: formData.username,
+        battleTag: formData.battleTag,
         password: formData.password
       })
       await login(response.data.access_token)
       router.replace("/")
     } catch (error) {
       console.error(error)
-      toast.error("로그인 실패: 아이디나 비밀번호를 확인해주세요.")
+      toast.error("로그인 실패: 배틀태그나 비밀번호를 확인해주세요.")
     } finally {
       setIsLoading(false)
     }
@@ -87,17 +87,17 @@ export default function LoginPage() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-accent" />
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Username */}
+              {/* BattleTag */}
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  아이디
+                <Label htmlFor="battleTag" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  배틀태그
                 </Label>
                 <Input
-                  id="username"
+                  id="battleTag"
                   type="text"
-                  placeholder="아이디를 입력하세요"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="Player#12345"
+                  value={formData.battleTag}
+                  onChange={(e) => setFormData({ ...formData, battleTag: e.target.value })}
                   required
                   className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                 />
