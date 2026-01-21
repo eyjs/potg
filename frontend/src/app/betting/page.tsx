@@ -14,6 +14,7 @@ import { useAuth } from "@/context/auth-context"
 import { Coins, Clock, AlertCircle, Plus, TrendingUp, History } from "lucide-react"
 import { Badge } from "@/common/components/ui/badge"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 interface BettingQuestion {
@@ -143,13 +144,13 @@ export default function BettingPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "OPEN":
-        return "bg-green-500/10 text-green-500 border-green-500"
+        return "bg-green-600 text-white border-green-500"
       case "CLOSED":
-        return "bg-yellow-500/10 text-yellow-500 border-yellow-500"
+        return "bg-ow-orange text-black border-ow-orange"
       case "SETTLED":
-        return "bg-blue-500/10 text-blue-500 border-blue-500"
+        return "bg-accent text-black border-accent"
       default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500"
+        return "bg-muted text-muted-foreground border-border"
     }
   }
 
@@ -158,7 +159,7 @@ export default function BettingPage() {
       case "OPEN":
         return "진행 중"
       case "CLOSED":
-        return "마감"
+        return "마감됨"
       case "SETTLED":
         return "정산 완료"
       default:
@@ -168,7 +169,7 @@ export default function BettingPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0">
+      <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0 text-foreground">
         <Header />
         <main className="container px-4 py-8 max-w-5xl mx-auto space-y-8">
           <div className="flex items-center justify-between">
@@ -186,7 +187,7 @@ export default function BettingPage() {
 
             <div className="flex gap-2">
               <Link href="/betting/my-bets">
-                <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 font-bold">
+                <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 font-bold">
                   <History className="w-4 h-4 mr-2" />
                   내 베팅 내역
                 </Button>
@@ -199,7 +200,7 @@ export default function BettingPage() {
                     베팅 문항 생성
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card border-border">
+                <DialogContent className="bg-card border-border text-foreground">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-bold">새 베팅 문항 생성</DialogTitle>
                   </DialogHeader>
@@ -211,7 +212,7 @@ export default function BettingPage() {
                         placeholder="예: 이번 스크림에서 우리 팀이 승리할 것이다"
                         value={newQuestion.question}
                         onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
-                        className="bg-background border-border"
+                        className="bg-[#050505] border-border focus:border-primary"
                       />
                     </div>
 
@@ -225,7 +226,7 @@ export default function BettingPage() {
                           step="100"
                           value={newQuestion.minBetAmount}
                           onChange={(e) => setNewQuestion({ ...newQuestion, minBetAmount: Number(e.target.value) })}
-                          className="bg-background border-border"
+                          className="bg-[#050505] border-border focus:border-primary"
                         />
                       </div>
 
@@ -238,7 +239,7 @@ export default function BettingPage() {
                           step="0.1"
                           value={newQuestion.rewardMultiplier}
                           onChange={(e) => setNewQuestion({ ...newQuestion, rewardMultiplier: Number(e.target.value) })}
-                          className="bg-background border-border"
+                          className="bg-[#050505] border-border focus:border-primary"
                         />
                       </div>
                     </div>
@@ -250,7 +251,7 @@ export default function BettingPage() {
                         type="datetime-local"
                         value={newQuestion.bettingDeadline}
                         onChange={(e) => setNewQuestion({ ...newQuestion, bettingDeadline: e.target.value })}
-                        className="bg-background border-border"
+                        className="bg-[#050505] border-border focus:border-primary"
                       />
                     </div>
 
@@ -287,32 +288,32 @@ export default function BettingPage() {
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q) => (
                 <Card key={q.id} className="bg-card border-border overflow-hidden">
-                  <CardHeader className="bg-muted/30 pb-4">
+                  <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
                     <div className="flex justify-between items-start mb-2">
-                      <Badge variant="outline" className={getStatusColor(q.status)}>
+                      <Badge className={cn("px-2 py-0.5 rounded-sm font-black", getStatusColor(q.status))}>
                         {getStatusLabel(q.status)}
                       </Badge>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold">
                         <Clock className="w-3 h-3" /> {new Date(q.createdAt).toLocaleDateString()}
                       </div>
                     </div>
-                    <CardTitle className="text-xl font-bold italic">{q.question}</CardTitle>
+                    <CardTitle className="text-xl font-bold italic text-foreground">{q.question}</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-muted-foreground block mb-1">최소 베팅</span>
-                        <span className="text-primary font-black">{q.minBetAmount}P</span>
+                        <span className="text-muted-foreground block mb-1 font-bold">최소 베팅</span>
+                        <span className="text-primary font-black text-lg">{q.minBetAmount}P</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground block mb-1">보상 배율</span>
-                        <span className="text-primary font-black">x{q.rewardMultiplier}</span>
+                        <span className="text-muted-foreground block mb-1 font-bold">보상 배율</span>
+                        <span className="text-primary font-black text-lg">x{q.rewardMultiplier}</span>
                       </div>
                     </div>
 
                     {q.status === "SETTLED" && q.correctAnswer && (
                       <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg text-center">
-                        <span className="text-sm text-muted-foreground">정답: </span>
+                        <span className="text-sm text-muted-foreground font-bold">정답: </span>
                         <span className="text-2xl font-black text-primary">{q.correctAnswer}</span>
                       </div>
                     )}
@@ -321,13 +322,13 @@ export default function BettingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <Button
                           onClick={() => openBetDialog(q, 'O')}
-                          className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-accent-foreground rounded-md"
+                          className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-black rounded-md"
                         >
                           O
                         </Button>
                         <Button
                           onClick={() => openBetDialog(q, 'X')}
-                          className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md"
+                          className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
                         >
                           X
                         </Button>
@@ -341,7 +342,7 @@ export default function BettingPage() {
                         정산하기
                       </Button>
                     ) : (
-                      <div className="text-center py-4 text-muted-foreground text-sm">
+                      <div className="text-center py-4 text-muted-foreground text-sm font-bold bg-muted/20 rounded-md">
                         {q.status === "CLOSED" ? "정산 대기 중" : "정산 완료"}
                       </div>
                     )}
@@ -354,23 +355,26 @@ export default function BettingPage() {
 
         {/* Bet Dialog */}
         <Dialog open={isBetDialogOpen} onOpenChange={setIsBetDialogOpen}>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
-                <span className="text-primary">{betPrediction}</span>에 베팅하기
+                <span className={cn("px-2 py-1 rounded mx-1", betPrediction === 'O' ? "bg-accent text-black" : "bg-destructive text-white")}>
+                  {betPrediction}
+                </span>
+                에 베팅하기
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <p className="text-sm font-medium mb-2">{selectedQuestion?.question}</p>
+              <div className="p-4 bg-muted/30 border border-border rounded-lg">
+                <p className="text-sm font-bold mb-2">{selectedQuestion?.question}</p>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>보상 배율</span>
-                  <span className="text-primary font-bold">x{selectedQuestion?.rewardMultiplier}</span>
+                  <span className="text-primary font-black">x{selectedQuestion?.rewardMultiplier}</span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="betAmount">베팅 금액 (P)</Label>
+                <Label htmlFor="betAmount" className="font-bold">베팅 금액 (P)</Label>
                 <Input
                   id="betAmount"
                   type="number"
@@ -378,22 +382,24 @@ export default function BettingPage() {
                   step="100"
                   value={betAmount}
                   onChange={(e) => setBetAmount(e.target.value)}
-                  className="bg-background border-border"
+                  className="bg-[#050505] border-border focus:border-primary h-12 text-lg font-black"
                 />
-                <p className="text-xs text-muted-foreground">
-                  최소: {selectedQuestion?.minBetAmount}P
-                </p>
-                {selectedQuestion && Number(betAmount) >= selectedQuestion.minBetAmount && (
-                  <p className="text-xs text-primary font-bold">
-                    예상 수령: {Math.floor(Number(betAmount) * selectedQuestion.rewardMultiplier)}P
+                <div className="flex justify-between items-center px-1">
+                  <p className="text-xs text-muted-foreground">
+                    최소 베팅: <span className="font-bold">{selectedQuestion?.minBetAmount}P</span>
                   </p>
-                )}
+                  {selectedQuestion && Number(betAmount) >= selectedQuestion.minBetAmount && (
+                    <p className="text-xs text-primary font-black">
+                      예상 수령: {Math.floor(Number(betAmount) * selectedQuestion.rewardMultiplier)}P
+                    </p>
+                  )}
+                </div>
               </div>
 
               <Button
                 onClick={handlePlaceBet}
                 disabled={!betAmount || Number(betAmount) < (selectedQuestion?.minBetAmount || 100)}
-                className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-lg h-12"
+                className="w-full bg-primary hover:bg-primary/90 text-black font-black text-lg h-14 skew-btn"
               >
                 베팅하기
               </Button>
@@ -403,27 +409,27 @@ export default function BettingPage() {
 
         {/* Settle Dialog */}
         <Dialog open={isSettleDialogOpen} onOpenChange={setIsSettleDialogOpen}>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">베팅 정산</DialogTitle>
+              <DialogTitle className="text-2xl font-bold text-primary">베팅 정산</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <p className="font-medium mb-2">{selectedQuestion?.question}</p>
+              <div className="p-4 bg-muted/30 border border-border rounded-lg">
+                <p className="font-bold mb-2">{selectedQuestion?.question}</p>
               </div>
 
-              <p className="text-sm text-muted-foreground">정답을 선택하여 베팅을 정산하세요.</p>
+              <p className="text-sm text-muted-foreground font-bold italic">최종 결과를 선택하면 포인트가 즉시 정산됩니다.</p>
 
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   onClick={() => handleSettleQuestion('O')}
-                  className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-accent-foreground rounded-md"
+                  className="h-20 text-3xl font-black bg-accent hover:bg-accent/90 text-black rounded-md"
                 >
                   O
                 </Button>
                 <Button
                   onClick={() => handleSettleQuestion('X')}
-                  className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md"
+                  className="h-20 text-3xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
                 >
                   X
                 </Button>
