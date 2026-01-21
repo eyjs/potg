@@ -321,13 +321,13 @@ export default function BettingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <Button
                           onClick={() => openBetDialog(q, 'O')}
-                          className="h-16 text-2xl font-black bg-ow-blue hover:bg-ow-blue/90 text-black rounded-md"
+                          className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-accent-foreground rounded-md"
                         >
                           O
                         </Button>
                         <Button
                           onClick={() => openBetDialog(q, 'X')}
-                          className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
+                          className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md"
                         >
                           X
                         </Button>
@@ -417,13 +417,13 @@ export default function BettingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   onClick={() => handleSettleQuestion('O')}
-                  className="h-16 text-2xl font-black bg-ow-blue hover:bg-ow-blue/90 text-black rounded-md"
+                  className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-accent-foreground rounded-md"
                 >
                   O
                 </Button>
                 <Button
                   onClick={() => handleSettleQuestion('X')}
-                  className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
+                  className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md"
                 >
                   X
                 </Button>
