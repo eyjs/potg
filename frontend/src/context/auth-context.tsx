@@ -14,6 +14,8 @@ interface User {
   avatarUrl?: string;
   clanId?: string;
   bettingFloatingEnabled: boolean;
+  totalPoints: number;
+  lockedPoints: number;
 }
 
 interface AuthContextType {

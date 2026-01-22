@@ -8,9 +8,14 @@ import {
   ParticipantSource,
   ParticipantStatus,
 } from './entities/scrim-participant.entity';
-import { CreateScrimDto, UpdateScrimDto } from './dto/scrim.dto';
+import { ScrimMatch } from './entities/scrim-match.entity';
+import { CreateScrimDto, UpdateScrimDto, UpdateMatchDto } from './dto/scrim.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
+import {
+  AuctionParticipant,
+  AuctionRole,
+} from '../auctions/entities/auction-participant.entity';
 
 const SCRIM_WIN_REWARD = 1000;
 
@@ -21,6 +26,8 @@ export class ScrimsService {
     private scrimsRepository: Repository<Scrim>,
     @InjectRepository(ScrimParticipant)
     private participantsRepository: Repository<ScrimParticipant>,
+    @InjectRepository(ScrimMatch)
+    private matchRepository: Repository<ScrimMatch>,
     private dataSource: DataSource,
   ) {}
 
@@ -229,5 +236,158 @@ export class ScrimsService {
 
     participant.status = ParticipantStatus.REMOVED;
     return this.participantsRepository.save(participant);
+  }
+
+  // Import participants from linked auction
+  async importAuctionParticipants(scrimId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id: scrimId },
+        relations: ['participants'],
+      });
+
+      if (!scrim) throw new BadRequestException('Scrim not found');
+      if (!scrim.auctionId)
+        throw new BadRequestException('No auction linked to this scrim');
+      if (scrim.status !== ScrimStatus.DRAFT)
+        throw new BadRequestException('Can only import in DRAFT status');
+
+      // Fetch auction participants
+      const auctionParticipants = await manager.find(AuctionParticipant, {
+        where: { auctionId: scrim.auctionId },
+        relations: ['user'],
+      });
+
+      // Delete existing AUCTION source participants
+      await manager.delete(ScrimParticipant, {
+        scrimId,
+        source: ParticipantSource.AUCTION,
+      });
+
+      // Create new participants from auction (CAPTAIN and PLAYER only)
+      const newParticipants: ScrimParticipant[] = [];
+      for (const ap of auctionParticipants) {
+        if (ap.role === AuctionRole.CAPTAIN || ap.role === AuctionRole.PLAYER) {
+          // Check if already exists as MANUAL
+          const existing = scrim.participants.find(
+            (p) =>
+              p.userId === ap.userId && p.source === ParticipantSource.MANUAL,
+          );
+          if (existing) continue;
+
+          const participant = manager.create(ScrimParticipant, {
+            scrimId,
+            userId: ap.userId,
+            source: ParticipantSource.AUCTION,
+            status: ParticipantStatus.CONFIRMED,
+            assignedTeam: AssignedTeam.UNASSIGNED,
+          });
+          newParticipants.push(participant);
+        }
+      }
+
+      await manager.save(newParticipants);
+      return { imported: newParticipants.length };
+    });
+  }
+
+  // Shuffle pool participants into teams randomly
+  async shuffleTeams(scrimId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id: scrimId },
+        relations: ['participants'],
+      });
+
+      if (!scrim) throw new BadRequestException('Scrim not found');
+      if (scrim.status !== ScrimStatus.DRAFT)
+        throw new BadRequestException('Can only shuffle in DRAFT status');
+
+      const poolParticipants = scrim.participants.filter(
+        (p) =>
+          p.assignedTeam === AssignedTeam.UNASSIGNED &&
+          p.status === ParticipantStatus.CONFIRMED,
+      );
+
+      if (poolParticipants.length === 0) {
+        throw new BadRequestException('No participants in pool to shuffle');
+      }
+
+      // Fisher-Yates shuffle
+      const shuffled = [...poolParticipants];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      // Assign to teams (split evenly)
+      const midpoint = Math.ceil(shuffled.length / 2);
+      for (let i = 0; i < shuffled.length; i++) {
+        shuffled[i].assignedTeam =
+          i < midpoint ? AssignedTeam.TEAM_A : AssignedTeam.TEAM_B;
+      }
+
+      await manager.save(shuffled);
+      return { shuffled: shuffled.length };
+    });
+  }
+
+  // Update match count (create or delete matches)
+  async updateMatchCount(scrimId: string, targetCount: number) {
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id: scrimId },
+        relations: ['matches'],
+      });
+
+      if (!scrim) throw new BadRequestException('Scrim not found');
+      if (scrim.status !== ScrimStatus.DRAFT)
+        throw new BadRequestException('Can only modify matches in DRAFT status');
+      if (targetCount < 1 || targetCount > 9)
+        throw new BadRequestException('Match count must be 1-9');
+
+      const currentCount = scrim.matches?.length ?? 0;
+
+      if (targetCount > currentCount) {
+        // Create new matches
+        const newMatches: ScrimMatch[] = [];
+        for (let i = currentCount; i < targetCount; i++) {
+          const match = manager.create(ScrimMatch, {
+            scrimId,
+            mapName: '',
+            teamAScore: 0,
+            teamBScore: 0,
+          });
+          newMatches.push(match);
+        }
+        await manager.save(newMatches);
+      } else if (targetCount < currentCount) {
+        // Delete excess matches (newest first)
+        const sortedMatches = scrim.matches.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        const toDelete = sortedMatches.slice(0, currentCount - targetCount);
+        await manager.remove(toDelete);
+      }
+
+      return { matchCount: targetCount };
+    });
+  }
+
+  // Update match details (map, score, screenshot)
+  async updateMatch(matchId: string, updateData: UpdateMatchDto) {
+    const match = await this.matchRepository.findOne({
+      where: { id: matchId },
+      relations: ['scrim'],
+    });
+
+    if (!match) throw new BadRequestException('Match not found');
+    if (match.scrim.status === ScrimStatus.FINISHED) {
+      throw new BadRequestException('Cannot modify finished scrim matches');
+    }
+
+    Object.assign(match, updateData);
+    return this.matchRepository.save(match);
   }
 }

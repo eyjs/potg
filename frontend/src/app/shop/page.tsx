@@ -97,7 +97,9 @@ export default function ShopPage() {
             <div className="flex items-center gap-2">
               <div className="px-4 py-2 bg-card border border-border rounded-sm">
                 <span className="text-xs text-muted-foreground uppercase font-bold block">내 가용 포인트</span>
-                <span className="text-xl font-black italic text-primary">0P</span>
+                <span className="text-xl font-black italic text-primary">
+                  {((user?.totalPoints ?? 0) - (user?.lockedPoints ?? 0)).toLocaleString()}P
+                </span>
               </div>
             </div>
           </div>

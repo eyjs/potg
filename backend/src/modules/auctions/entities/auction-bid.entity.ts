@@ -19,4 +19,7 @@ export class AuctionBid extends BaseEntity {
 
   @Column()
   amount: number;
+
+  @Column({ default: true })
+  isActive: boolean;
 }

@@ -6,8 +6,16 @@ import { AuctionBid } from './auction-bid.entity';
 export enum AuctionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
+  PAUSED = 'PAUSED',
+  ASSIGNING = 'ASSIGNING', // Manual assignment phase for unsold players
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+}
+
+export enum BiddingPhase {
+  WAITING = 'WAITING', // Waiting for master to select next player
+  BIDDING = 'BIDDING', // Active bidding
+  SOLD = 'SOLD', // Just sold, waiting for master to click "Next"
 }
 
 @Entity('auctions')
@@ -37,10 +45,22 @@ export class Auction extends BaseEntity {
   teamCount: number;
 
   @Column({ nullable: true })
-  currentBiddingPlayerId: string;
+  currentBiddingPlayerId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  currentBiddingEndTime: Date;
+  currentBiddingEndTime: Date | null;
+
+  @Column({ type: 'enum', enum: BiddingPhase, default: BiddingPhase.WAITING })
+  biddingPhase: BiddingPhase;
+
+  @Column({ default: false })
+  timerPaused: boolean;
+
+  @Column({ nullable: true })
+  pausedTimeRemaining: number | null; // seconds remaining when paused
+
+  @Column({ nullable: true })
+  linkedScrimId: string;
 
   @OneToMany(() => AuctionParticipant, (participant) => participant.auction)
   participants: AuctionParticipant[];

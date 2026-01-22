@@ -18,6 +18,8 @@ const navItems = [
   { href: "/vote", label: "투표" },
   { href: "/auction", label: "경매장" },
   { href: "/betting", label: "베팅" },
+  { href: "/shop", label: "상점" },
+  { href: "/wallet", label: "지갑" },
   { href: "/utility", label: "유틸리티" },
   { href: "/gallery", label: "소개팅" },
 ]

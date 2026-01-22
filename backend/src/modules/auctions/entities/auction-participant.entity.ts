@@ -32,4 +32,16 @@ export class AuctionParticipant extends BaseEntity {
 
   @Column({ default: 0 })
   currentPoints: number;
+
+  @Column({ nullable: true })
+  assignedTeamCaptainId: string | null;
+
+  @Column({ default: 0 })
+  soldPrice: number;
+
+  @Column({ default: false })
+  wasUnsold: boolean; // True if manually assigned after being unsold
+
+  @Column({ default: 0 })
+  biddingOrder: number; // Order in which this player was put up for auction
 }

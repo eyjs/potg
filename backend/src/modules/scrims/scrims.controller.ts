@@ -16,6 +16,7 @@ import {
   CreateScrimDto,
   UpdateScrimDto,
   AddParticipantDto,
+  UpdateMatchDto,
 } from './dto/scrim.dto';
 import { AssignedTeam } from './entities/scrim-participant.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
@@ -72,5 +73,36 @@ export class ScrimsController {
     @Param('userId') userId: string,
   ) {
     return this.scrimsService.removeParticipant(scrimId, userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/import-auction')
+  importFromAuction(@Param('id') scrimId: string) {
+    return this.scrimsService.importAuctionParticipants(scrimId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/shuffle-teams')
+  shuffleTeams(@Param('id') scrimId: string) {
+    return this.scrimsService.shuffleTeams(scrimId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/matches')
+  updateMatchCount(
+    @Param('id') scrimId: string,
+    @Body('count') count: number,
+  ) {
+    return this.scrimsService.updateMatchCount(scrimId, count);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/matches/:matchId')
+  updateMatch(
+    @Param('id') scrimId: string,
+    @Param('matchId') matchId: string,
+    @Body() updateData: UpdateMatchDto,
+  ) {
+    return this.scrimsService.updateMatch(matchId, updateData);
   }
 }

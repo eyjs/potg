@@ -20,6 +20,7 @@ interface RosterSectionProps {
   teamB: Member[]
   pool: Member[]
   isAdmin: boolean
+  hasAuction?: boolean
   onMoveToTeam: (memberId: string, team: "A" | "B") => void
   onMoveToPool: (memberId: string) => void
   onImportFromAuction?: () => void
@@ -132,13 +133,8 @@ function TeamMemberCard({
   )
 }
 
-function ImportAuctionDialog({ onImport }: { onImport: () => void }) {
+function ImportAuctionDialog({ onImport, hasAuction }: { onImport: () => void; hasAuction: boolean }) {
   const [open, setOpen] = useState(false)
-
-  const mockAuctionResults = [
-    { teamName: "팀장A의 팀", members: ["김철수", "이영희", "박지민", "최수연", "정민호"] },
-    { teamName: "팀장B의 팀", members: ["한소희", "윤성민", "강지우", "조현우", "임세라"] },
-  ]
 
   const handleImport = () => {
     onImport()
@@ -151,7 +147,9 @@ function ImportAuctionDialog({ onImport }: { onImport: () => void }) {
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 border-border/50 text-muted-foreground hover:text-foreground bg-transparent"
+          className="gap-2 border-border/50 text-muted-foreground hover:text-foreground bg-transparent disabled:opacity-50"
+          disabled={!hasAuction}
+          title={!hasAuction ? "이 스크림은 경매와 연결되어 있지 않습니다" : ""}
         >
           <Download className="w-4 h-4" />
           Import from Auction
@@ -165,25 +163,11 @@ function ImportAuctionDialog({ onImport }: { onImport: () => void }) {
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            최근 종료된 경매의 팀 구성을 불러옵니다. 현재 배정된 인원은 초기화됩니다.
+            연결된 경매의 참가자를 대기 명단으로 불러옵니다.
           </p>
-
-          <div className="space-y-3">
-            {mockAuctionResults.map((team, idx) => (
-              <div key={idx} className="p-3 bg-muted/50 rounded-sm border border-border/50">
-                <p className={cn("font-bold text-sm mb-2", idx === 0 ? "text-accent" : "text-primary")}>
-                  {team.teamName}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {team.members.map((name) => (
-                    <span key={name} className="text-xs px-2 py-1 bg-background rounded-sm text-muted-foreground">
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-yellow-500 font-semibold">
+            현재 대기 명단의 경매 출처 참가자는 초기화됩니다.
+          </p>
 
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setOpen(false)}>
@@ -207,6 +191,7 @@ export function RosterSection({
   teamB,
   pool,
   isAdmin,
+  hasAuction = false,
   onMoveToTeam,
   onMoveToPool,
   onImportFromAuction,
@@ -232,7 +217,7 @@ export function RosterSection({
                 랜덤 섞기
               </Button>
             )}
-            {onImportFromAuction && <ImportAuctionDialog onImport={onImportFromAuction} />}
+            {onImportFromAuction && <ImportAuctionDialog onImport={onImportFromAuction} hasAuction={hasAuction} />}
           </div>
         )}
       </div>

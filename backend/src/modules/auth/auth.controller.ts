@@ -49,16 +49,20 @@ export class AuthController {
     const user = await this.usersService.findByIdWithClan(req.user.userId);
     if (!user) return null;
 
-    // Flatten clanId and clanRole for frontend convenience
+    // Flatten clanId, clanRole, and points for frontend convenience
     const membership = user.clanMembers?.[0];
     const clanId = membership?.clanId || null;
     const clanRole = membership?.role || null;
-    
+    const totalPoints = membership?.totalPoints ?? 0;
+    const lockedPoints = membership?.lockedPoints ?? 0;
+
     return {
       ...user,
       id: user.id,
       clanId,
       clanRole,
+      totalPoints,
+      lockedPoints,
     };
   }
 }

@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsDateString,
   IsUUID,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { ScrimStatus, RecruitmentType } from '../entities/scrim.entity';
 import { ParticipantSource } from '../entities/scrim-participant.entity';
@@ -63,4 +65,24 @@ export class AddParticipantDto {
   @IsOptional()
   @IsEnum(ParticipantSource)
   source?: ParticipantSource;
+}
+
+export class UpdateMatchDto {
+  @IsOptional()
+  @IsString()
+  mapName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  teamAScore?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  teamBScore?: number;
+
+  @IsOptional()
+  @IsString()
+  screenshotUrl?: string;
 }

@@ -60,20 +60,21 @@ export default function ScrimDetailPage() {
         date: data.scheduledDate ? new Date(data.scheduledDate).toLocaleDateString() : "",
         startTime: data.scheduledDate ? new Date(data.scheduledDate).toLocaleTimeString() : "",
         endTime: "",
+        auctionId: data.auctionId,
       })
 
       const participants = data.participants || []
-      setPool(participants.filter((p: any) => p.team === 'UNASSIGNED').map((p: any) => ({
+      setPool(participants.filter((p: any) => p.assignedTeam === 'UNASSIGNED').map((p: any) => ({
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || "선수",
         role: p.user?.mainRole?.toLowerCase() || 'flex',
       })))
-      setTeamA(participants.filter((p: any) => p.team === 'TEAM_A').map((p: any) => ({
+      setTeamA(participants.filter((p: any) => p.assignedTeam === 'TEAM_A').map((p: any) => ({
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || "선수",
         role: p.user?.mainRole?.toLowerCase() || 'flex',
       })))
-      setTeamB(participants.filter((p: any) => p.team === 'TEAM_B').map((p: any) => ({
+      setTeamB(participants.filter((p: any) => p.assignedTeam === 'TEAM_B').map((p: any) => ({
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || "선수",
         role: p.user?.mainRole?.toLowerCase() || 'flex',
@@ -83,7 +84,9 @@ export default function ScrimDetailPage() {
         id: m.id,
         gameNumber: index + 1,
         map: m.mapName ? { name: m.mapName, image: "/placeholder.svg" } : null,
-        result: m.result === 'TEAM_A_WIN' ? 'teamA' : m.result === 'TEAM_B_WIN' ? 'teamB' : m.result === 'DRAW' ? 'draw' : null,
+        result: m.teamAScore > m.teamBScore ? 'teamA' :
+                m.teamBScore > m.teamAScore ? 'teamB' :
+                (m.teamAScore === 0 && m.teamBScore === 0 && !m.mapName) ? null : 'draw',
         screenshot: m.screenshotUrl,
       })) || [])
     } catch (error) {
@@ -130,20 +133,90 @@ export default function ScrimDetailPage() {
     }
   }
 
-  const handleImportFromAuction = () => {
-    alert("준비 중인 기능입니다.")
+  const handleImportFromAuction = async () => {
+    if (!scrim?.auctionId) {
+      alert("이 스크림은 경매와 연결되어 있지 않습니다.")
+      return
+    }
+
+    if (!confirm("경매 참가자를 불러오면 현재 경매 출처 대기 명단이 초기화됩니다. 계속하시겠습니까?")) {
+      return
+    }
+
+    try {
+      await api.post(`/scrims/${scrimId}/import-auction`)
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to import from auction:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "경매 불러오기에 실패했습니다.")
+    }
   }
 
-  const handleShuffleTeams = () => {
-    alert("준비 중인 기능입니다.")
+  const handleShuffleTeams = async () => {
+    if (pool.length === 0) {
+      alert("대기 명단에 참가자가 없습니다.")
+      return
+    }
+
+    if (!confirm(`대기 명단 ${pool.length}명을 랜덤으로 팀에 배정하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      await api.post(`/scrims/${scrimId}/shuffle-teams`)
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to shuffle teams:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "팀 섞기에 실패했습니다.")
+    }
   }
 
-  const handleUpdateMatchCount = (count: number) => {
-    alert("준비 중인 기능입니다.")
+  const handleUpdateMatchCount = async (count: number) => {
+    try {
+      await api.post(`/scrims/${scrimId}/matches`, { count })
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to update match count:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "경기 수 조절에 실패했습니다.")
+    }
   }
 
-  const handleUpdateMatch = (matchId: string, updates: Partial<Match>) => {
-    // Placeholder
+  const handleUpdateMatch = async (matchId: string, updates: Partial<Match>) => {
+    try {
+      // Convert frontend format to backend format
+      const backendUpdates: Record<string, unknown> = {}
+
+      if (updates.map !== undefined) {
+        backendUpdates.mapName = updates.map?.name || ''
+      }
+
+      if (updates.result !== undefined) {
+        if (updates.result === 'teamA') {
+          backendUpdates.teamAScore = 1
+          backendUpdates.teamBScore = 0
+        } else if (updates.result === 'teamB') {
+          backendUpdates.teamAScore = 0
+          backendUpdates.teamBScore = 1
+        } else if (updates.result === 'draw') {
+          backendUpdates.teamAScore = 0
+          backendUpdates.teamBScore = 0
+        }
+      }
+
+      if (updates.screenshot !== undefined) {
+        backendUpdates.screenshotUrl = updates.screenshot
+      }
+
+      await api.patch(`/scrims/${scrimId}/matches/${matchId}`, backendUpdates)
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to update match:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "경기 정보 업데이트에 실패했습니다.")
+    }
   }
 
   if (isLoading) return (
@@ -165,6 +238,7 @@ export default function ScrimDetailPage() {
             teamB={teamB}
             pool={pool}
             isAdmin={isAdmin}
+            hasAuction={!!scrim?.auctionId}
             onMoveToTeam={handleMoveToTeam}
             onMoveToPool={handleMoveToPool}
             onImportFromAuction={handleImportFromAuction}
