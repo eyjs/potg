@@ -15,7 +15,7 @@ import {
 
 const navItems = [
   { href: "/", label: "대시보드" },
-  { href: "/vote", label: "투표" },
+  { href: "/vote", label: "통계" },
   { href: "/auction", label: "경매장" },
   { href: "/betting", label: "베팅" },
   { href: "/shop", label: "상점" },

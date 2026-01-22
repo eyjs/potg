@@ -12,6 +12,7 @@ import { ClansService } from './clans.service';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateClanDto } from './dto/create-clan.dto';
 import { ClanRole } from './entities/clan-member.entity';
+import { HallOfFameType } from './entities/hall-of-fame.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('clans')
@@ -210,5 +211,87 @@ export class ClansController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.clansService.transferMaster(clanId, newMasterId, req.user.userId);
+  }
+
+  // ========== 공지사항 API ==========
+
+  @Get(':clanId/announcements')
+  getAnnouncements(@Param('clanId') clanId: string) {
+    return this.clansService.getAnnouncements(clanId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':clanId/announcements')
+  createAnnouncement(
+    @Param('clanId') clanId: string,
+    @Body() data: { title: string; content: string; isPinned?: boolean },
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.createAnnouncement(clanId, req.user.userId, data);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('announcements/:announcementId')
+  updateAnnouncement(
+    @Param('announcementId') announcementId: string,
+    @Body() data: { title?: string; content?: string; isPinned?: boolean },
+  ) {
+    return this.clansService.updateAnnouncement(announcementId, data);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('announcements/:announcementId/delete')
+  deleteAnnouncement(@Param('announcementId') announcementId: string) {
+    return this.clansService.deleteAnnouncement(announcementId);
+  }
+
+  // ========== 명예의전당/기부자/현상수배 API ==========
+
+  @Get(':clanId/hall-of-fame')
+  getHallOfFame(
+    @Param('clanId') clanId: string,
+    @Body('type') type?: HallOfFameType,
+  ) {
+    return this.clansService.getHallOfFame(clanId, type);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':clanId/hall-of-fame')
+  createHallOfFameEntry(
+    @Param('clanId') clanId: string,
+    @Body()
+    data: {
+      type: HallOfFameType;
+      title: string;
+      description?: string;
+      userId?: string;
+      amount?: number;
+      imageUrl?: string;
+    },
+  ) {
+    return this.clansService.createHallOfFameEntry(clanId, data);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('hall-of-fame/:entryId')
+  updateHallOfFameEntry(
+    @Param('entryId') entryId: string,
+    @Body()
+    data: {
+      title?: string;
+      description?: string;
+      userId?: string;
+      amount?: number;
+      imageUrl?: string;
+      displayOrder?: number;
+    },
+  ) {
+    return this.clansService.updateHallOfFameEntry(entryId, data);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('hall-of-fame/:entryId/delete')
+  deleteHallOfFameEntry(@Param('entryId') entryId: string) {
+    return this.clansService.deleteHallOfFameEntry(entryId);
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Between } from 'typeorm';
 import { Scrim, ScrimStatus } from './entities/scrim.entity';
 import {
   ScrimParticipant,
@@ -39,10 +39,26 @@ export class ScrimsService {
     return this.scrimsRepository.save(scrim);
   }
 
-  findAll(clanId: string) {
+  findAll(clanId: string, today = false) {
+    if (today) {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      return this.scrimsRepository.find({
+        where: {
+          clanId,
+          scheduledDate: Between(startOfDay, endOfDay),
+        },
+        relations: ['participants'],
+        order: { scheduledDate: 'ASC' },
+      });
+    }
+
     return this.scrimsRepository.find({
       where: { clanId },
       relations: ['participants'],
+      order: { scheduledDate: 'ASC' },
     });
   }
 

@@ -14,6 +14,7 @@ import { useAuctionSocket } from "@/modules/auction/hooks/use-auction-socket"
 import { MasterControlPanel } from "@/modules/auction/components/master-control-panel"
 import { AuctionTeamPanel } from "@/modules/auction/components/auction-team-panel"
 import { AuctionResultsPoster } from "@/modules/auction/components/auction-results-poster"
+import { AuctionSetupPanel } from "@/modules/auction/components/auction-setup-panel"
 import { toast } from "sonner"
 
 const roleConfig = {
@@ -487,6 +488,21 @@ export default function AuctionRoomPage() {
 
             {/* Teams & Chat */}
             <div className="lg:col-span-4 space-y-4">
+              {/* Auction Setup Panel (Admin Only, PENDING status) */}
+              {userRole === "admin" && auctionStatus === "PENDING" && user?.clanId && (
+                <AuctionSetupPanel
+                  auctionId={auctionId}
+                  clanId={user.clanId}
+                  participants={roomState.participants}
+                  settings={{
+                    teamCount: roomState.auction.teamCount || 2,
+                    startingPoints: roomState.auction.startingPoints || 10000,
+                    turnTimeLimit: roomState.auction.turnTimeLimit || 30,
+                  }}
+                  onRefresh={() => window.location.reload()}
+                />
+              )}
+
               {/* Master Control Panel (Admin Only) */}
               {userRole === "admin" && (
                 <MasterControlPanel

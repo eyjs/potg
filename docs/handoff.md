@@ -1,56 +1,56 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-22
+마지막 업데이트: 2026-01-23
 
 ## 1. 완료된 작업 (이번 세션)
 
-### 플러그인 설치 및 설정
+### 대시보드 재설계
 
 #### Backend
-- `@nestjs/swagger` + `swagger-ui-express` - API 문서 자동화 (`/api-docs`)
-- `winston` + `nest-winston` - 구조화된 로깅
-- `@nestjs/throttler` - Rate limiting (DDoS 방지)
-- `@nestjs/cache-manager` - 캐싱
+- **공지사항 엔티티** (`Announcement`) - 클랜 공지사항 관리
+- **명예의전당 엔티티** (`HallOfFame`) - MVP, 기부자, 현상수배 통합
+- **공지사항 API**
+  - `GET /clans/:clanId/announcements` - 목록 조회
+  - `POST /clans/:clanId/announcements` - 생성
+  - `PATCH /clans/announcements/:id` - 수정
+  - `POST /clans/announcements/:id/delete` - 삭제
+- **명예의전당 API**
+  - `GET /clans/:clanId/hall-of-fame` - 목록 조회 (타입별 필터링)
+  - `POST /clans/:clanId/hall-of-fame` - 생성
+  - `PATCH /clans/hall-of-fame/:id` - 수정
+  - `POST /clans/hall-of-fame/:id/delete` - 삭제
+- **스크림 오늘 필터** - `GET /scrims?today=true` 지원
 
 #### Frontend
-- `framer-motion` - 페이지 전환 애니메이션
-- `react-loading-skeleton` - 로딩 스켈레톤
-- `@tanstack/react-query` - API 캐싱, 서버 상태 관리
+- **TodayScrims 컴포넌트** - 오늘의 내전 목록 표시
+- **Announcements 컴포넌트 개선** - CRUD 기능, canManage prop
+- **HallOfFame 컴포넌트 개선** - MVP/기부자/현상수배 탭, CRUD 기능
+- **대시보드 페이지 업데이트** - 새 컴포넌트 통합, API 호출 추가
 
-### Backend 기능 추가
+### 통계/집계 페이지 (투표 메뉴 대체)
 
-#### 클랜 관리 API
-- `GET /clans/:id/members` - 멤버 목록 조회
-- `GET /clans/membership/me` - 내 멤버십 정보
-- `PATCH /clans/:clanId/members/:userId/role` - 역할 변경 (마스터만)
-- `POST /clans/:clanId/members/:userId/kick` - 멤버 추방
-- `POST /clans/:clanId/transfer-master` - 마스터 권한 양도
+- **투표 페이지 → 통계 페이지 변환** (`/vote/page.tsx`)
+  - 내전 기록 탭 - 스크림 히스토리, 필터링
+  - 리더보드 탭 - 포인트 랭킹
+  - 월별 통계 탭 - 월별 내전 집계
+- **헤더 메뉴 업데이트** - "투표" → "통계"
 
-#### 경매 마스터 기능 API
-- `POST /auctions/:id/players` - 매물 등록
-- `POST /auctions/:id/players/bulk` - 매물 일괄 등록
-- `POST /auctions/:id/participants/:userId/remove` - 참가자 제거
-- `POST /auctions/:id/captains` - 팀장 추가
-- `POST /auctions/:id/captains/:userId/remove` - 팀장 제거
-- `PATCH /auctions/:id/settings` - 경매 설정 변경
-- `POST /auctions/:id/delete` - 경매 삭제
+### 경매 생성/관리 UI
 
-### Frontend 기능 추가
+- **AuctionSetupPanel 컴포넌트** (`/modules/auction/components/auction-setup-panel.tsx`)
+  - 매물 등록 (클랜원 선택, 일괄 등록)
+  - 팀장 지정/해제
+  - 경매 설정 변경 (팀 수, 시작 포인트, 턴 시간)
+  - 참가자 제거
+- **경매 상세 페이지 통합** - PENDING 상태에서 설정 패널 표시
 
-#### 프로바이더 설정
-- `QueryProvider` - React Query 설정 (`/providers/query-provider.tsx`)
-- `MotionProvider` - 페이지 전환 애니메이션 (`/providers/motion-provider.tsx`)
+### 모바일 UI 개선
 
-#### 클랜 관리 페이지 확장 (`/clan/manage`)
-- 탭 기반 UI (멤버 관리 / 가입 신청)
-- 멤버 목록 (역할별 그룹화: 마스터, 운영진, 멤버)
-- 역할 변경 기능 (마스터만)
-- 멤버 추방 기능
-- 마스터 권한 양도 기능
-
-### 문서 업데이트
-- `docs/ERD.md` - ClanRole에 MASTER 추가
-- `docs/clan/PROCESS.md` - 클랜 관리 프로세스 문서 생성
+- **하단 네비게이션 재설계** (`/common/layouts/bottom-nav.tsx`)
+  - 주요 메뉴 4개: 홈, 통계, 경매, 지갑
+  - 확장 메뉴: 베팅, 상점, 유틸리티, 소개팅, 클랜 관리, 내 정보
+  - 사용자 정보 표시
+  - 로그아웃 버튼
 
 ---
 
@@ -58,35 +58,22 @@
 
 ### 즉시 해야할 것
 
-1. **대시보드 재설계**
-   - 오늘 올라온 내전(스크림) 표시
-   - 공지사항 수정 권한 (어드민/마스터/운영진)
-
-2. **통계/집계 페이지** (기존 투표 메뉴 대체)
-   - 스크림 기록 집계
-   - 전적 통계
-
-3. **경매 생성/관리 UI**
-   - 매물 등록 UI (클랜원 선택)
-   - 팀 생성/삭제 UI
-   - 경매 설정 UI
-
-4. **공지사항/명예의전당/현상수배 관리**
-   - 운영진 CRUD 권한
-   - 기부자 + 명예의전당 통합
-
-5. **모바일 UI 재설계**
-   - 메뉴 정리 (모바일 고려)
-   - 스티키 타이머 + 플로팅 입찰 버튼
-
-6. **디자인 컴포넌트**
-   - 스켈레톤 로딩 적용
+1. **디자인 컴포넌트**
+   - 스켈레톤 로딩 적용 (react-loading-skeleton 활용)
    - 오버워치 스타일 버튼
    - 404/에러 페이지
 
+2. **DB 마이그레이션**
+   - Announcement, HallOfFame 엔티티 추가됨
+   - 실제 DB와 동기화 필요
+
+3. **테스트**
+   - 새 API 엔드포인트 테스트
+   - 모바일 UI 테스트
+
 ### 선택적 개선사항
 
-- React Query 적용 (API 호출 최적화)
+- React Query 적용 확대 (API 호출 최적화)
 - Framer Motion 애니메이션 확장
 - Winston 로깅 적용 범위 확대
 
@@ -104,7 +91,7 @@
 | 역할 | 권한 |
 |------|------|
 | **MASTER** | 클랜 내 모든 권한 |
-| **MANAGER** | 투표/스크림/경매/상품/베팅 CRUD |
+| **MANAGER** | 투표/스크림/경매/상품/베팅/공지/명예의전당 CRUD |
 | **MEMBER** | 참여만 가능 |
 
 ---
@@ -115,25 +102,33 @@
 
 ```
 backend/src/
-├── main.ts                          # Swagger 설정 추가
-├── app.module.ts                    # Winston, Throttler, Cache 설정
 ├── modules/clans/
-│   ├── clans.controller.ts          # 멤버 관리 API 추가
-│   └── clans.service.ts             # 역할 변경, 추방, 양도 로직
-└── modules/auctions/
-    ├── auctions.controller.ts       # 경매 마스터 API 추가
-    └── auctions.service.ts          # 매물/팀 관리 로직
+│   ├── clans.module.ts              # Announcement, HallOfFame 엔티티 추가
+│   ├── clans.controller.ts          # 공지/명예의전당 API 추가
+│   ├── clans.service.ts             # 공지/명예의전당 비즈니스 로직
+│   └── entities/
+│       ├── announcement.entity.ts   # NEW - 공지사항 엔티티
+│       └── hall-of-fame.entity.ts   # NEW - 명예의전당 엔티티
+└── modules/scrims/
+    ├── scrims.controller.ts         # today 파라미터 추가
+    └── scrims.service.ts            # 오늘 날짜 필터링 로직
 
 frontend/src/
-├── app/layout.tsx                   # QueryProvider, MotionProvider 추가
-├── app/clan/manage/page.tsx         # 클랜 관리 UI 확장
-└── providers/
-    ├── query-provider.tsx           # NEW
-    └── motion-provider.tsx          # NEW
+├── app/
+│   ├── page.tsx                     # 대시보드 재설계 (새 컴포넌트 통합)
+│   ├── vote/page.tsx                # 통계 페이지로 변환
+│   └── auction/[id]/page.tsx        # AuctionSetupPanel 통합
+├── common/layouts/
+│   ├── header.tsx                   # "투표" → "통계" 메뉴명 변경
+│   └── bottom-nav.tsx               # 모바일 네비게이션 재설계
+├── components/dashboard/
+│   ├── today-scrims.tsx             # NEW - 오늘의 내전
+│   ├── announcements.tsx            # 개선 - CRUD 기능
+│   └── hall-of-fame.tsx             # 개선 - 탭 UI, CRUD 기능
+└── modules/auction/components/
+    └── auction-setup-panel.tsx      # NEW - 경매 설정 패널
 
 docs/
-├── ERD.md                           # MASTER 역할 추가
-├── clan/PROCESS.md                  # NEW - 클랜 관리 프로세스
 └── handoff.md                       # 업데이트
 ```
 
@@ -141,13 +136,47 @@ docs/
 
 ## 5. 주의사항
 
-### DB 마이그레이션 필요 없음
-- 이번 세션에서 Entity 변경 없음
-- 기존 ClanRole enum에 MASTER는 이미 존재
+### DB 마이그레이션 필요
+- `Announcement` 엔티티 추가됨
+- `HallOfFame` 엔티티 추가됨 (type: MVP/DONOR/WANTED)
+- TypeORM sync 또는 마이그레이션 실행 필요
 
-### 환경변수
-- 프로덕션 로깅 시 `logs/` 디렉토리 필요
+### 새 엔티티 스키마
 
-### 테스트
-- 클랜 관리 API 테스트 필요
-- 경매 마스터 API 테스트 필요
+```typescript
+// Announcement
+{
+  id: string (UUID)
+  clanId: string
+  authorId: string
+  title: string
+  content: text
+  isPinned: boolean (default: false)
+  isActive: boolean (default: true)
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+
+// HallOfFame
+{
+  id: string (UUID)
+  clanId: string
+  userId: string (nullable)
+  type: enum('MVP', 'DONOR', 'WANTED')
+  title: string
+  description: text (nullable)
+  amount: integer (default: 0)
+  imageUrl: string (nullable)
+  displayOrder: integer (default: 0)
+  isActive: boolean (default: true)
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+### 테스트 필요 항목
+- 공지사항 CRUD API
+- 명예의전당 CRUD API
+- 스크림 today 필터
+- 경매 설정 패널 기능
+- 모바일 하단 네비게이션

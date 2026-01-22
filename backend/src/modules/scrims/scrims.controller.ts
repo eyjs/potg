@@ -35,8 +35,11 @@ export class ScrimsController {
   }
 
   @Get()
-  findAll(@Query('clanId') clanId: string) {
-    return this.scrimsService.findAll(clanId);
+  findAll(
+    @Query('clanId') clanId: string,
+    @Query('today') today?: string,
+  ) {
+    return this.scrimsService.findAll(clanId, today === 'true');
   }
 
   @Get(':id')

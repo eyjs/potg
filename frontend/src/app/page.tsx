@@ -7,6 +7,7 @@ import { VoteCard } from "@/modules/vote/components/vote-card"
 import { CreateVoteModal } from "@/modules/vote/components/create-vote-modal"
 import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
 import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
+import { TodayScrims } from "@/components/dashboard/today-scrims"
 import { Announcements } from "@/components/dashboard/announcements"
 import { HallOfFame } from "@/components/dashboard/hall-of-fame"
 import { useAuth } from "@/context/auth-context"
@@ -15,12 +16,51 @@ import Link from "next/link"
 import { Button } from "@/common/components/ui/button"
 import { toast } from "sonner"
 
+interface Scrim {
+  id: string
+  title: string
+  scheduledDate: string
+  status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED"
+  recruitmentType: "VOTE" | "AUCTION" | "MANUAL"
+  teamAScore: number
+  teamBScore: number
+  participantsCount?: number
+}
+
+interface Announcement {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  isPinned?: boolean
+  author?: { battleTag: string }
+}
+
+interface HallOfFameEntry {
+  id: string
+  type: "MVP" | "DONOR" | "WANTED"
+  title: string
+  description?: string
+  amount: number
+  imageUrl?: string
+  user?: { battleTag: string; avatarUrl?: string }
+}
+
+interface Membership {
+  role: "MASTER" | "MANAGER" | "MEMBER"
+  clanId: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const { user, isLoading, isAdmin } = useAuth()
   const [votes, setVotes] = useState([])
+  const [scrims, setScrims] = useState<Scrim[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([])
+  const [membership, setMembership] = useState<Membership | null>(null)
   const [isDataLoading, setIsDataLoading] = useState(true)
-  const [pendingRequest, setPendingRequest] = useState<any>(null)
+  const [pendingRequest, setPendingRequest] = useState<{ clan?: { name: string } } | null>(null)
 
   useEffect(() => {
     if (!isLoading) {
@@ -40,14 +80,27 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const votesRes = await api.get(`/votes?clanId=${user?.clanId}`)
+      const [votesRes, scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
+        api.get(`/votes?clanId=${user?.clanId}`),
+        api.get(`/scrims?clanId=${user?.clanId}&today=true`).catch(() => ({ data: [] })),
+        api.get(`/clans/${user?.clanId}/announcements`).catch(() => ({ data: [] })),
+        api.get(`/clans/${user?.clanId}/hall-of-fame`).catch(() => ({ data: [] })),
+        api.get('/clans/membership/me').catch(() => ({ data: null })),
+      ])
       setVotes(votesRes.data)
+      setScrims(scrimsRes.data)
+      setAnnouncements(announcementsRes.data)
+      setHallOfFame(hallOfFameRes.data)
+      setMembership(membershipRes.data)
     } catch (error) {
       console.error(error)
     } finally {
       setIsDataLoading(false)
     }
   }
+
+  // Check if user can manage (admin, master, or manager)
+  const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
 
   const handleCreateVote = async (voteData: { title: string; deadline: string }) => {
     try {
@@ -226,8 +279,16 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Content - 2/3 width */}
           <div className="lg:col-span-2 space-y-6 md:space-y-8">
+            {/* Today's Scrims */}
+            <TodayScrims scrims={scrims} />
+
             {/* Announcements */}
-            <Announcements />
+            <Announcements
+              announcements={announcements}
+              clanId={user?.clanId}
+              canManage={canManage}
+              onRefresh={fetchDashboardData}
+            />
 
             {/* Vote Section */}
             <section className="space-y-4">
@@ -290,8 +351,13 @@ export default function DashboardPage() {
             {/* Penalty Tracker */}
             <PenaltyTracker users={[]} />
 
-            {/* Hall of Fame & Donors */}
-            <HallOfFame />
+            {/* Hall of Fame & Donors & Wanted */}
+            <HallOfFame
+              entries={hallOfFame}
+              clanId={user?.clanId}
+              canManage={canManage}
+              onRefresh={fetchDashboardData}
+            />
           </div>
         </div>
       </main>
