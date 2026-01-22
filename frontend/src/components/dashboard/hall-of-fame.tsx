@@ -36,7 +36,7 @@ interface HallOfFameEntry {
   amount: number
   imageUrl?: string
   user?: {
-    id: string
+    id?: string
     battleTag: string
     avatarUrl?: string
   }
@@ -109,7 +109,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
-      await api.delete(`/clans/hall-of-fame/${id}`)
+      await api.post(`/clans/hall-of-fame/${id}/delete`)
       toast.success("삭제되었습니다")
       onRefresh?.()
     } catch {

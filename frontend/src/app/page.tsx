@@ -40,7 +40,7 @@ interface HallOfFameEntry {
   description?: string
   amount: number
   imageUrl?: string
-  user?: { battleTag: string; avatarUrl?: string }
+  user?: { id?: string; battleTag: string; avatarUrl?: string }
 }
 
 interface Membership {

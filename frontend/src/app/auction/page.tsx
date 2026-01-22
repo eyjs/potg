@@ -54,7 +54,7 @@ export default function AuctionListPage() {
   const handleDeleteAuction = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
-      await api.delete(`/auctions/${id}`)
+      await api.post(`/auctions/${id}/delete`)
       fetchAuctions()
     } catch (error) {
       console.error("Failed to delete auction:", error)
