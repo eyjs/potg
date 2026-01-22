@@ -44,7 +44,7 @@ export class Auction extends BaseEntity {
   @Column({ default: 2 })
   teamCount: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   currentBiddingPlayerId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
@@ -56,10 +56,10 @@ export class Auction extends BaseEntity {
   @Column({ default: false })
   timerPaused: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   pausedTimeRemaining: number | null; // seconds remaining when paused
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   linkedScrimId: string;
 
   @OneToMany(() => AuctionParticipant, (participant) => participant.auction)

@@ -33,7 +33,7 @@ export class AuctionParticipant extends BaseEntity {
   @Column({ default: 0 })
   currentPoints: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   assignedTeamCaptainId: string | null;
 
   @Column({ default: 0 })
