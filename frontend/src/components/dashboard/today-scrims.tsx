@@ -4,6 +4,7 @@ import { Swords, Clock, Users, ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
 import { Button } from "@/common/components/ui/button"
+import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
 import Link from "next/link"
 
 interface Scrim {
@@ -19,9 +20,11 @@ interface Scrim {
 
 interface TodayScrimsProps {
   scrims: Scrim[]
+  canManage?: boolean
+  onCreateScrim?: (scrim: { title: string; scheduledDate: string }) => void
 }
 
-export function TodayScrims({ scrims }: TodayScrimsProps) {
+export function TodayScrims({ scrims, canManage, onCreateScrim }: TodayScrimsProps) {
   const getStatusBadge = (status: Scrim["status"]) => {
     switch (status) {
       case "SCHEDULED":
@@ -58,18 +61,26 @@ export function TodayScrims({ scrims }: TodayScrimsProps) {
           <Swords className="w-6 h-6 text-primary" />
           오늘의 <span className="text-primary">내전</span>
         </h2>
-        <Link href="/vote">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-            전체보기 <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {scrims.length > 0 && canManage && onCreateScrim && (
+            <CreateScrimModal onCreateScrim={onCreateScrim} />
+          )}
+          <Link href="/vote">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+              전체보기 <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {scrims.length === 0 ? (
         <Card className="border-2 border-dashed border-border/50 bg-card/50">
           <CardContent className="p-8 text-center">
             <Swords className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground text-sm">오늘 예정된 내전이 없습니다</p>
+            <p className="text-muted-foreground text-sm mb-4">오늘 예정된 내전이 없습니다</p>
+            {canManage && onCreateScrim && (
+              <CreateScrimModal onCreateScrim={onCreateScrim} />
+            )}
           </CardContent>
         </Card>
       ) : (

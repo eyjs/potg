@@ -86,6 +86,15 @@ cd backend && npm run start:dev   # 포트 3000 (외부 8100)
 cd frontend && npm run dev        # 포트 3000 (외부 3001)
 ```
 
+## Entity 변경 규칙
+
+**중요: Entity 파일 수정 시 반드시 ERD를 최신화해야 합니다.**
+
+Entity 변경 시 필수 작업:
+1. `docs/erd.md` 또는 ERD 문서 업데이트
+2. 새로운 테이블/컬럼/관계 반영
+3. 변경 사항 handoff 문서에 기록
+
 ## 세션 핸드오프 규칙
 
 **중요: `/clear` 명령 전에 반드시 핸드오프 문서를 작성해야 합니다.**

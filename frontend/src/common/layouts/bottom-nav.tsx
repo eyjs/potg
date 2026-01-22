@@ -4,19 +4,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Home,
-  Gavel,
-  BarChart3,
-  Wallet,
   Menu,
   X,
   ShoppingBag,
-  Users,
   Wrench,
   Settings,
-  LogOut,
   Dices,
   User,
-  Heart
+  Heart,
+  BarChart3,
+  Swords
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -26,23 +23,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avat
 
 export function BottomNav() {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   if (!user) return null
 
   const mainItems = [
     { href: "/", label: "홈", icon: Home },
-    { href: "/vote", label: "통계", icon: BarChart3 },
-    { href: "/auction", label: "경매", icon: Gavel },
-    { href: "/wallet", label: "지갑", icon: Wallet },
+    { href: "/shop", label: "상점", icon: ShoppingBag },
+    { href: "/gallery", label: "소개팅", icon: Heart },
+    { href: "/utility", label: "유틸리티", icon: Wrench },
   ]
 
   const menuItems = [
+    { href: "/scrim", label: "내전", icon: Swords },
     { href: "/betting", label: "베팅", icon: Dices },
-    { href: "/shop", label: "상점", icon: ShoppingBag },
-    { href: "/utility", label: "유틸리티", icon: Wrench },
-    { href: "/gallery", label: "소개팅", icon: Heart },
+    { href: "/vote", label: "통계", icon: BarChart3 },
     { href: "/clan/manage", label: "클랜 관리", icon: Settings },
     { href: "/my-info", label: "내 정보", icon: User },
   ]
@@ -55,7 +51,7 @@ export function BottomNav() {
           {mainItems.map((item) => {
             const isActive = pathname === item.href
             return (
-              <Link key={item.href} href={item.href} className="flex-1">
+              <Link key={item.href} href={item.href} className="flex-1" onClick={() => setIsMenuOpen(false)}>
                 <div
                   className={cn(
                     "flex flex-col items-center justify-center h-full gap-1 transition-colors",
@@ -147,18 +143,6 @@ export function BottomNav() {
                 </div>
               )}
 
-              {/* Logout */}
-              <Button
-                variant="ghost"
-                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  logout()
-                  setIsMenuOpen(false)
-                }}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                로그아웃
-              </Button>
             </div>
           </div>
         </div>

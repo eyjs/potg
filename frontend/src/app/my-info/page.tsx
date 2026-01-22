@@ -12,7 +12,8 @@ import { AuthGuard } from "@/common/components/auth-guard"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { User, Shield, Lock, LogOut, Camera, Save } from "lucide-react"
+import { User, Shield, Lock, LogOut, Camera, Save, Wallet, ChevronRight } from "lucide-react"
+import Link from "next/link"
 
 export default function MyInfoPage() {
   const { user } = useAuth()
@@ -164,6 +165,50 @@ export default function MyInfoPage() {
                 </CardContent>
               </Card>
 
+              {/* Point Management Section */}
+              <Card className="bg-card border-border border-l-4 border-l-yellow-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-black uppercase italic flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-yellow-500" /> 포인트 관리
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Balance Display */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-muted/30 p-3 rounded-md text-center border border-border/50">
+                        <p className="text-[10px] text-muted-foreground uppercase font-black">Total</p>
+                        <p className="text-lg font-black italic text-foreground">
+                          {(user?.totalPoints ?? 0).toLocaleString()}P
+                        </p>
+                      </div>
+                      <div className="bg-muted/30 p-3 rounded-md text-center border border-yellow-500/30">
+                        <p className="text-[10px] text-muted-foreground uppercase font-black">Available</p>
+                        <p className="text-lg font-black italic text-yellow-500">
+                          {((user?.totalPoints ?? 0) - (user?.lockedPoints ?? 0)).toLocaleString()}P
+                        </p>
+                      </div>
+                    </div>
+
+                    {(user?.lockedPoints ?? 0) > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground uppercase font-bold">잠금 포인트</span>
+                        <span className="font-bold text-orange-500">{(user?.lockedPoints ?? 0).toLocaleString()}P</span>
+                      </div>
+                    )}
+
+                    <Link href="/wallet">
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-md font-bold h-10 gap-2 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10"
+                      >
+                        포인트 전송 / 내역 <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Clan Section */}
               <Card className="bg-card border-border border-l-4 border-l-primary">
                 <CardHeader className="pb-2">
@@ -180,7 +225,7 @@ export default function MyInfoPage() {
                           멤버 {clanDetails.members?.length || 0}명 · 마스터 {clanDetails.owner?.nickname || clanDetails.owner?.username || "미지정"}
                         </p>
                       </div>
-                      
+
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">운영진</p>
                         <div className="flex flex-wrap gap-1">
@@ -199,8 +244,8 @@ export default function MyInfoPage() {
                         <span className="text-xs text-muted-foreground uppercase font-bold">내 권한</span>
                         <span className="text-xs font-bold text-primary italic uppercase">{user?.role}</span>
                       </div>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         onClick={handleLeaveClan}
                         className="w-full rounded-md font-bold h-10 gap-2"
                       >

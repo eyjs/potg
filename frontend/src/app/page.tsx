@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
 import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
 import { TodayScrims } from "@/components/dashboard/today-scrims"
 import { Announcements } from "@/components/dashboard/announcements"
@@ -187,7 +186,7 @@ export default function DashboardPage() {
           {/* Main Content - 2/3 width */}
           <div className="lg:col-span-2 space-y-6 md:space-y-8">
             {/* Today's Scrims */}
-            <TodayScrims scrims={scrims} />
+            <TodayScrims scrims={scrims} canManage={canManage} onCreateScrim={handleCreateScrim} />
 
             {/* Announcements */}
             <Announcements
@@ -197,17 +196,6 @@ export default function DashboardPage() {
               onRefresh={fetchDashboardData}
             />
 
-            {/* Quick Actions */}
-            {canManage && (
-              <section className="space-y-4">
-                <h2 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-foreground">
-                  빠른 <span className="text-primary">실행</span>
-                </h2>
-                <div className="flex gap-3">
-                  <CreateScrimModal onCreateScrim={handleCreateScrim} />
-                </div>
-              </section>
-            )}
           </div>
 
           {/* Sidebar - 1/3 width */}
