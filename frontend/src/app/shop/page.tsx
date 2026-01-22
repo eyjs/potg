@@ -105,25 +105,27 @@ export default function ShopPage() {
           </div>
 
           <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
-            <div className="flex items-center justify-between mb-6 overflow-x-auto pb-2">
-              <TabsList className="bg-muted/50 p-1 h-auto">
+            <div className="flex flex-col gap-4 mb-6">
+              {/* 카테고리 탭 - 모바일에서 그리드 */}
+              <TabsList className="bg-muted/50 p-1 h-auto grid grid-cols-3 md:flex md:w-auto w-full gap-1">
                 {categories.map(cat => (
-                  <TabsTrigger 
-                    key={cat} 
+                  <TabsTrigger
+                    key={cat}
                     value={cat}
-                    className="px-6 py-2 uppercase font-black italic text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    className="px-3 md:px-6 py-2 uppercase font-black italic text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     {cat === 'all' ? '전체' : cat}
                   </TabsTrigger>
                 ))}
               </TabsList>
 
+              {/* 기능 버튼 */}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="skew-btn border-border/50 text-xs font-bold gap-2">
+                <Button variant="outline" size="sm" className="flex-1 md:flex-none skew-btn border-border/50 text-xs font-bold gap-2">
                   <Ticket className="w-4 h-4" />
                   <span>내 쿠폰함 ({myCoupons.length})</span>
                 </Button>
-                <Button variant="ghost" size="sm" className="skew-btn text-xs font-bold gap-2">
+                <Button variant="ghost" size="sm" className="flex-1 md:flex-none skew-btn text-xs font-bold gap-2">
                   <History className="w-4 h-4" />
                   <span>구매 내역</span>
                 </Button>

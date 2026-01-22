@@ -172,22 +172,24 @@ export default function BettingPage() {
       <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0 text-foreground">
         <Header />
         <main className="container px-4 py-8 max-w-5xl mx-auto space-y-8">
-          <div className="flex items-center justify-between">
+          <div className="space-y-4">
+            {/* 타이틀 */}
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-md flex items-center justify-center">
-                <Coins className="text-black w-6 h-6" />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-primary rounded-md flex items-center justify-center shrink-0">
+                <Coins className="text-black w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div>
-                <h1 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">
+                <h1 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-foreground">
                   베팅 <span className="text-primary">BETTING</span>
                 </h1>
                 <p className="text-muted-foreground text-xs uppercase tracking-widest font-bold">Predict and Win Points</p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            {/* 기능 버튼 */}
+            <div className={cn("grid gap-2", user?.role === "ADMIN" ? "grid-cols-2" : "grid-cols-1")}>
               <Link href="/betting/my-bets">
-                <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 font-bold">
+                <Button variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10 font-bold text-sm">
                   <History className="w-4 h-4 mr-2" />
                   내 베팅 내역
                 </Button>
@@ -195,7 +197,7 @@ export default function BettingPage() {
               {user?.role === "ADMIN" && (
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-primary hover:bg-primary/90 text-black font-bold">
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-sm">
                     <Plus className="w-4 h-4 mr-2" />
                     베팅 문항 생성
                   </Button>

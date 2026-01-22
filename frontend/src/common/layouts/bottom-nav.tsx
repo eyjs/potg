@@ -40,7 +40,6 @@ export function BottomNav() {
     { href: "/betting", label: "베팅", icon: Dices },
     { href: "/vote", label: "통계", icon: BarChart3 },
     { href: "/clan/manage", label: "클랜 관리", icon: Settings },
-    { href: "/my-info", label: "내 정보", icon: User },
   ]
 
   return (

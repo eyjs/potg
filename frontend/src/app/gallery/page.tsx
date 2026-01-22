@@ -11,6 +11,7 @@ import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export interface Hero {
   id: string
@@ -177,44 +178,41 @@ export default function GalleryPage() {
           </div>
 
           {/* View Mode Tabs */}
-          <div className="flex items-center gap-2 border-b border-border pb-2">
+          <div className="grid grid-cols-2 gap-2 border-b border-border pb-4">
             <Button
               variant={viewMode === "all" ? "default" : "ghost"}
               onClick={() => setViewMode("all")}
-              className={viewMode === "all" ? "bg-primary text-black font-bold" : ""}
+              className={cn("w-full", viewMode === "all" ? "bg-primary text-black font-bold" : "")}
             >
               전체 매물 ({allHeroesCount})
             </Button>
             <Button
               variant={viewMode === "my" ? "default" : "ghost"}
               onClick={() => setViewMode("my")}
-              className={viewMode === "my" ? "bg-primary text-black font-bold" : ""}
+              className={cn("w-full", viewMode === "my" ? "bg-primary text-black font-bold" : "")}
             >
               내 등록 매물 ({myHeroesCount})
             </Button>
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">상태:</span>
-              <div className="flex gap-1">
-                {(["all", "available", "talking", "taken"] as const).map((status) => (
-                  <Button
-                    key={status}
-                    size="sm"
-                    variant={filterStatus === status ? "default" : "ghost"}
-                    className={filterStatus === status ? "bg-primary text-primary-foreground" : ""}
-                    onClick={() => setFilterStatus(status)}
-                  >
-                    {status === "all" && `전체 (${statusCounts.all})`}
-                    {status === "available" && `만남 가능 (${statusCounts.available})`}
-                    {status === "talking" && `소개팅 중 (${statusCounts.talking})`}
-                    {status === "taken" && `매칭 완료 (${statusCounts.taken})`}
-                  </Button>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <span className="text-sm text-muted-foreground">상태:</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {(["all", "available", "talking", "taken"] as const).map((status) => (
+                <Button
+                  key={status}
+                  size="sm"
+                  variant={filterStatus === status ? "default" : "ghost"}
+                  className={cn("w-full text-xs md:text-sm", filterStatus === status ? "bg-primary text-primary-foreground" : "")}
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status === "all" && `전체 (${statusCounts.all})`}
+                  {status === "available" && `만남 가능 (${statusCounts.available})`}
+                  {status === "talking" && `소개팅 중 (${statusCounts.talking})`}
+                  {status === "taken" && `매칭 완료 (${statusCounts.taken})`}
+                </Button>
+              ))}
             </div>
           </div>
 
