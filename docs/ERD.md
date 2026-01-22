@@ -53,11 +53,19 @@ erDiagram
     Auction {
         uuid id PK
         string title
-        enum status "PENDING, ONGOING, COMPLETED, CANCELLED"
+        enum status "PENDING, ONGOING, PAUSED, ASSIGNING, COMPLETED, CANCELLED"
+        enum biddingPhase "WAITING, BIDDING, SOLD"
         string accessCode "Nullable"
         uuid creatorId FK
         int startingPoints
-        int turnTimeLimit
+        int turnTimeLimit "seconds (default: 60)"
+        int maxParticipants "default: 20"
+        int teamCount "default: 2"
+        uuid currentBiddingPlayerId FK "Nullable - 현재 경매중인 선수"
+        timestamp currentBiddingEndTime "Nullable"
+        boolean timerPaused "default: false"
+        int pausedTimeRemaining "Nullable - 정지시 남은 시간"
+        uuid linkedScrimId FK "Nullable - 연결된 스크림"
         timestamp created_at
         timestamp updated_at
     }
@@ -67,7 +75,11 @@ erDiagram
         uuid auctionId FK
         uuid userId FK
         enum role "CAPTAIN, PLAYER, SPECTATOR"
-        int currentPoints
+        int currentPoints "default: 0"
+        uuid assignedTeamCaptainId FK "Nullable - 배정된 팀(캡틴ID)"
+        int soldPrice "default: 0 - 낙찰가"
+        boolean wasUnsold "default: false - 유찰 후 수동배정 여부"
+        int biddingOrder "default: 0 - 경매 순서"
         timestamp created_at
     }
 
@@ -77,12 +89,14 @@ erDiagram
         uuid bidderId FK "Captain"
         uuid targetPlayerId FK "Player"
         int amount
+        boolean isActive "default: true"
         timestamp created_at
     }
 
     %% Scrim Domain
     Scrim {
         uuid id PK
+        uuid clanId FK "Nullable"
         uuid voteId FK "Nullable"
         uuid auctionId FK "Nullable"
         string title
@@ -91,8 +105,8 @@ erDiagram
         uuid hostId FK
         timestamp scheduledDate "Nullable"
         jsonb teamSnapshot "Nullable"
-        int teamAScore
-        int teamBScore
+        int teamAScore "default: 0"
+        int teamBScore "default: 0"
         timestamp created_at
         timestamp updated_at
     }

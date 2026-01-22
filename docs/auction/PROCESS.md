@@ -61,20 +61,84 @@ sequenceDiagram
 
 경매 방(`Auction`)의 상태 변화는 다음과 같습니다.
 
+### 2.1 경매 상태 (AuctionStatus)
+
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING: 경매 생성
     PENDING --> ONGOING: 시작 버튼 클릭
-    
-    state ONGOING {
-        [*] --> WAITING_BID: 매물 등장
-        WAITING_BID --> BIDDING: 입찰 진행 중
-        BIDDING --> WAITING_BID: 상위 입찰 발생
-        BIDDING --> SOLD: 낙찰 (Timer End)
-        SOLD --> WAITING_BID: 다음 매물 로드
-    }
 
-    ONGOING --> COMPLETED: 모든 매물 소진
+    ONGOING --> PAUSED: 일시정지
+    PAUSED --> ONGOING: 재개
+
+    ONGOING --> ASSIGNING: 모든 선수 경매 완료 (유찰 선수 있음)
+    ONGOING --> COMPLETED: 모든 선수 경매 완료 (유찰 없음)
+
+    ASSIGNING --> COMPLETED: 수동 배정 완료
+
     ONGOING --> CANCELLED: 운영자 강제 종료
+    PAUSED --> CANCELLED: 운영자 강제 종료
+
     COMPLETED --> [*]
+    CANCELLED --> [*]
 ```
+
+### 2.2 입찰 단계 (BiddingPhase)
+
+ONGOING 상태 내에서의 입찰 단계 전이:
+
+```mermaid
+stateDiagram-v2
+    [*] --> WAITING: 경매 시작 / 다음 선수
+
+    WAITING --> BIDDING: 운영자가 선수 선택 (selectPlayer)
+
+    BIDDING --> SOLD: 낙찰 확정 (confirmBid) or 타이머 종료
+    BIDDING --> WAITING: 유찰 처리 (passPlayer) or 입찰없이 타이머 종료
+
+    SOLD --> WAITING: 다음 선수 진행 (nextPlayer)
+
+    note right of BIDDING
+        - 타이머 정지/재개 가능 (timerPaused)
+        - 경매 일시정지 가능 (PAUSED 상태로)
+    end note
+```
+
+## 3. WebSocket 이벤트 흐름
+
+### 3.1 클라이언트 → 서버 (Emit)
+
+| 이벤트 | 설명 | 권한 |
+|--------|------|------|
+| `joinRoom` | 경매방 입장 | 모든 참가자 |
+| `startAuction` | 경매 시작 | Admin |
+| `selectPlayer` | 선수 선택 (경매 대상) | Admin |
+| `placeBid` | 입찰 | Captain |
+| `confirmBid` | 낙찰 확정 | Admin |
+| `passPlayer` | 유찰 처리 | Admin |
+| `nextPlayer` | 다음 선수로 진행 | Admin |
+| `pauseAuction` | 경매 일시정지 | Admin |
+| `resumeAuction` | 경매 재개 | Admin |
+| `pauseTimer` | 타이머 정지 | Admin |
+| `resumeTimer` | 타이머 재개 | Admin |
+| `undoSoldPlayer` | 낙찰 취소 | Admin |
+| `enterAssignmentPhase` | 수동 배정 단계 진입 | Admin |
+| `manualAssignPlayer` | 유찰 선수 수동 배정 | Admin |
+| `completeAuction` | 경매 종료 | Admin |
+| `createScrim` | 스크림 생성 | Admin |
+
+### 3.2 서버 → 클라이언트 (Broadcast)
+
+| 이벤트 | 설명 |
+|--------|------|
+| `roomState` | 전체 방 상태 동기화 |
+| `timerUpdate` | 타이머 업데이트 (매초) |
+| `bidPlaced` | 새 입찰 발생 |
+| `bidConfirmed` | 낙찰 확정 |
+| `playerPassed` | 유찰 처리됨 |
+| `playerUndone` | 낙찰 취소됨 |
+| `assignmentPhaseStarted` | 수동 배정 단계 시작 |
+| `playerManuallyAssigned` | 선수 수동 배정됨 |
+| `auctionCompleted` | 경매 종료 |
+| `scrimCreated` | 스크림 생성됨 |
+| `error` | 에러 발생 |

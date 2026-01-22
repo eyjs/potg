@@ -27,32 +27,44 @@ flowchart TD
     subgraph Phase2 ["Phase 2. 실시간 경매"]
         direction TB
         Phase2_Entry{"매물 남음?"}:::systemProcess
-        Phase2_Entry -- YES --> P2_Load["매물 로드"]:::systemProcess
-        P2_Load --> P2_Bid["입찰 경쟁"]:::captainAction
-        P2_Bid --> P2_Win["자동 낙찰"]:::dbState
-        P2_Win --> P2_Next["운영자: 다음 매물"]:::hostAction
+        Phase2_Entry -- YES --> P2_Select["운영자: 선수 선택 (selectPlayer)"]:::hostAction
+        P2_Select --> P2_Bid["입찰 경쟁 (placeBid)"]:::captainAction
+        P2_Bid --> P2_Timer{"타이머 종료?"}:::systemProcess
+        P2_Timer -- "입찰 있음" --> P2_Win["낙찰 (confirmBid)"]:::dbState
+        P2_Timer -- "입찰 없음" --> P2_Pass["유찰 (passPlayer)"]:::exceptionAction
+        P2_Win --> P2_Next["운영자: 다음 선수 (nextPlayer)"]:::hostAction
+        P2_Pass --> P2_Next
         P2_Next --> Phase2_Entry
 
+        %% 일시정지 프로세스
+        P2_Bid -.-> P2_Pause["운영자: 일시정지 (pauseAuction)"]:::exceptionAction
+        P2_Pause -.-> P2_Resume["운영자: 재개 (resumeAuction)"]:::hostAction
+        P2_Resume -.-> P2_Bid
+
         %% 낙찰 취소 (Undo) 프로세스
-        P2_Win -.-> P2_Undo["운영자: 낙찰 취소 (Undo)"]:::exceptionAction
-        P2_Undo -.-> P2_Rollback["시스템: 환불 & 매물 복구"]:::systemProcess
+        P2_Win -.-> P2_Undo["운영자: 낙찰 취소 (undoSoldPlayer)"]:::exceptionAction
+        P2_Undo -.-> P2_Rollback["시스템: 환불 & 선수 복구"]:::systemProcess
         P2_Rollback -.-> Phase2_Entry
     end
 
     %% Phase 2 -> Phase 2.5 연결
     Phase2_Entry -- NO --> Phase25_Entry
 
-    %% Phase 2.5 잔여 처리
-    subgraph Phase25 ["Phase 2.5 잔여 처리"]
+    %% Phase 2.5 잔여 처리 (ASSIGNING 상태)
+    subgraph Phase25 ["Phase 2.5 수동 배정 (ASSIGNING)"]
         direction TB
-        Phase25_Entry{"미배정 인원?"}:::systemProcess
-        Phase25_Entry -- YES --> P25_Manual["운영자: 수동 배정"]:::hostAction
-        P25_Manual --> P25_Zero["0 Point 처리"]:::dbState
-        P25_Zero --> Phase25_Entry
+        Phase25_Entry{"유찰 선수 있음?"}:::systemProcess
+        Phase25_Entry -- YES --> P25_Enter["운영자: 수동 배정 진입 (enterAssignmentPhase)"]:::hostAction
+        P25_Enter --> P25_Select["운영자: 선수 선택"]:::hostAction
+        P25_Select --> P25_Assign["운영자: 팀 배정 (manualAssignPlayer)"]:::hostAction
+        P25_Assign --> P25_Check{"배정 완료?"}:::systemProcess
+        P25_Check -- NO --> P25_Select
+        P25_Check -- YES --> Phase25_Done["모든 선수 배정 완료"]:::dbState
     end
 
     %% Phase 2.5 -> Phase 3 연결 (경매 종료 노드 추가)
     Phase25_Entry -- NO --> AuctionEnd
+    Phase25_Done --> AuctionEnd
 
     %% Phase 3. 결과
     subgraph Phase3 ["Phase 3. 최종 결과"]
