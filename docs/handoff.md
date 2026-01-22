@@ -2,65 +2,55 @@
 
 마지막 업데이트: 2026-01-22
 
-## 1. 완료된 작업
+## 1. 완료된 작업 (이번 세션)
 
-### Backend (WebSocket 기반 실시간 경매)
+### 플러그인 설치 및 설정
 
-#### 새로운 파일
-- `backend/src/modules/auctions/auction.gateway.ts` - WebSocket Gateway
+#### Backend
+- `@nestjs/swagger` + `swagger-ui-express` - API 문서 자동화 (`/api-docs`)
+- `winston` + `nest-winston` - 구조화된 로깅
+- `@nestjs/throttler` - Rate limiting (DDoS 방지)
+- `@nestjs/cache-manager` - 캐싱
 
-#### 수정된 파일
-- `backend/src/modules/auctions/auctions.service.ts` - 경매 비즈니스 로직 확장
-- `backend/src/modules/auctions/auctions.module.ts` - Gateway 및 Scrim 의존성 추가
-- `backend/src/modules/auctions/entities/auction.entity.ts` - 새 필드 추가
-- `backend/src/modules/auctions/entities/auction-participant.entity.ts` - 팀 배정 필드 추가
-- `backend/src/modules/auctions/entities/auction-bid.entity.ts` - isActive 필드 추가
+#### Frontend
+- `framer-motion` - 페이지 전환 애니메이션
+- `react-loading-skeleton` - 로딩 스켈레톤
+- `@tanstack/react-query` - API 캐싱, 서버 상태 관리
 
-#### 구현된 기능
+### Backend 기능 추가
 
-**경매 상태 관리**
-- `AuctionStatus`: PENDING → ONGOING → PAUSED → ASSIGNING → COMPLETED
-- `BiddingPhase`: WAITING → BIDDING → SOLD
+#### 클랜 관리 API
+- `GET /clans/:id/members` - 멤버 목록 조회
+- `GET /clans/membership/me` - 내 멤버십 정보
+- `PATCH /clans/:clanId/members/:userId/role` - 역할 변경 (마스터만)
+- `POST /clans/:clanId/members/:userId/kick` - 멤버 추방
+- `POST /clans/:clanId/transfer-master` - 마스터 권한 양도
 
-**마스터 컨트롤**
-- `startAuction` - 경매 시작
-- `pauseAuction` / `resumeAuction` - 경매 일시정지/재개
-- `pauseTimer` / `resumeTimer` - 타이머 일시정지/재개
-- `confirmBid` - 낙찰 확정
-- `passPlayer` - 유찰 처리
-- `nextPlayer` - 다음 선수로 진행
-- `undoSoldPlayer` - 낙찰 취소 (Undo)
-- `enterAssignmentPhase` - 수동 배정 단계 진입
-- `manualAssignPlayer` - 유찰 선수 수동 배정
-- `createScrimFromAuction` - 스크림 자동 생성
+#### 경매 마스터 기능 API
+- `POST /auctions/:id/players` - 매물 등록
+- `POST /auctions/:id/players/bulk` - 매물 일괄 등록
+- `POST /auctions/:id/participants/:userId/remove` - 참가자 제거
+- `POST /auctions/:id/captains` - 팀장 추가
+- `POST /auctions/:id/captains/:userId/remove` - 팀장 제거
+- `PATCH /auctions/:id/settings` - 경매 설정 변경
+- `POST /auctions/:id/delete` - 경매 삭제
 
-**WebSocket 이벤트**
-- 입장/퇴장: `joinRoom`, `leaveRoom`
-- 입찰: `placeBid`, `bidPlaced`
-- 경매 흐름: `auctionStarted`, `auctionPaused`, `auctionResumed`, `auctionCompleted`
-- 입찰 결과: `bidConfirmed`, `playerPassed`, `playerUndone`
-- 타이머: `timerUpdate`, `timerPaused`, `timerResumed`
-- 배정: `assignmentPhaseStarted`, `playerManuallyAssigned`
-- 스크림: `scrimCreated`
-- 채팅: `chatMessage`
+### Frontend 기능 추가
 
-### Frontend
+#### 프로바이더 설정
+- `QueryProvider` - React Query 설정 (`/providers/query-provider.tsx`)
+- `MotionProvider` - 페이지 전환 애니메이션 (`/providers/motion-provider.tsx`)
 
-#### 새로운 파일
-- `frontend/src/modules/auction/hooks/use-auction-socket.ts` - WebSocket 훅
-- `frontend/src/modules/auction/components/master-control-panel.tsx` - 마스터 컨트롤 UI
-- `frontend/src/modules/auction/components/auction-team-panel.tsx` - 팀 현황 패널
-- `frontend/src/modules/auction/components/auction-results-poster.tsx` - 결과 포스터
+#### 클랜 관리 페이지 확장 (`/clan/manage`)
+- 탭 기반 UI (멤버 관리 / 가입 신청)
+- 멤버 목록 (역할별 그룹화: 마스터, 운영진, 멤버)
+- 역할 변경 기능 (마스터만)
+- 멤버 추방 기능
+- 마스터 권한 양도 기능
 
-#### 수정된 파일
-- `frontend/src/app/auction/[id]/page.tsx` - 새 컴포넌트 통합
-
-#### 삭제된 파일 (불필요 old 컴포넌트)
-- `admin-controls.tsx`
-- `auction-stage.tsx`
-- `player-pool.tsx`
-- `chat-panel.tsx`
-- `scrim/components/team-panel.tsx`
+### 문서 업데이트
+- `docs/ERD.md` - ClanRole에 MASTER 추가
+- `docs/clan/PROCESS.md` - 클랜 관리 프로세스 문서 생성
 
 ---
 
@@ -68,135 +58,96 @@
 
 ### 즉시 해야할 것
 
-1. **Backend 배포 후 테스트**
-   - WebSocket 연결 테스트
-   - 경매 전체 플로우 E2E 테스트
-   - 타이머 동기화 확인
+1. **대시보드 재설계**
+   - 오늘 올라온 내전(스크림) 표시
+   - 공지사항 수정 권한 (어드민/마스터/운영진)
 
-2. **모바일 UI 재설계**
-   - 현재: 기본적인 반응형만 적용됨
-   - 필요: 스티키 타이머 + 플로팅 입찰 버튼 개선
+2. **통계/집계 페이지** (기존 투표 메뉴 대체)
+   - 스크림 기록 집계
+   - 전적 통계
 
-3. **경매 생성 화면 업데이트**
-   - 매물 등록 UI
-   - 팀 생성 UI
-   - 팀장 배정 UI
+3. **경매 생성/관리 UI**
+   - 매물 등록 UI (클랜원 선택)
+   - 팀 생성/삭제 UI
+   - 경매 설정 UI
+
+4. **공지사항/명예의전당/현상수배 관리**
+   - 운영진 CRUD 권한
+   - 기부자 + 명예의전당 통합
+
+5. **모바일 UI 재설계**
+   - 메뉴 정리 (모바일 고려)
+   - 스티키 타이머 + 플로팅 입찰 버튼
+
+6. **디자인 컴포넌트**
+   - 스켈레톤 로딩 적용
+   - 오버워치 스타일 버튼
+   - 404/에러 페이지
 
 ### 선택적 개선사항
 
-- 드래그 앤 드롭으로 유찰 선수 배정 (현재는 클릭 방식)
-- 경매 결과 포스터 이미지로 저장/공유 기능
-- 경매 히스토리/리플레이 기능
+- React Query 적용 (API 호출 최적화)
+- Framer Motion 애니메이션 확장
+- Winston 로깅 적용 범위 확대
 
 ---
 
-## 3. 주의사항
+## 3. 권한 체계
 
-### Entity 변경됨 (마이그레이션 필요!)
+### 시스템 역할 (UserRole)
+| 역할 | 설명 |
+|------|------|
+| **ADMIN** | POTG 시스템 관리자 (모든 클랜 전체 권한) |
+| **USER** | 일반 사용자 |
 
-다음 필드들이 Entity에 추가되었습니다. 배포 전 DB 마이그레이션이 필요합니다:
-
-**Auction Entity**
-```typescript
-@Column({ type: 'enum', enum: BiddingPhase, default: BiddingPhase.WAITING })
-biddingPhase: BiddingPhase;
-
-@Column({ default: false })
-timerPaused: boolean;
-
-@Column({ nullable: true })
-pausedTimeRemaining: number | null;
-
-@Column({ nullable: true })
-linkedScrimId: string;
-```
-
-**AuctionParticipant Entity**
-```typescript
-@Column({ nullable: true })
-assignedTeamCaptainId: string | null;
-
-@Column({ default: 0 })
-soldPrice: number;
-
-@Column({ default: false })
-wasUnsold: boolean;
-
-@Column({ default: 0 })
-biddingOrder: number;
-```
-
-**AuctionBid Entity**
-```typescript
-@Column({ default: true })
-isActive: boolean;
-```
-
-### 환경변수
-
-Frontend에서 WebSocket 연결 시 `NEXT_PUBLIC_API_URL` 환경변수 사용:
-```typescript
-const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100"
-```
-
-### 타입 주의
-
-nullable 필드들은 TypeScript에서 `| null` 타입 사용:
-- `currentBiddingPlayerId: string | null`
-- `currentBiddingEndTime: Date | null`
-- `pausedTimeRemaining: number | null`
-- `assignedTeamCaptainId: string | null`
+### 클랜 역할 (ClanRole)
+| 역할 | 권한 |
+|------|------|
+| **MASTER** | 클랜 내 모든 권한 |
+| **MANAGER** | 투표/스크림/경매/상품/베팅 CRUD |
+| **MEMBER** | 참여만 가능 |
 
 ---
 
 ## 4. 파일 위치 요약
 
+### 이번 세션에서 수정/생성된 파일
+
 ```
-backend/src/modules/auctions/
-├── auction.gateway.ts          # WebSocket Gateway (NEW)
-├── auctions.service.ts         # 비즈니스 로직 (UPDATED)
-├── auctions.module.ts          # 모듈 설정 (UPDATED)
-└── entities/
-    ├── auction.entity.ts       # 경매 엔티티 (UPDATED)
-    ├── auction-participant.entity.ts  # 참가자 엔티티 (UPDATED)
-    └── auction-bid.entity.ts   # 입찰 엔티티 (UPDATED)
+backend/src/
+├── main.ts                          # Swagger 설정 추가
+├── app.module.ts                    # Winston, Throttler, Cache 설정
+├── modules/clans/
+│   ├── clans.controller.ts          # 멤버 관리 API 추가
+│   └── clans.service.ts             # 역할 변경, 추방, 양도 로직
+└── modules/auctions/
+    ├── auctions.controller.ts       # 경매 마스터 API 추가
+    └── auctions.service.ts          # 매물/팀 관리 로직
 
-frontend/src/modules/auction/
-├── hooks/
-│   └── use-auction-socket.ts   # WebSocket 훅 (NEW)
-└── components/
-    ├── master-control-panel.tsx     # 마스터 컨트롤 (NEW)
-    ├── auction-team-panel.tsx       # 팀 패널 (NEW)
-    ├── auction-results-poster.tsx   # 결과 포스터 (NEW)
-    ├── auction-banner.tsx           # 기존
-    ├── auction-room-card.tsx        # 기존
-    └── create-auction-modal.tsx     # 기존
+frontend/src/
+├── app/layout.tsx                   # QueryProvider, MotionProvider 추가
+├── app/clan/manage/page.tsx         # 클랜 관리 UI 확장
+└── providers/
+    ├── query-provider.tsx           # NEW
+    └── motion-provider.tsx          # NEW
 
-frontend/src/app/auction/[id]/
-└── page.tsx                    # 메인 경매 페이지 (UPDATED)
+docs/
+├── ERD.md                           # MASTER 역할 추가
+├── clan/PROCESS.md                  # NEW - 클랜 관리 프로세스
+└── handoff.md                       # 업데이트
 ```
 
 ---
 
-## 5. 경매 플로우 다이어그램
+## 5. 주의사항
 
-```
-[PENDING] 대기
-    ↓ startAuction
-[ONGOING] 진행중
-    ├── selectPlayer → [BIDDING] 입찰 진행
-    │   ├── placeBid → 입찰
-    │   ├── confirmBid → [SOLD] 낙찰
-    │   │   └── nextPlayer → [WAITING] 다음 선수 대기
-    │   └── passPlayer → [WAITING] 유찰 → unsoldPlayers에 추가
-    │
-    ├── pauseAuction → [PAUSED] 일시정지
-    │   └── resumeAuction → [ONGOING] 재개
-    │
-    ├── undoSoldPlayer → 낙찰 취소 → 선수 원복
-    │
-    └── enterAssignmentPhase → [ASSIGNING] 수동배정
-        ├── manualAssignPlayer → 유찰 선수 배정
-        └── completeAuction → [COMPLETED] 완료
-            └── createScrim → 스크림 생성
-```
+### DB 마이그레이션 필요 없음
+- 이번 세션에서 Entity 변경 없음
+- 기존 ClanRole enum에 MASTER는 이미 존재
+
+### 환경변수
+- 프로덕션 로깅 시 `logs/` 디렉토리 필요
+
+### 테스트
+- 클랜 관리 API 테스트 필요
+- 경매 마스터 API 테스트 필요

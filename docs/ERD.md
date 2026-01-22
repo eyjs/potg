@@ -32,7 +32,7 @@ erDiagram
         uuid id PK
         uuid clanId FK
         uuid userId FK
-        enum clanRole "MANAGER, MEMBER"
+        enum clanRole "MASTER, MANAGER, MEMBER"
         int totalPoints "실제 보유 포인트"
         int lockedPoints "베팅으로 잠긴 포인트"
         int penaltyCount "해당 클랜 내 페널티"

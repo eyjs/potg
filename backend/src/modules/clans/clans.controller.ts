@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -10,6 +11,7 @@ import {
 import { ClansService } from './clans.service';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateClanDto } from './dto/create-clan.dto';
+import { ClanRole } from './entities/clan-member.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('clans')
@@ -160,5 +162,53 @@ export class ClansController {
   // Let's use DELETE /clans/leave for simplicity
   leave(@Request() req: AuthenticatedRequest) {
     return this.clansService.leaveClan(req.user.userId);
+  }
+
+  // 내 클랜 멤버십 정보 조회
+  @UseGuards(AuthGuard('jwt'))
+  @Get('membership/me')
+  getMyMembership(@Request() req: AuthenticatedRequest) {
+    return this.clansService.getMyMembership(req.user.userId);
+  }
+
+  // 클랜 멤버 목록 조회
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id/members')
+  getMembers(@Param('id') id: string) {
+    return this.clansService.getMembers(id);
+  }
+
+  // 멤버 역할 변경 (마스터만)
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':clanId/members/:userId/role')
+  updateMemberRole(
+    @Param('clanId') clanId: string,
+    @Param('userId') userId: string,
+    @Body('role') role: ClanRole,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.updateMemberRole(clanId, userId, role, req.user.userId);
+  }
+
+  // 멤버 추방 (마스터/운영진)
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':clanId/members/:userId/kick')
+  kickMember(
+    @Param('clanId') clanId: string,
+    @Param('userId') userId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.kickMember(clanId, userId, req.user.userId);
+  }
+
+  // 마스터 권한 양도
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':clanId/transfer-master')
+  transferMaster(
+    @Param('clanId') clanId: string,
+    @Body('newMasterId') newMasterId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.transferMaster(clanId, newMasterId, req.user.userId);
   }
 }

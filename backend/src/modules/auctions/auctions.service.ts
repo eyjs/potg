@@ -118,6 +118,178 @@ export class AuctionsService {
     return this.participantsRepository.save(participant);
   }
 
+  // ========== 경매 마스터 기능 (매물/팀 관리) ==========
+
+  // 매물 등록 (클랜원을 경매에 PLAYER로 추가)
+  async addPlayer(auctionId: string, adminId: string, targetUserId: string) {
+    const auction = await this.findOne(auctionId);
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 매물을 등록할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매에서만 매물을 등록할 수 있습니다.');
+
+    const existing = await this.participantsRepository.findOne({
+      where: { auctionId, userId: targetUserId },
+    });
+    if (existing) throw new BadRequestException('이미 등록된 참가자입니다.');
+
+    const participant = this.participantsRepository.create({
+      auctionId,
+      userId: targetUserId,
+      role: AuctionRole.PLAYER,
+      currentPoints: 0,
+    });
+    return this.participantsRepository.save(participant);
+  }
+
+  // 매물 여러명 일괄 등록
+  async addPlayers(auctionId: string, adminId: string, userIds: string[]) {
+    const auction = await this.findOne(auctionId);
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 매물을 등록할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매에서만 매물을 등록할 수 있습니다.');
+
+    const results: AuctionParticipant[] = [];
+    for (const userId of userIds) {
+      const existing = await this.participantsRepository.findOne({
+        where: { auctionId, userId },
+      });
+      if (existing) continue; // Skip already registered
+
+      const participant = this.participantsRepository.create({
+        auctionId,
+        userId,
+        role: AuctionRole.PLAYER,
+        currentPoints: 0,
+      });
+      results.push(await this.participantsRepository.save(participant));
+    }
+    return results;
+  }
+
+  // 매물/참가자 제거
+  async removeParticipant(auctionId: string, adminId: string, targetUserId: string) {
+    const auction = await this.findOne(auctionId);
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 참가자를 제거할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매에서만 참가자를 제거할 수 있습니다.');
+
+    const participant = await this.participantsRepository.findOne({
+      where: { auctionId, userId: targetUserId },
+    });
+    if (!participant) throw new BadRequestException('참가자를 찾을 수 없습니다.');
+
+    await this.participantsRepository.remove(participant);
+    return { removed: true, userId: targetUserId };
+  }
+
+  // 팀장(캡틴) 추가 (팀 생성)
+  async addCaptain(auctionId: string, adminId: string, captainUserId: string) {
+    const auction = await this.findOne(auctionId);
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 팀장을 추가할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매에서만 팀장을 추가할 수 있습니다.');
+
+    // Check team count limit
+    const captains = await this.participantsRepository.count({
+      where: { auctionId, role: AuctionRole.CAPTAIN },
+    });
+    if (captains >= auction.teamCount)
+      throw new BadRequestException(`최대 ${auction.teamCount}팀까지만 가능합니다.`);
+
+    // Check if user is already in the auction
+    const existing = await this.participantsRepository.findOne({
+      where: { auctionId, userId: captainUserId },
+    });
+
+    if (existing) {
+      // If already a player, upgrade to captain
+      if (existing.role === AuctionRole.PLAYER) {
+        existing.role = AuctionRole.CAPTAIN;
+        existing.currentPoints = auction.startingPoints;
+        return this.participantsRepository.save(existing);
+      }
+      throw new BadRequestException('이미 등록된 참가자입니다.');
+    }
+
+    const participant = this.participantsRepository.create({
+      auctionId,
+      userId: captainUserId,
+      role: AuctionRole.CAPTAIN,
+      currentPoints: auction.startingPoints,
+    });
+    return this.participantsRepository.save(participant);
+  }
+
+  // 팀장 제거 (팀 삭제)
+  async removeCaptain(auctionId: string, adminId: string, captainUserId: string) {
+    const auction = await this.findOne(auctionId);
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 팀장을 제거할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매에서만 팀장을 제거할 수 있습니다.');
+
+    const captain = await this.participantsRepository.findOne({
+      where: { auctionId, userId: captainUserId, role: AuctionRole.CAPTAIN },
+    });
+    if (!captain) throw new BadRequestException('팀장을 찾을 수 없습니다.');
+
+    await this.participantsRepository.remove(captain);
+    return { removed: true, userId: captainUserId };
+  }
+
+  // 경매 설정 업데이트
+  async updateAuctionSettings(
+    auctionId: string,
+    adminId: string,
+    settings: { teamCount?: number; startingPoints?: number; turnTimeLimit?: number },
+  ) {
+    const auction = await this.auctionsRepository.findOne({ where: { id: auctionId } });
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 설정을 변경할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException('대기 중인 경매만 설정을 변경할 수 있습니다.');
+
+    if (settings.teamCount !== undefined) auction.teamCount = settings.teamCount;
+    if (settings.startingPoints !== undefined) {
+      auction.startingPoints = settings.startingPoints;
+      // Update all captains' points
+      await this.participantsRepository.update(
+        { auctionId, role: AuctionRole.CAPTAIN },
+        { currentPoints: settings.startingPoints },
+      );
+    }
+    if (settings.turnTimeLimit !== undefined) auction.turnTimeLimit = settings.turnTimeLimit;
+
+    return this.auctionsRepository.save(auction);
+  }
+
+  // 경매 삭제
+  async deleteAuction(auctionId: string, adminId: string) {
+    const auction = await this.auctionsRepository.findOne({ where: { id: auctionId } });
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException('경매 마스터만 삭제할 수 있습니다.');
+    if (auction.status !== AuctionStatus.PENDING && auction.status !== AuctionStatus.CANCELLED)
+      throw new BadRequestException('대기 중이거나 취소된 경매만 삭제할 수 있습니다.');
+
+    // Delete all participants and bids (cascade should handle this)
+    await this.participantsRepository.delete({ auctionId });
+    await this.bidsRepository.delete({ auctionId });
+    await this.auctionsRepository.remove(auction);
+
+    return { deleted: true };
+  }
+
   async placeBid(
     auctionId: string,
     bidderId: string,

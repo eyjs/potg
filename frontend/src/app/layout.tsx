@@ -4,6 +4,8 @@ import { Exo_2 } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/context/auth-context"
+import { QueryProvider } from "@/providers/query-provider"
+import { MotionProvider } from "@/providers/motion-provider"
 import { Toaster } from "sonner"
 
 import { BottomNav } from "@/common/layouts/bottom-nav"
@@ -33,11 +35,15 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${exo2.className} antialiased pb-16 md:pb-0`}>
-        <AuthProvider>
-          {children}
-          <BottomNav />
-          <Toaster position="top-center" richColors />
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <MotionProvider>
+              {children}
+            </MotionProvider>
+            <BottomNav />
+            <Toaster position="top-center" richColors />
+          </AuthProvider>
+        </QueryProvider>
         <Analytics />
       </body>
     </html>

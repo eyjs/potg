@@ -135,7 +135,122 @@ export class ClansService {
     if (member.role === ClanRole.MASTER) {
       throw new BadRequestException('Clan Master cannot leave. Delete clan or transfer ownership.');
     }
-    
+
     await this.clanMembersRepository.remove(member);
+  }
+
+  // 클랜 멤버 목록 조회
+  async getMembers(clanId: string) {
+    return this.clanMembersRepository.find({
+      where: { clanId },
+      relations: ['user'],
+      order: {
+        role: 'ASC', // MASTER > MANAGER > MEMBER 순서
+        createdAt: 'ASC',
+      },
+    });
+  }
+
+  // 역할 변경 (마스터/운영진 지정)
+  async updateMemberRole(
+    clanId: string,
+    targetUserId: string,
+    newRole: ClanRole,
+    requesterId: string,
+  ) {
+    // 요청자 권한 확인
+    const requester = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: requesterId },
+    });
+    if (!requester || requester.role !== ClanRole.MASTER) {
+      throw new BadRequestException('Only clan master can change roles');
+    }
+
+    // 대상 멤버 확인
+    const target = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: targetUserId },
+    });
+    if (!target) {
+      throw new BadRequestException('Target user is not a clan member');
+    }
+
+    // 마스터 역할은 양도만 가능 (transferMaster 사용)
+    if (newRole === ClanRole.MASTER) {
+      throw new BadRequestException('Use transferMaster to change clan master');
+    }
+
+    // 자기 자신의 역할은 변경 불가
+    if (requesterId === targetUserId) {
+      throw new BadRequestException('Cannot change your own role');
+    }
+
+    target.role = newRole;
+    return this.clanMembersRepository.save(target);
+  }
+
+  // 마스터 권한 양도
+  async transferMaster(clanId: string, newMasterId: string, currentMasterId: string) {
+    // 현재 마스터 확인
+    const currentMaster = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: currentMasterId },
+    });
+    if (!currentMaster || currentMaster.role !== ClanRole.MASTER) {
+      throw new BadRequestException('Only clan master can transfer ownership');
+    }
+
+    // 새 마스터 확인
+    const newMaster = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: newMasterId },
+    });
+    if (!newMaster) {
+      throw new BadRequestException('Target user is not a clan member');
+    }
+
+    // 역할 교환
+    currentMaster.role = ClanRole.MANAGER;
+    newMaster.role = ClanRole.MASTER;
+
+    await this.clanMembersRepository.save([currentMaster, newMaster]);
+    return { message: 'Master transferred successfully' };
+  }
+
+  // 멤버 추방
+  async kickMember(clanId: string, targetUserId: string, requesterId: string) {
+    // 요청자 권한 확인 (마스터 또는 운영진)
+    const requester = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: requesterId },
+    });
+    if (!requester || requester.role === ClanRole.MEMBER) {
+      throw new BadRequestException('Only master or manager can kick members');
+    }
+
+    // 대상 멤버 확인
+    const target = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: targetUserId },
+    });
+    if (!target) {
+      throw new BadRequestException('Target user is not a clan member');
+    }
+
+    // 마스터는 추방 불가
+    if (target.role === ClanRole.MASTER) {
+      throw new BadRequestException('Cannot kick clan master');
+    }
+
+    // 운영진은 다른 운영진 추방 불가 (마스터만 가능)
+    if (requester.role === ClanRole.MANAGER && target.role === ClanRole.MANAGER) {
+      throw new BadRequestException('Managers cannot kick other managers');
+    }
+
+    await this.clanMembersRepository.remove(target);
+    return { message: 'Member kicked successfully' };
+  }
+
+  // 내 클랜 멤버십 정보 조회
+  async getMyMembership(userId: string) {
+    return this.clanMembersRepository.findOne({
+      where: { userId },
+      relations: ['clan'],
+    });
   }
 }
