@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail, MinLength } from 'class-validator';
 import { MainRole } from '../../users/entities/user.entity';
 
 export class LoginDto {
@@ -20,6 +20,10 @@ export class RegisterDto {
   @IsNotEmpty()
   battleTag: string;
 
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
   @IsString()
   @IsOptional()
   password?: string;
@@ -35,4 +39,21 @@ export class RegisterDto {
   @IsNumber()
   @IsOptional()
   rating?: number;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
 }

@@ -1,8 +1,30 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-23
+마지막 업데이트: 2026-01-23 (오후)
 
 ## 1. 완료된 작업 (이번 세션)
+
+### 비밀번호 재설정 기능
+
+#### Backend
+- **PasswordReset 엔티티** (`/modules/auth/entities/password-reset.entity.ts`) - 비밀번호 재설정 토큰 저장
+- **EmailService** (`/modules/auth/email.service.ts`) - nodemailer를 이용한 이메일 발송
+- **비밀번호 재설정 API**
+  - `POST /auth/forgot-password` - 재설정 이메일 발송
+  - `POST /auth/reset-password` - 새 비밀번호 설정
+  - `GET /auth/verify-reset-token` - 토큰 유효성 검증
+- **User 엔티티 수정** - `email` 필드 추가 (unique, nullable)
+- **RegisterDto 수정** - `email` 필드 추가 (필수)
+- **nodemailer 패키지 추가**
+
+#### Frontend
+- **회원가입 페이지 수정** (`/app/signup/page.tsx`) - 이메일 필드 추가
+- **비밀번호 찾기 페이지 수정** (`/app/forgot-password/page.tsx`) - API 연동
+- **비밀번호 재설정 페이지 생성** (`/app/reset-password/page.tsx`) - 토큰 검증 및 비밀번호 변경
+
+---
+
+## 1-1. 이전 세션 완료 작업
 
 ### 대시보드 재설계
 
@@ -58,16 +80,30 @@
 
 ### 즉시 해야할 것
 
-1. **디자인 컴포넌트**
+1. **환경변수 설정** (이메일 발송을 위해 필수)
+   ```env
+   # backend .env
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your-email@gmail.com
+   SMTP_PASS=your-app-password
+   SMTP_FROM="POTG" <noreply@potg.gg>
+   FRONTEND_URL=http://localhost:3001
+   ```
+
+2. **DB 마이그레이션**
+   - `PasswordReset` 엔티티 추가됨
+   - `User` 엔티티에 `email` 필드 추가됨
+   - Announcement, HallOfFame 엔티티 추가됨
+   - 실제 DB와 동기화 필요
+
+3. **디자인 컴포넌트**
    - 스켈레톤 로딩 적용 (react-loading-skeleton 활용)
    - 오버워치 스타일 버튼
    - 404/에러 페이지
 
-2. **DB 마이그레이션**
-   - Announcement, HallOfFame 엔티티 추가됨
-   - 실제 DB와 동기화 필요
-
-3. **테스트**
+4. **테스트**
+   - 비밀번호 재설정 플로우 테스트
    - 새 API 엔드포인트 테스트
    - 모바일 UI 테스트
 
@@ -102,6 +138,17 @@
 
 ```
 backend/src/
+├── modules/auth/
+│   ├── auth.module.ts               # PasswordReset 엔티티, EmailService 추가
+│   ├── auth.controller.ts           # forgot-password, reset-password API 추가
+│   ├── auth.service.ts              # 비밀번호 재설정 로직 추가
+│   ├── email.service.ts             # NEW - nodemailer 이메일 서비스
+│   ├── dto/auth.dto.ts              # ForgotPasswordDto, ResetPasswordDto 추가
+│   └── entities/
+│       └── password-reset.entity.ts # NEW - 비밀번호 재설정 토큰 엔티티
+├── modules/users/
+│   ├── entities/user.entity.ts      # email 필드 추가
+│   └── users.service.ts             # findByEmail, updatePassword 메서드 추가
 ├── modules/clans/
 │   ├── clans.module.ts              # Announcement, HallOfFame 엔티티 추가
 │   ├── clans.controller.ts          # 공지/명예의전당 API 추가
@@ -117,7 +164,11 @@ frontend/src/
 ├── app/
 │   ├── page.tsx                     # 대시보드 재설계 (새 컴포넌트 통합)
 │   ├── vote/page.tsx                # 통계 페이지로 변환
-│   └── auction/[id]/page.tsx        # AuctionSetupPanel 통합
+│   ├── auction/[id]/page.tsx        # AuctionSetupPanel 통합
+│   ├── login/page.tsx               # 아이디 필드명 수정
+│   ├── signup/page.tsx              # 이메일 필드 추가
+│   ├── forgot-password/page.tsx     # API 연동
+│   └── reset-password/page.tsx      # NEW - 비밀번호 재설정 페이지
 ├── common/layouts/
 │   ├── header.tsx                   # "투표" → "통계" 메뉴명 변경
 │   └── bottom-nav.tsx               # 모바일 네비게이션 재설계
@@ -144,6 +195,22 @@ docs/
 ### 새 엔티티 스키마
 
 ```typescript
+// PasswordReset
+{
+  id: string (UUID)
+  userId: string
+  token: string (unique)
+  expiresAt: timestamp
+  used: boolean (default: false)
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+
+// User 추가 필드
+{
+  email: string (unique, nullable)
+}
+
 // Announcement
 {
   id: string (UUID)
@@ -175,6 +242,8 @@ docs/
 ```
 
 ### 테스트 필요 항목
+- 비밀번호 재설정 플로우 (이메일 발송, 토큰 검증, 비밀번호 변경)
+- 회원가입 이메일 필드
 - 공지사항 CRUD API
 - 명예의전당 CRUD API
 - 스크림 today 필터

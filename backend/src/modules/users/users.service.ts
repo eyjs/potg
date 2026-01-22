@@ -71,6 +71,29 @@ export class UsersService {
     });
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { email },
+      select: [
+        'id',
+        'username',
+        'nickname',
+        'battleTag',
+        'email',
+        'role',
+        'mainRole',
+        'rating',
+        'avatarUrl',
+        'createdAt',
+        'updatedAt',
+      ],
+    });
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.usersRepository.update(id, { password: hashedPassword });
+  }
+
   async update(id: string, updateData: Partial<User>): Promise<User | null> {
     await this.usersRepository.update(id, updateData);
     return this.usersRepository.findOne({ where: { id } });

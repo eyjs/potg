@@ -25,6 +25,9 @@ export class User extends BaseEntity {
   @Column({ unique: true }) // BattleTag should likely still be unique per Blizzard rules, or at least in our system
   battleTag: string;
 
+  @Column({ unique: true, nullable: true })
+  email?: string;
+
   @Column({ nullable: true, select: false }) // Password should not be selected by default
   password?: string;
 

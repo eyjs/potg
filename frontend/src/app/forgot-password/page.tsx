@@ -8,6 +8,8 @@ import { ArrowLeft, Mail, Shield, CheckCircle } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -17,10 +19,15 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: 실제 비밀번호 재설정 API 호출
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
-    setIsSubmitted(true)
+    try {
+      await api.post('/auth/forgot-password', { email })
+      setIsSubmitted(true)
+    } catch (error) {
+      console.error(error)
+      toast.error("이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

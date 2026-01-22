@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { VoteCard } from "@/modules/vote/components/vote-card"
-import { CreateVoteModal } from "@/modules/vote/components/create-vote-modal"
 import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
 import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
 import { TodayScrims } from "@/components/dashboard/today-scrims"
@@ -54,7 +52,6 @@ interface Membership {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, isLoading, isAdmin } = useAuth()
-  const [votes, setVotes] = useState([])
   const [scrims, setScrims] = useState<Scrim[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([])
@@ -80,14 +77,12 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [votesRes, scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
-        api.get(`/votes?clanId=${user?.clanId}`),
+      const [scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
         api.get(`/scrims?clanId=${user?.clanId}&today=true`).catch(() => ({ data: [] })),
         api.get(`/clans/${user?.clanId}/announcements`).catch(() => ({ data: [] })),
         api.get(`/clans/${user?.clanId}/hall-of-fame`).catch(() => ({ data: [] })),
         api.get('/clans/membership/me').catch(() => ({ data: null })),
       ])
-      setVotes(votesRes.data)
       setScrims(scrimsRes.data)
       setAnnouncements(announcementsRes.data)
       setHallOfFame(hallOfFameRes.data)
@@ -102,111 +97,23 @@ export default function DashboardPage() {
   // Check if user can manage (admin, master, or manager)
   const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
 
-  const handleCreateVote = async (voteData: { title: string; deadline: string }) => {
-    try {
-      await api.post('/votes', {
-        clanId: user?.clanId,
-        title: voteData.title,
-        deadline: new Date(voteData.deadline).toISOString(),
-        scrimType: 'NORMAL',
-        multipleChoice: false,
-        anonymous: false,
-        options: [
-          { label: "참석" },
-          { label: "불참" },
-          { label: "지각" },
-        ]
-      })
-      fetchDashboardData()
-    } catch (error) {
-      console.error("Failed to create vote:", error)
-      alert("투표 생성 실패")
-    }
-  }
-
   const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string }) => {
     try {
-      await api.post('/votes', {
+      await api.post('/scrims', {
         clanId: user?.clanId,
         title: scrimData.title,
-        deadline: new Date(scrimData.scheduledDate).toISOString(),
-        scrimType: 'NORMAL',
-        multipleChoice: false,
-        anonymous: false,
-        options: [
-          { label: "참석" },
-          { label: "불참" },
-          { label: "지각" },
-        ]
+        scheduledDate: new Date(scrimData.scheduledDate).toISOString(),
+        recruitmentType: 'MANUAL',
       })
-      toast.success("내전 투표가 생성되었습니다.")
+      toast.success("내전이 생성되었습니다.")
       fetchDashboardData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to create scrim:", error)
-      toast.error(error.response?.data?.message || "내전 생성 실패")
+      const errorMessage = error instanceof Error && 'response' in error
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined
+      toast.error(errorMessage || "내전 생성 실패")
     }
-  }
-
-  const handleCastVote = async (voteId: string, type: "attend" | "absent" | "late") => {
-    const vote = votes.find((v: any) => v.id === voteId) as any
-    if (!vote) return
-
-    const labelMap = {
-      attend: "참석",
-      absent: "불참",
-      late: "지각",
-    }
-
-    const option = vote.options?.find((opt: any) => opt.label === labelMap[type])
-    if (!option) {
-      alert("해당 투표 옵션을 찾을 수 없습니다.")
-      return
-    }
-
-    try {
-      await api.post(`/votes/${voteId}/cast`, { optionId: option.id })
-      toast.success("투표가 완료되었습니다.")
-      fetchDashboardData()
-    } catch (error: any) {
-      console.error("Failed to cast vote:", error)
-      alert(error.response?.data?.message || "투표 실패")
-    }
-  }
-
-  const handleDeleteVote = async (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return
-    try {
-      await api.delete(`/votes/${id}`)
-      toast.success("투표가 삭제되었습니다.")
-      fetchDashboardData()
-    } catch (error) {
-      console.error(error)
-      toast.error("삭제 실패")
-    }
-  }
-
-  const handleCloseVote = async (id: string) => {
-    if (!confirm("투표를 마감하시겠습니까?")) return
-    try {
-      const response = await api.patch(`/votes/${id}/close`)
-      toast.success("투표가 마감되었습니다.")
-
-      // If a scrim was generated, notify and redirect
-      if (response.data.generatedScrimId) {
-        if (confirm("10명 이상이 참석하여 내전이 생성되었습니다! 내전 관리 페이지로 이동하시겠습니까?")) {
-          router.push(`/scrim/${response.data.generatedScrimId}`)
-        }
-      }
-
-      fetchDashboardData()
-    } catch (error) {
-      console.error(error)
-      toast.error("마감 실패")
-    }
-  }
-
-  const handleEditVote = (id: string) => {
-    router.push(`/vote/${id}`)
   }
 
   if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">접속 확인 중...</div>
@@ -290,60 +197,17 @@ export default function DashboardPage() {
               onRefresh={fetchDashboardData}
             />
 
-            {/* Vote Section */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
+            {/* Quick Actions */}
+            {canManage && (
+              <section className="space-y-4">
                 <h2 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-foreground">
-                  진행 중인 <span className="text-primary">투표</span>
+                  빠른 <span className="text-primary">실행</span>
                 </h2>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <CreateScrimModal onCreateScrim={handleCreateScrim} />
-                    <CreateVoteModal onCreateVote={handleCreateVote} />
-                  </div>
-                )}
-              </div>
-
-              {votes.length === 0 ? (
-                <div className="p-8 md:p-12 border-2 border-dashed border-border/50 rounded-lg flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center">
-                    <span className="text-3xl">🗳️</span>
-                  </div>
-                  <div>
-                    <p className="text-foreground font-bold uppercase italic">등록된 투표가 없습니다</p>
-                    <p className="text-muted-foreground text-sm">새로운 투표를 생성하여 의견을 모아보세요.</p>
-                  </div>
+                <div className="flex gap-3">
+                  <CreateScrimModal onCreateScrim={handleCreateScrim} />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {votes.map((vote: any) => {
-                    const selectionMap: Record<string, "attend" | "absent" | "late"> = {
-                      "참석": "attend",
-                      "불참": "absent",
-                      "지각": "late"
-                    }
-
-                    return (
-                      <VoteCard
-                        key={vote.id}
-                        id={vote.id}
-                        title={vote.title}
-                        deadline={new Date(vote.deadline).toLocaleDateString()}
-                        currentVotes={vote.options?.reduce((sum: number, opt: any) => sum + opt.count, 0) || 0}
-                        maxVotes={vote.maxParticipants || 20}
-                        status={vote.status === 'OPEN' ? 'open' : 'closed'}
-                        isAdmin={isAdmin}
-                        userVote={vote.userSelection ? selectionMap[vote.userSelection] : null}
-                        onVote={(type) => handleCastVote(vote.id, type)}
-                        onDelete={() => handleDeleteVote(vote.id)}
-                        onClose={() => handleCloseVote(vote.id)}
-                        onEdit={() => handleEditVote(vote.id)}
-                      />
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+              </section>
+            )}
           </div>
 
           {/* Sidebar - 1/3 width */}

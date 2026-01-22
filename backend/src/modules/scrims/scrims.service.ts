@@ -41,9 +41,15 @@ export class ScrimsService {
 
   findAll(clanId: string, today = false) {
     if (today) {
+      // Use KST (UTC+9) for Korean users
       const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const kstOffset = 9 * 60 * 60 * 1000; // 9 hours in ms
+      const kstNow = new Date(now.getTime() + kstOffset);
+
+      // Get start and end of day in KST, then convert back to UTC for DB query
+      const kstStartOfDay = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate()));
+      const startOfDay = new Date(kstStartOfDay.getTime() - kstOffset);
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
       return this.scrimsRepository.find({
         where: {

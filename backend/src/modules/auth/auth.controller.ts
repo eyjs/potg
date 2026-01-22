@@ -5,12 +5,13 @@ import {
   UseGuards,
   Request,
   Get,
+  Query,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service'; // Import UsersService
 import { AuthGuard } from '@nestjs/passport';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('auth')
@@ -59,5 +60,23 @@ export class AuthController {
       totalPoints,
       lockedPoints,
     };
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.password,
+    );
+  }
+
+  @Get('verify-reset-token')
+  async verifyResetToken(@Query('token') token: string) {
+    return this.authService.verifyResetToken(token);
   }
 }

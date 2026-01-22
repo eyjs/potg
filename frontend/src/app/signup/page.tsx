@@ -39,6 +39,7 @@ export default function SignupPage() {
   const [step, setStep] = useState(1) // 1: 기본정보, 2: 게임정보
   const [formData, setFormData] = useState({
     username: "",
+    email: "",
     password: "",
     confirmPassword: "",
     nickname: "",
@@ -57,7 +58,8 @@ export default function SignupPage() {
     match: formData.password === formData.confirmPassword && formData.confirmPassword.length > 0,
   }
 
-  const isStep1Valid = formData.username && passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+  const isStep1Valid = formData.username && isEmailValid && passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
   const isStep2Valid =
     formData.nickname &&
     formData.battleTag &&
@@ -89,6 +91,7 @@ export default function SignupPage() {
     try {
       const payload = {
         username: formData.username,
+        email: formData.email,
         battleTag: formData.battleTag,
         password: formData.password,
         nickname: formData.nickname,
@@ -205,6 +208,28 @@ export default function SignupPage() {
                       required
                       className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                     />
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="email"
+                      className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      이메일
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="비밀번호 찾기에 사용됩니다"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
+                    />
+                    {formData.email && !isEmailValid && (
+                      <p className="text-xs text-destructive">유효한 이메일 주소를 입력해주세요</p>
+                    )}
                   </div>
 
                   {/* Password */}
