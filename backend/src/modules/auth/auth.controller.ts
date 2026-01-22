@@ -6,7 +6,6 @@ import {
   Request,
   Get,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service'; // Import UsersService
@@ -23,10 +22,6 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
-    // Ideally use LocalGuard, but for simplicity directly calling validate
-    if (!loginDto.password) {
-      throw new BadRequestException('Password required');
-    }
     const user = await this.authService.validateUser(
       loginDto.username,
       loginDto.password,
