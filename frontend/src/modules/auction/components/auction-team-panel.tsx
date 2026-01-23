@@ -22,8 +22,8 @@ interface AuctionTeamPanelProps {
 }
 
 export function AuctionTeamPanel({
-  teams,
-  unsoldPlayers,
+  teams = [],
+  unsoldPlayers = [],
   isAdmin,
   isAssignmentPhase,
   selectedUnsoldPlayer,
@@ -31,7 +31,7 @@ export function AuctionTeamPanel({
   onAssignPlayer,
   onSelectUnsoldPlayer,
 }: AuctionTeamPanelProps) {
-  const [selectedTab, setSelectedTab] = useState<string | "unsold">(teams[0]?.captainId || "unsold")
+  const [selectedTab, setSelectedTab] = useState<string | "unsold">(teams?.[0]?.captainId || "unsold")
 
   const handleTeamClick = (captainId: string) => {
     if (isAssignmentPhase && selectedUnsoldPlayer && isAdmin) {
@@ -40,8 +40,10 @@ export function AuctionTeamPanel({
     }
   }
 
-  const selectedTeam = teams.find((t) => t.captainId === selectedTab)
-  const selectedTeamIndex = selectedTeam ? teams.indexOf(selectedTeam) : -1
+  const safeTeams = teams || []
+  const safeUnsoldPlayers = unsoldPlayers || []
+  const selectedTeam = safeTeams.find((t) => t.captainId === selectedTab)
+  const selectedTeamIndex = selectedTeam ? safeTeams.indexOf(selectedTeam) : -1
   const selectedTeamColor = selectedTeamIndex >= 0 ? teamColors[selectedTeamIndex % teamColors.length] : undefined
 
   // Keyboard handler for accessible clickable elements
@@ -63,7 +65,7 @@ export function AuctionTeamPanel({
           <CardContent className="space-y-3">
             {/* Tab Buttons */}
             <div className="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1">
-              {teams.map((team, index) => (
+              {safeTeams.map((team, index) => (
                 <Button
                   key={team.captainId}
                   size="sm"
@@ -86,7 +88,7 @@ export function AuctionTeamPanel({
                   </Badge>
                 </Button>
               ))}
-              {unsoldPlayers.length > 0 && (
+              {safeUnsoldPlayers.length > 0 && (
                 <Button
                   size="sm"
                   variant={selectedTab === "unsold" ? "default" : "outline"}
@@ -100,7 +102,7 @@ export function AuctionTeamPanel({
                 >
                   유찰
                   <Badge variant="secondary" className="ml-1 text-xs px-1">
-                    {unsoldPlayers.length}
+                    {safeUnsoldPlayers.length}
                   </Badge>
                 </Button>
               )}
@@ -185,7 +187,7 @@ export function AuctionTeamPanel({
             )}
 
             {/* Unsold Players Content */}
-            {selectedTab === "unsold" && unsoldPlayers.length > 0 && (
+            {selectedTab === "unsold" && safeUnsoldPlayers.length > 0 && (
               <div className="p-3 rounded-lg border border-yellow-500/50 bg-yellow-500/5">
                 {isAdmin && (
                   <p className="text-xs text-muted-foreground mb-3">
@@ -193,7 +195,7 @@ export function AuctionTeamPanel({
                   </p>
                 )}
                 <div className="space-y-2" role="listbox" aria-label="유찰 선수 목록">
-                  {unsoldPlayers.map((player) => {
+                  {safeUnsoldPlayers.map((player) => {
                     const handleSelect = () =>
                       isAdmin && onSelectUnsoldPlayer(selectedUnsoldPlayer === player.id ? null : player.id)
                     return (
@@ -332,7 +334,7 @@ export function AuctionTeamPanel({
         </Card>
 
         {/* Unsold Players (Assignment Phase) - Desktop */}
-        {isAssignmentPhase && unsoldPlayers.length > 0 && (
+        {isAssignmentPhase && safeUnsoldPlayers.length > 0 && (
           <Card className="border-yellow-500/50 bg-yellow-500/5">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
@@ -340,7 +342,7 @@ export function AuctionTeamPanel({
                   유찰 선수
                 </h3>
                 <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                  {unsoldPlayers.length}명
+                  {safeUnsoldPlayers.length}명
                 </Badge>
               </div>
               {isAdmin && (
@@ -350,7 +352,7 @@ export function AuctionTeamPanel({
               )}
             </CardHeader>
             <CardContent className="space-y-2" role="listbox" aria-label="유찰 선수 목록">
-              {unsoldPlayers.map((player) => {
+              {safeUnsoldPlayers.map((player) => {
                 const handleSelect = () =>
                   isAdmin && onSelectUnsoldPlayer(selectedUnsoldPlayer === player.id ? null : player.id)
                 return (
