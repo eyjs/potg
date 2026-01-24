@@ -3,7 +3,7 @@
 import { MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/common/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/common/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { cn } from "@/lib/utils"
 import type { Hero } from "@/app/gallery/page"
@@ -29,7 +29,7 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
   const { user } = useAuth()
   if (!hero) return null
 
-  const statusConf = statusConfig[hero.status]
+  const statusConf = statusConfig[hero.status] || statusConfig.available
   const isOwner = user?.id === hero.registerId
 
   const handleApply = async () => {
@@ -51,6 +51,7 @@ export function HeroDetailModal({ hero, isAdmin, onClose, onUpdateStatus, onDele
       <DialogContent className="bg-card border-border max-w-lg">
         <DialogHeader>
           <DialogTitle className="sr-only">{hero.name} 상세 정보</DialogTitle>
+          <DialogDescription className="sr-only">소개팅 프로필 상세 정보</DialogDescription>
         </DialogHeader>
 
         {/* Hero Header */}

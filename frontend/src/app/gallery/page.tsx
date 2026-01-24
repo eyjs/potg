@@ -55,22 +55,23 @@ export default function GalleryPage() {
     try {
       setIsLoading(true)
       const response = await api.get(`/blind-date/listings?clanId=${user.clanId}`)
-      
-      const mapped = response.data.map((h: any) => ({
+
+      const data = Array.isArray(response.data) ? response.data : []
+      const mapped: Hero[] = data.map((h: any) => ({
         id: h.id,
         registerId: h.registerId,
         registerNickname: h.register?.nickname || h.register?.username || "Unknown",
-        name: h.name,
-        age: h.age,
-        gender: h.gender,
-        location: h.location,
-        job: h.job,
-        mbti: h.mbti || "Unknown",
-        status: h.status === 'OPEN' ? 'available' : h.status === 'MATCHED' ? 'talking' : 'taken',
-        bio: h.description,
-        idealType: h.idealType,
+        name: h.name || "",
+        age: h.age || 0,
+        gender: h.gender || "MALE",
+        location: h.location || "",
+        job: h.job || "",
+        mbti: h.mbti || "",
+        status: (h.status === 'OPEN' ? 'available' : h.status === 'MATCHED' ? 'talking' : 'taken') as Hero["status"],
+        bio: h.description || "",
+        idealType: h.idealType || "",
         smoking: h.smoking || false,
-        education: h.education,
+        education: h.education || "",
         height: h.height,
         avatar: h.photos?.[0]
       }))

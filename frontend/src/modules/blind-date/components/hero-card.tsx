@@ -17,7 +17,7 @@ const statusConfig = {
 }
 
 export function HeroCard({ hero, onClick }: HeroCardProps) {
-  const statusConf = statusConfig[hero.status]
+  const statusConf = statusConfig[hero.status] || statusConfig.available
 
   return (
     <div

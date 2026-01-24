@@ -5,7 +5,7 @@ import { Header } from "@/common/layouts/header"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
 import { AuthGuard } from "@/common/components/auth-guard"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
@@ -205,6 +205,7 @@ export default function BettingPage() {
                 <DialogContent className="bg-card border-border text-foreground">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-bold">새 베팅 문항 생성</DialogTitle>
+                    <DialogDescription className="sr-only">O/X 베팅 문항을 생성합니다</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -365,6 +366,7 @@ export default function BettingPage() {
                 </span>
                 에 베팅하기
               </DialogTitle>
+              <DialogDescription className="sr-only">베팅 금액을 입력하고 베팅합니다</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-4 bg-muted/30 border border-border rounded-lg">
@@ -414,6 +416,7 @@ export default function BettingPage() {
           <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-primary">베팅 정산</DialogTitle>
+              <DialogDescription className="sr-only">베팅 결과를 선택하여 정산합니다</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-4 bg-muted/30 border border-border rounded-lg">
