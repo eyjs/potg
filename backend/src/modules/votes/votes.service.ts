@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vote, VoteStatus } from './entities/vote.entity';
@@ -125,12 +125,15 @@ export class VotesService {
     return { success: true };
   }
 
-  async close(id: string) {
-    const vote = await this.votesRepository.findOne({ 
+  async close(id: string, userId: string) {
+    const vote = await this.votesRepository.findOne({
       where: { id },
       relations: ['options']
     });
     if (!vote) throw new BadRequestException('Vote not found');
+    if (vote.creatorId !== userId) {
+      throw new ForbiddenException('Only the creator can close this vote');
+    }
     
     vote.status = VoteStatus.CLOSED;
     const savedVote = await this.votesRepository.save(vote);
@@ -171,9 +174,12 @@ export class VotesService {
     return savedVote;
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     const vote = await this.votesRepository.findOne({ where: { id } });
     if (!vote) throw new BadRequestException('Vote not found');
+    if (vote.creatorId !== userId) {
+      throw new ForbiddenException('Only the creator can delete this vote');
+    }
     return this.votesRepository.remove(vote);
   }
 

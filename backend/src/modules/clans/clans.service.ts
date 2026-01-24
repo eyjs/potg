@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Clan } from './entities/clan.entity';
@@ -288,11 +288,20 @@ export class ClansService {
   async updateAnnouncement(
     announcementId: string,
     data: { title?: string; content?: string; isPinned?: boolean },
+    userId: string,
   ) {
     const announcement = await this.announcementsRepository.findOne({
       where: { id: announcementId },
     });
     if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
+
+    // 작성자 또는 마스터만 수정 가능
+    const member = await this.clanMembersRepository.findOne({
+      where: { clanId: announcement.clanId, userId },
+    });
+    if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
+      throw new ForbiddenException('작성자 또는 마스터만 수정할 수 있습니다.');
+    }
 
     if (data.title !== undefined) announcement.title = data.title;
     if (data.content !== undefined) announcement.content = data.content;
@@ -301,11 +310,19 @@ export class ClansService {
     return this.announcementsRepository.save(announcement);
   }
 
-  async deleteAnnouncement(announcementId: string) {
+  async deleteAnnouncement(announcementId: string, userId: string) {
     const announcement = await this.announcementsRepository.findOne({
       where: { id: announcementId },
     });
     if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
+
+    // 작성자 또는 마스터만 삭제 가능
+    const member = await this.clanMembersRepository.findOne({
+      where: { clanId: announcement.clanId, userId },
+    });
+    if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
+      throw new ForbiddenException('작성자 또는 마스터만 삭제할 수 있습니다.');
+    }
 
     announcement.isActive = false;
     return this.announcementsRepository.save(announcement);

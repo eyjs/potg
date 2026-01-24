@@ -55,13 +55,13 @@ export class VotesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/close')
-  close(@Param('id') id: string) {
-    return this.votesService.close(id);
+  close(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.votesService.close(id, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.votesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.votesService.remove(id, req.user.userId);
   }
 }

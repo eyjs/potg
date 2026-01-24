@@ -14,18 +14,21 @@ import { AuthGuard } from '@nestjs/passport';
 import { CreateProductDto, PurchaseDto } from './dto/shop.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
+import { ClanRoles } from '../../common/decorators/clan-roles.decorator';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 import { UserRole } from '../users/entities/user.entity';
+import { ClanRole } from '../clans/entities/clan-member.entity';
 
 @Controller('shop')
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
+  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
   @Post('products')
   createProduct(@Body() createProductDto: CreateProductDto) {
-    // Should verify if user is Clan Master/Manager
     return this.shopService.createProduct(
       createProductDto,
       createProductDto.clanId,

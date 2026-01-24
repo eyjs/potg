@@ -14,6 +14,8 @@ import { CreateClanDto } from './dto/create-clan.dto';
 import { ClanRole } from './entities/clan-member.entity';
 import { HallOfFameType } from './entities/hall-of-fame.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
+import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
+import { ClanRoles } from '../../common/decorators/clan-roles.decorator';
 
 @Controller('clans')
 export class ClansController {
@@ -220,7 +222,8 @@ export class ClansController {
     return this.clansService.getAnnouncements(clanId);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
+  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
   @Post(':clanId/announcements')
   createAnnouncement(
     @Param('clanId') clanId: string,
@@ -235,14 +238,18 @@ export class ClansController {
   updateAnnouncement(
     @Param('announcementId') announcementId: string,
     @Body() data: { title?: string; content?: string; isPinned?: boolean },
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.updateAnnouncement(announcementId, data);
+    return this.clansService.updateAnnouncement(announcementId, data, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Post('announcements/:announcementId/delete')
-  deleteAnnouncement(@Param('announcementId') announcementId: string) {
-    return this.clansService.deleteAnnouncement(announcementId);
+  deleteAnnouncement(
+    @Param('announcementId') announcementId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.deleteAnnouncement(announcementId, req.user.userId);
   }
 
   // ========== 명예의전당/기부자/현상수배 API ==========
@@ -255,7 +262,8 @@ export class ClansController {
     return this.clansService.getHallOfFame(clanId, type);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
+  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
   @Post(':clanId/hall-of-fame')
   createHallOfFameEntry(
     @Param('clanId') clanId: string,
@@ -272,9 +280,11 @@ export class ClansController {
     return this.clansService.createHallOfFameEntry(clanId, data);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Patch('hall-of-fame/:entryId')
+  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
+  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
+  @Patch(':clanId/hall-of-fame/:entryId')
   updateHallOfFameEntry(
+    @Param('clanId') clanId: string,
     @Param('entryId') entryId: string,
     @Body()
     data: {
@@ -289,9 +299,13 @@ export class ClansController {
     return this.clansService.updateHallOfFameEntry(entryId, data);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Post('hall-of-fame/:entryId/delete')
-  deleteHallOfFameEntry(@Param('entryId') entryId: string) {
+  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
+  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
+  @Post(':clanId/hall-of-fame/:entryId/delete')
+  deleteHallOfFameEntry(
+    @Param('clanId') clanId: string,
+    @Param('entryId') entryId: string,
+  ) {
     return this.clansService.deleteHallOfFameEntry(entryId);
   }
 }

@@ -7,6 +7,7 @@ import { ClanMember } from './entities/clan-member.entity';
 import { ClanJoinRequest } from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame } from './entities/hall-of-fame.entity';
+import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { HallOfFame } from './entities/hall-of-fame.entity';
     ]),
   ],
   controllers: [ClansController],
-  providers: [ClansService],
-  exports: [ClansService],
+  providers: [ClansService, ClanRolesGuard],
+  exports: [ClansService, TypeOrmModule],
 })
 export class ClansModule {}
