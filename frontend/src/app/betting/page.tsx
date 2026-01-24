@@ -187,15 +187,14 @@ export default function BettingPage() {
             </div>
 
             {/* 기능 버튼 */}
-            <div className={cn("grid gap-2", user?.role === "ADMIN" ? "grid-cols-2" : "grid-cols-1")}>
+            <div className="grid grid-cols-2 gap-2">
               <Link href="/betting/my-bets">
                 <Button variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10 font-bold text-sm">
                   <History className="w-4 h-4 mr-2" />
                   내 베팅 내역
                 </Button>
               </Link>
-              {user?.role === "ADMIN" && (
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-sm">
                     <Plus className="w-4 h-4 mr-2" />
@@ -267,7 +266,6 @@ export default function BettingPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-              )}
             </div>
           </div>
 
@@ -277,15 +275,13 @@ export default function BettingPage() {
             <div className="bg-card border border-border border-dashed p-20 text-center rounded-lg">
               <AlertCircle className="mx-auto w-12 h-12 text-muted-foreground mb-4 opacity-20" />
               <p className="text-muted-foreground mb-4">진행 중인 베팅 문항이 없습니다.</p>
-              {user?.role === "ADMIN" && (
-                <Button
-                  onClick={() => setIsCreateDialogOpen(true)}
-                  className="bg-primary hover:bg-primary/90 text-black font-bold"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  첫 베팅 문항 만들기
-                </Button>
-              )}
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="bg-primary hover:bg-primary/90 text-black font-bold"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                첫 베팅 문항 만들기
+              </Button>
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -67,7 +68,16 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
   useEffect(() => {
     if (isDialogOpen && clanId && clanMembers.length === 0) {
       api.get(`/clans/${clanId}/members`)
-        .then((res) => setClanMembers(res.data))
+        .then((res) => {
+          const data = Array.isArray(res.data) ? res.data : []
+          // Map to ensure battleTag exists and extract user info
+          const members = data.map((m: { userId: string; user?: { battleTag?: string; avatarUrl?: string } }) => ({
+            id: m.userId,
+            battleTag: m.user?.battleTag || "Unknown",
+            avatarUrl: m.user?.avatarUrl
+          }))
+          setClanMembers(members)
+        })
         .catch(console.error)
     }
   }, [isDialogOpen, clanId, clanMembers.length])
@@ -176,7 +186,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
               <Avatar className="w-9 h-9">
                 <AvatarImage src={entry.user?.avatarUrl || entry.imageUrl} />
                 <AvatarFallback className="bg-muted text-xs font-bold">
-                  {(entry.user?.battleTag || entry.title)[0]}
+                  {(entry.user?.battleTag || entry.title || "?")[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
@@ -245,6 +255,9 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
               )}
               {isWanted ? "수배 등록" : "기부자 등록"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {isWanted ? "클랜원을 현상수배에 등록합니다" : "클랜원을 기부자로 등록합니다"}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
@@ -259,7 +272,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
                       <div className="flex items-center gap-2">
                         <Avatar className="w-6 h-6">
                           <AvatarImage src={member.avatarUrl} />
-                          <AvatarFallback className="text-xs">{member.battleTag[0]}</AvatarFallback>
+                          <AvatarFallback className="text-xs">{(member.battleTag || "?")[0]}</AvatarFallback>
                         </Avatar>
                         {member.battleTag}
                       </div>

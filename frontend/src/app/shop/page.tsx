@@ -3,22 +3,43 @@
 import { useState, useEffect } from "react"
 import { Header } from "@/common/layouts/header"
 import { ProductCard } from "@/modules/shop/components/product-card"
-import { ShoppingBag, Ticket, History, Gift } from "lucide-react"
+import { ShoppingBag, Ticket, History, Gift, Plus } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
+import { Input } from "@/common/components/ui/input"
+import { Label } from "@/common/components/ui/label"
+import { Textarea } from "@/common/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
+import { toast } from "sonner"
+
+interface Membership {
+  role: "MASTER" | "MANAGER" | "MEMBER"
+  clanId: string
+}
 
 export default function ShopPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [products, setProducts] = useState<any[]>([])
   const [myCoupons, setMyCoupons] = useState<any[]>([])
+  const [membership, setMembership] = useState<Membership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    description: "",
+    price: 1000,
+    stock: 10,
+    category: "VOUCHER",
+    imageUrl: ""
+  })
 
   useEffect(() => {
     if (user?.clanId) {
@@ -33,16 +54,51 @@ export default function ShopPage() {
     if (!user) return
     try {
       setIsLoading(true)
-      const [productsRes, couponsRes] = await Promise.all([
+      const [productsRes, couponsRes, membershipRes] = await Promise.all([
         api.get(`/shop/products?clanId=${user.clanId}`),
-        api.get('/shop/my-coupons')
+        api.get('/shop/my-coupons'),
+        api.get('/clans/membership/me').catch(() => ({ data: null }))
       ])
       setProducts(productsRes.data)
       setMyCoupons(couponsRes.data)
+      setMembership(membershipRes.data)
     } catch (error) {
       console.error("Failed to fetch shop data:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
+
+  const handleCreateProduct = async () => {
+    if (!newProduct.name.trim()) {
+      toast.error("상품명을 입력하세요.")
+      return
+    }
+    if (newProduct.price <= 0) {
+      toast.error("가격을 올바르게 입력하세요.")
+      return
+    }
+
+    try {
+      await api.post('/shop/products', {
+        ...newProduct,
+        clanId: user?.clanId
+      })
+      toast.success("상품이 등록되었습니다.")
+      setIsCreateDialogOpen(false)
+      setNewProduct({
+        name: "",
+        description: "",
+        price: 1000,
+        stock: 10,
+        category: "VOUCHER",
+        imageUrl: ""
+      })
+      fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "상품 등록에 실패했습니다.")
     }
   }
 
@@ -120,7 +176,7 @@ export default function ShopPage() {
               </TabsList>
 
               {/* 기능 버튼 */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="flex-1 md:flex-none skew-btn border-border/50 text-xs font-bold gap-2">
                   <Ticket className="w-4 h-4" />
                   <span>내 쿠폰함 ({myCoupons.length})</span>
@@ -129,6 +185,95 @@ export default function ShopPage() {
                   <History className="w-4 h-4" />
                   <span>구매 내역</span>
                 </Button>
+                {canManage && (
+                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="flex-1 md:flex-none skew-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-2">
+                        <Plus className="w-4 h-4" />
+                        <span>상품 등록</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-card border-border text-foreground max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">새 상품 등록</DialogTitle>
+                        <DialogDescription className="text-muted-foreground">클랜 상점에 새 상품을 등록합니다.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">상품명</Label>
+                          <Input
+                            id="name"
+                            placeholder="상품명을 입력하세요"
+                            value={newProduct.name}
+                            onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                            className="bg-muted/30 border-border"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="description">설명</Label>
+                          <Textarea
+                            id="description"
+                            placeholder="상품 설명"
+                            value={newProduct.description}
+                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                            className="bg-muted/30 border-border min-h-[80px]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="price">가격 (P)</Label>
+                            <Input
+                              id="price"
+                              type="number"
+                              min="1"
+                              value={newProduct.price}
+                              onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
+                              className="bg-muted/30 border-border"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="stock">재고</Label>
+                            <Input
+                              id="stock"
+                              type="number"
+                              min="0"
+                              value={newProduct.stock}
+                              onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
+                              className="bg-muted/30 border-border"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="category">카테고리</Label>
+                          <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
+                            <SelectTrigger className="bg-muted/30 border-border">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="VOUCHER">VOUCHER</SelectItem>
+                              <SelectItem value="GOODS">GOODS</SelectItem>
+                              <SelectItem value="GAME_ITEM">GAME_ITEM</SelectItem>
+                              <SelectItem value="ETC">ETC</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="imageUrl">이미지 URL (선택)</Label>
+                          <Input
+                            id="imageUrl"
+                            placeholder="https://..."
+                            value={newProduct.imageUrl}
+                            onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                            className="bg-muted/30 border-border"
+                          />
+                        </div>
+                        <Button onClick={handleCreateProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+                          등록하기
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </div>
 

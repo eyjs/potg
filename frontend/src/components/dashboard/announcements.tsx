@@ -5,7 +5,7 @@ import { Megaphone, Pin, Calendar, Plus, Pencil, Trash2, X } from "lucide-react"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
 import { Button } from "@/common/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
 import { Input } from "@/common/components/ui/input"
 import { Textarea } from "@/common/components/ui/textarea"
 import { Switch } from "@/common/components/ui/switch"
@@ -99,6 +99,7 @@ export function Announcements({ announcements, clanId, canManage = false, onRefr
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>공지사항 작성</DialogTitle>
+                <DialogDescription className="sr-only">클랜 공지사항을 작성합니다</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
