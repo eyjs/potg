@@ -34,6 +34,10 @@ export class JoinAuctionDto {
 }
 
 export class BidDto {
+  @IsString()
   targetPlayerId: string;
+
+  @IsNumber()
+  @Min(0)
   amount: number;
 }

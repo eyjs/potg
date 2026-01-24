@@ -1,10 +1,58 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-23 (오후 2)
+마지막 업데이트: 2026-01-24
 
 ## 1. 완료된 작업 (이번 세션)
 
-### 메뉴 구조 재설계
+### 경매 비딩 버그 수정 및 테스트
+
+#### 발견된 버그
+- **BidDto 클래스-밸리데이터 데코레이터 누락**
+  - 파일: `/backend/src/modules/auctions/dto/create-auction.dto.ts`
+  - 증상: REST API 비딩 요청 시 `property targetPlayerId should not exist` 에러 발생
+  - 원인: NestJS 전역 ValidationPipe가 `forbidNonWhitelisted: true`로 설정됨
+  - 데코레이터가 없는 프로퍼티는 화이트리스트에 포함되지 않아 거부됨
+
+#### 수정 내용
+```typescript
+// 수정 전
+export class BidDto {
+  targetPlayerId: string;
+  amount: number;
+}
+
+// 수정 후
+export class BidDto {
+  @IsString()
+  targetPlayerId: string;
+
+  @IsNumber()
+  @Min(0)
+  amount: number;
+}
+```
+
+#### 테스트 계정 생성
+- **tcaptain1** / test1234 (TCaptain1#1111, 탱커, 마스터)
+- **tcaptain2** / test1234 (TCaptain2#2222, DPS, 마스터)
+- 두 계정 모두 POTG 클랜 가입 승인 완료
+
+#### 테스트 경매 설정
+- 경매명: "캡틴 비딩 테스트"
+- 경매 ID: `54079df7-f010-4923-a8e0-addbf8058622`
+- 팀장: TCaptain1, TCaptain2 (각 10,000P)
+- 매물: Player1, Player2
+
+#### 수정된 파일
+- `backend/src/modules/auctions/dto/create-auction.dto.ts` - BidDto에 데코레이터 추가
+
+#### 로컬 테스트 완료
+- 백엔드 컨테이너 재빌드 후 비딩 API 정상 동작 확인
+- 테스트 결과: `POST /auctions/:id/bid` 성공
+
+---
+
+### 메뉴 구조 재설계 (이전)
 
 #### 변경 사항
 - **데스크톱 헤더 메뉴** 정리
@@ -108,6 +156,12 @@
 ## 2. 다음 단계 (TODO)
 
 ### 즉시 해야할 것
+
+0. **경매 비딩 테스트 완료**
+   - BidDto 버그 수정됨 (로컬에서 확인)
+   - 프로덕션 서버 재배포 후 비딩 테스트 필요
+   - 테스트 시나리오: TCaptain1과 TCaptain2가 Player1/Player2에 대해 경쟁 입찰
+   - 낙찰(SOLD) 플로우 확인 필요
 
 1. **환경변수 설정** (이메일 발송을 위해 필수)
    ```env
@@ -290,3 +344,6 @@ docs/
 - 스크림 today 필터
 - 경매 설정 패널 기능
 - 모바일 하단 네비게이션
+- **경매 비딩 플로우** (BidDto 수정 후 재테스트)
+  - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
+  - 테스트 경매 ID: 54079df7-f010-4923-a8e0-addbf8058622
