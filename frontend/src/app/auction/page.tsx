@@ -8,6 +8,7 @@ import { Plus } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { AuthGuard } from "@/common/components/auth-guard"
+import { toast } from "sonner"
 
 export default function AuctionListPage() {
   const { isAdmin } = useAuth()
@@ -55,9 +56,13 @@ export default function AuctionListPage() {
     if (!confirm("정말 삭제하시겠습니까?")) return
     try {
       await api.post(`/auctions/${id}/delete`)
+      toast.success("경매가 삭제되었습니다.")
       fetchAuctions()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete auction:", error)
+      const axiosError = error as { response?: { data?: { message?: string } } }
+      const message = axiosError.response?.data?.message || "경매 삭제 실패"
+      toast.error(message)
     }
   }
 
