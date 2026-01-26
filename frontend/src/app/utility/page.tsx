@@ -5,6 +5,7 @@ import { Shuffle, Map, ChevronRight } from "lucide-react"
 import TeamShuffler from "@/modules/utility/components/team-shuffler"
 import MapRandomizer from "@/modules/utility/components/map-randomizer"
 import Link from "next/link"
+import { AuthGuard } from "@/common/components/auth-guard"
 
 type UtilityTool = "shuffle" | "map" | null
 
@@ -31,6 +32,7 @@ export default function UtilityPage() {
   ]
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#0b0b0b]">
       {/* Header */}
       <div className="border-b border-[#333] bg-[#1a1a1a]/80 backdrop-blur-md">
@@ -95,5 +97,6 @@ export default function UtilityPage() {
         )}
       </div>
     </div>
+    </AuthGuard>
   )
 }

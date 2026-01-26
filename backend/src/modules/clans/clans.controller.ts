@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -257,7 +258,7 @@ export class ClansController {
   @Get(':clanId/hall-of-fame')
   getHallOfFame(
     @Param('clanId') clanId: string,
-    @Body('type') type?: HallOfFameType,
+    @Query('type') type?: HallOfFameType,
   ) {
     return this.clansService.getHallOfFame(clanId, type);
   }

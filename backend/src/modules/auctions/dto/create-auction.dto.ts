@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, Min } from 'class-validator';
 import { AuctionRole } from '../entities/auction-participant.entity';
 
 export class CreateAuctionDto {
@@ -30,6 +30,7 @@ export class CreateAuctionDto {
 }
 
 export class JoinAuctionDto {
+  @IsEnum(AuctionRole)
   role: AuctionRole;
 }
 

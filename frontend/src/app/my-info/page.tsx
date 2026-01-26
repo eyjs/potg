@@ -25,7 +25,7 @@ export default function MyInfoPage() {
     newPassword: "",
     confirmNewPassword: "",
   })
-  const [clanDetails, setClanDetails] = useState<any>(null)
+  const [clanDetails, setClanDetails] = useState<Record<string, unknown> | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function MyInfoPage() {
     setIsLoading(true)
 
     try {
-      const payload: any = {
+      const payload: Record<string, string> = {
         battleTag: formData.battleTag,
         avatarUrl: formData.avatarUrl,
       }
@@ -74,8 +74,9 @@ export default function MyInfoPage() {
       await api.patch("/users/me", payload)
       alert("프로필 정보가 저장되었습니다.")
       window.location.reload()
-    } catch (error: any) {
-      alert(error.response?.data?.message || "저장 실패")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "저장 실패")
     } finally {
       setIsLoading(false)
     }
@@ -97,8 +98,9 @@ export default function MyInfoPage() {
       })
       alert("비밀번호가 변경되었습니다.")
       setFormData(p => ({ ...p, currentPassword: "", newPassword: "", confirmNewPassword: "" }))
-    } catch (error: any) {
-      alert(error.response?.data?.message || "비밀번호 변경 실패")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "비밀번호 변경 실패")
     } finally {
       setIsLoading(false)
     }
@@ -111,8 +113,9 @@ export default function MyInfoPage() {
       await api.post("/clans/leave")
       alert("클랜에서 탈퇴했습니다.")
       window.location.href = "/"
-    } catch (error: any) {
-      alert(error.response?.data?.message || "탈퇴 실패")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "탈퇴 실패")
     }
   }
 
@@ -220,21 +223,21 @@ export default function MyInfoPage() {
                   {user?.clanId && clanDetails ? (
                     <div className="space-y-4">
                       <div className="p-3 bg-muted/20 rounded-md border border-border/50">
-                        <p className="text-lg font-black italic text-foreground mb-1">{clanDetails.name}</p>
+                        <p className="text-lg font-black italic text-foreground mb-1">{clanDetails.name as string}</p>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-                          멤버 {clanDetails.members?.length || 0}명 · 마스터 {clanDetails.owner?.nickname || clanDetails.owner?.username || "미지정"}
+                          멤버 {(clanDetails.members as unknown[])?.length || 0}명 · 마스터 {(clanDetails.owner as Record<string, unknown>)?.nickname as string || (clanDetails.owner as Record<string, unknown>)?.username as string || "미지정"}
                         </p>
                       </div>
 
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">운영진</p>
                         <div className="flex flex-wrap gap-1">
-                          {clanDetails.members?.filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER').slice(0, 3).map((m: any) => (
-                            <Badge key={m.id} variant="outline" className="text-[10px] border-primary/30 text-primary">
-                              {m.user?.nickname || m.user?.username}
+                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'ADMIN' || m.role === 'OWNER').slice(0, 3).map((m) => (
+                            <Badge key={m.id as string} variant="outline" className="text-[10px] border-primary/30 text-primary">
+                              {(m.user as Record<string, unknown>)?.nickname as string || (m.user as Record<string, unknown>)?.username as string}
                             </Badge>
                           ))}
-                          {clanDetails.members?.filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER').length > 3 && (
+                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'ADMIN' || m.role === 'OWNER').length > 3 && (
                             <span className="text-[10px] text-muted-foreground">...</span>
                           )}
                         </div>

@@ -9,7 +9,7 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 
 interface EditVoteModalProps {
-  vote: any | null
+  vote: { id: string; title: string; deadline: string } | null
   onClose: () => void
   onUpdate: (id: string, data: { title: string; deadline: string }) => void
 }

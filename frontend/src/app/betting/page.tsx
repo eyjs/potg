@@ -121,8 +121,9 @@ export default function BettingPage() {
         bettingDeadline: ""
       })
       fetchQuestions()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "베팅 문항 생성에 실패했습니다.")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "베팅 문항 생성에 실패했습니다.")
     }
   }
 
@@ -146,8 +147,9 @@ export default function BettingPage() {
       setIsBetDialogOpen(false)
       setBetAmount("100")
       fetchQuestions()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "베팅에 실패했습니다.")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "베팅에 실패했습니다.")
     }
   }
 
@@ -159,8 +161,9 @@ export default function BettingPage() {
       toast.success(`베팅이 ${result}로 정산되었습니다.`)
       setIsSettleDialogOpen(false)
       fetchQuestions()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "정산에 실패했습니다.")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "정산에 실패했습니다.")
     }
   }
 

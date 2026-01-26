@@ -28,26 +28,31 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.userId, dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   create(@Body() user: Partial<User>) {
     return this.usersService.create(user);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateData: Partial<User>) {
     return this.usersService.update(id, updateData);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);

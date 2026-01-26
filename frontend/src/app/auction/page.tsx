@@ -10,9 +10,18 @@ import { useAuth } from "@/context/auth-context"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
 
+interface AuctionRoom {
+  id: string
+  title: string
+  status: string
+  teamCount?: number
+  participants?: unknown[]
+  createdAt: string
+}
+
 export default function AuctionListPage() {
   const { isAdmin } = useAuth()
-  const [auctionRooms, setAuctionRooms] = useState<any[]>([])
+  const [auctionRooms, setAuctionRooms] = useState<AuctionRoom[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

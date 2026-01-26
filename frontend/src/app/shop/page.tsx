@@ -15,6 +15,15 @@ import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
 
+interface ShopProduct {
+  id: string
+  name: string
+  description: string
+  price: number
+  stock: number
+  imageUrl?: string
+}
+
 interface Membership {
   role: "MASTER" | "MANAGER" | "MEMBER"
   clanId: string
@@ -23,8 +32,8 @@ interface Membership {
 export default function ShopPage() {
   const router = useRouter()
   const { user, isAdmin } = useAuth()
-  const [products, setProducts] = useState<any[]>([])
-  const [myCoupons, setMyCoupons] = useState<any[]>([])
+  const [products, setProducts] = useState<ShopProduct[]>([])
+  const [myCoupons, setMyCoupons] = useState<Record<string, unknown>[]>([])
   const [membership, setMembership] = useState<Membership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -92,8 +101,9 @@ export default function ShopPage() {
         imageUrl: ""
       })
       fetchData()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "상품 등록에 실패했습니다.")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "상품 등록에 실패했습니다.")
     }
   }
 
