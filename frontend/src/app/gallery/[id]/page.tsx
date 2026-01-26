@@ -20,6 +20,7 @@ import { statusConfig, EDUCATION_LABELS } from "@/modules/blind-date/types"
 import type { MinEducation } from "@/modules/blind-date/types"
 import { getImageUrl } from "@/lib/upload"
 import { ImageViewer } from "@/components/image-viewer"
+import { ImageUploader } from "@/components/image-uploader"
 
 export default function GalleryDetailPage() {
   const params = useParams()
@@ -43,6 +44,9 @@ export default function GalleryDetailPage() {
     preferredJobs: "",
   })
   const [isSavingPref, setIsSavingPref] = useState(false)
+  const [editingPhotos, setEditingPhotos] = useState(false)
+  const [photoForm, setPhotoForm] = useState<string[]>([])
+  const [isSavingPhotos, setIsSavingPhotos] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -131,6 +135,27 @@ export default function GalleryDetailPage() {
       toast.error(err.response?.data?.message || "희망 조건 저장에 실패했습니다.")
     } finally {
       setIsSavingPref(false)
+    }
+  }
+
+  const startEditPhotos = () => {
+    setPhotoForm(hero?.photos || [])
+    setEditingPhotos(true)
+  }
+
+  const handleSavePhotos = async () => {
+    if (!hero) return
+    try {
+      setIsSavingPhotos(true)
+      await api.put(`/blind-date/listings/${hero.id}`, { photos: photoForm })
+      toast.success("사진이 저장되었습니다.")
+      setEditingPhotos(false)
+      fetchHero(hero.id)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "사진 저장에 실패했습니다.")
+    } finally {
+      setIsSavingPhotos(false)
     }
   }
 
@@ -245,32 +270,76 @@ export default function GalleryDetailPage() {
           </div>
 
           {/* Photos Gallery */}
-          {hero.photos && hero.photos.length > 0 && (
+          {!editingPhotos && (
             <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Camera className="w-4 h-4 text-primary" />
+                  사진 ({hero.photos?.length || 0})
+                </div>
+                {isOwner && hero.status === "available" && (
+                  <Button variant="ghost" size="sm" onClick={startEditPhotos} className="text-primary hover:text-primary/80 h-7 px-2">
+                    <Pencil className="w-3 h-3 mr-1" />
+                    {hero.photos && hero.photos.length > 0 ? "수정" : "추가"}
+                  </Button>
+                )}
+              </div>
+              {hero.photos && hero.photos.length > 0 ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {hero.photos.map((photo, i) => (
+                    <div
+                      key={photo}
+                      className={cn(
+                        "relative rounded-lg overflow-hidden border border-border/50 cursor-pointer hover:border-primary/50 transition-colors",
+                        i === 0 ? "col-span-2 row-span-2" : "aspect-square",
+                      )}
+                      onClick={() => {
+                        setViewerIndex(i)
+                        setViewerOpen(true)
+                      }}
+                    >
+                      <img
+                        src={getImageUrl(photo)}
+                        alt={`${hero.name} 사진 ${i + 1}`}
+                        className={cn("w-full h-full object-cover", i === 0 && "aspect-square")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                isOwner && (
+                  <div className="text-center py-6 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
+                    등록된 사진이 없습니다
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Photos Edit Mode */}
+          {editingPhotos && (
+            <div className="space-y-3 p-4 border border-primary/20 rounded-lg bg-primary/5">
               <div className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <Camera className="w-4 h-4 text-primary" />
-                사진 ({hero.photos.length})
+                사진 편집 (최대 5장)
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {hero.photos.map((photo, i) => (
-                  <div
-                    key={photo}
-                    className={cn(
-                      "relative rounded-lg overflow-hidden border border-border/50 cursor-pointer hover:border-primary/50 transition-colors",
-                      i === 0 ? "col-span-2 row-span-2" : "aspect-square",
-                    )}
-                    onClick={() => {
-                      setViewerIndex(i)
-                      setViewerOpen(true)
-                    }}
-                  >
-                    <img
-                      src={getImageUrl(photo)}
-                      alt={`${hero.name} 사진 ${i + 1}`}
-                      className={cn("w-full h-full object-cover", i === 0 && "aspect-square")}
-                    />
-                  </div>
-                ))}
+              <ImageUploader
+                value={photoForm}
+                onChange={setPhotoForm}
+                maxCount={5}
+              />
+              <div className="flex gap-2 pt-1">
+                <Button variant="ghost" size="sm" onClick={() => setEditingPhotos(false)} className="flex-1">
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSavePhotos}
+                  disabled={isSavingPhotos}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-black font-bold"
+                >
+                  {isSavingPhotos ? "저장 중..." : "저장"}
+                </Button>
               </div>
             </div>
           )}

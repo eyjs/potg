@@ -142,6 +142,26 @@ export default function GalleryPage() {
             </Button>
           </div>
 
+          {/* Gender Quick Filter */}
+          <div className="flex items-center gap-2">
+            {(["all", "MALE", "FEMALE"] as const).map((g) => (
+              <Button
+                key={g}
+                variant={filterGender === g ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterGender(g)}
+                className={cn(
+                  "text-xs font-bold",
+                  filterGender === g && g === "MALE" && "bg-blue-500 hover:bg-blue-600 text-white",
+                  filterGender === g && g === "FEMALE" && "bg-pink-500 hover:bg-pink-600 text-white",
+                  filterGender === g && g === "all" && "bg-primary text-black",
+                )}
+              >
+                {g === "all" ? "전체" : g === "MALE" ? "남성" : "여성"}
+              </Button>
+            ))}
+          </div>
+
           {/* Filters */}
           <div className="border border-border rounded-lg overflow-hidden">
             <Button

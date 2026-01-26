@@ -25,6 +25,14 @@ export function HeroCard({ hero }: HeroCardProps) {
           hero.status === "taken" && "opacity-60 grayscale-[30%]",
         )}
       >
+        {/* Gender Badge */}
+        <Badge className={cn(
+          "absolute top-2 left-2 z-10 text-xs",
+          hero.gender === "MALE" ? "bg-blue-500 text-white" : "bg-pink-500 text-white"
+        )}>
+          {hero.gender === "MALE" ? "남" : "여"}
+        </Badge>
+
         {/* Status Badge */}
         <Badge className={cn("absolute top-2 right-2 z-10 text-xs", statusConf.color)}>{statusConf.label}</Badge>
 
