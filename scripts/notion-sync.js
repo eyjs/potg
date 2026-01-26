@@ -1,9 +1,5 @@
 /**
  * Notion WBS 자동 동기화 스크립트
- * 
- * 커밋 메시지 규칙:
- * - [WBS-001] 작업 내용        → 진행중으로 변경
- * - [WBS-001] 완료: 작업 내용  → 완료로 변경
  */
 
 const { Client } = require('@notionhq/client');
@@ -13,7 +9,6 @@ const WBS_DB_ID = process.env.NOTION_WBS_DB_ID;
 const COMMIT_MESSAGE = process.env.COMMIT_MESSAGE || '';
 const COMMIT_URL = process.env.COMMIT_URL || '';
 
-// Notion 클라이언트 초기화
 const notion = new Client({ auth: NOTION_TOKEN });
 
 function parseWbsIds(message) {
@@ -28,6 +23,10 @@ function isCompleted(message) {
 
 async function findWbsPage(taskId) {
   try {
+    console.log(`🔎 ${taskId} 검색 중...`);
+    console.log(`📦 notion.databases 타입: ${typeof notion.databases}`);
+    console.log(`📦 notion.databases.query 타입: ${typeof notion.databases.query}`);
+    
     const response = await notion.databases.query({
       database_id: WBS_DB_ID,
       filter: {
@@ -39,7 +38,7 @@ async function findWbsPage(taskId) {
     return response.results[0] || null;
   } catch (error) {
     console.error(`Error finding ${taskId}:`, error.message);
-    console.error('Full error:', JSON.stringify(error, null, 2));
+    console.error(`Error code: ${error.code}`);
     return null;
   }
 }
@@ -48,9 +47,12 @@ async function updateWbsPage(pageId, status, commitUrl) {
   const today = new Date().toISOString().split('T')[0];
   
   const properties = {
-    '상태': { select: { name: status } },
-    '커밋링크': { url: commitUrl || null }
+    '상태': { select: { name: status } }
   };
+
+  if (commitUrl) {
+    properties['커밋링크'] = { url: commitUrl };
+  }
 
   if (status === '완료') {
     properties['완료일'] = { date: { start: today } };
@@ -69,18 +71,17 @@ async function main() {
   console.log('🚀 Notion WBS 동기화 시작...');
   console.log(`📝 커밋: ${COMMIT_MESSAGE}`);
   console.log(`🔗 DB ID: ${WBS_DB_ID}`);
+  console.log(`📦 @notionhq/client 버전 확인...`);
   
   if (!NOTION_TOKEN || !WBS_DB_ID) {
     console.error('❌ 환경변수 누락');
-    console.error(`NOTION_TOKEN: ${NOTION_TOKEN ? '있음' : '없음'}`);
-    console.error(`WBS_DB_ID: ${WBS_DB_ID ? '있음' : '없음'}`);
     process.exit(1);
   }
 
-  // Notion 연결 테스트
+  // DB 연결 테스트
   try {
-    const testQuery = await notion.databases.retrieve({ database_id: WBS_DB_ID });
-    console.log(`✅ DB 연결 성공: ${testQuery.title[0]?.plain_text || 'Untitled'}`);
+    const db = await notion.databases.retrieve({ database_id: WBS_DB_ID });
+    console.log(`✅ DB 연결 성공: ${db.title[0]?.plain_text || 'Untitled'}`);
   } catch (error) {
     console.error('❌ DB 연결 실패:', error.message);
     process.exit(1);

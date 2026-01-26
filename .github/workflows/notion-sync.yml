@@ -21,7 +21,10 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install @notionhq/client
+        run: |
+          npm install @notionhq/client@latest
+          echo "Installed packages:"
+          npm list @notionhq/client
 
       - name: Parse commit and sync to Notion
         env:
