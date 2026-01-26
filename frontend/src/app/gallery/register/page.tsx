@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { MinEducation } from "@/modules/blind-date/types"
 import { EDUCATION_LABELS } from "@/modules/blind-date/types"
+import { ImageUploader } from "@/components/image-uploader"
 
 interface Step1Data {
   name: string
@@ -30,6 +31,7 @@ interface Step1Data {
   smoking: boolean
   bio: string
   idealType: string
+  photos: string[]
 }
 
 interface Step2Data {
@@ -61,6 +63,7 @@ export default function GalleryRegisterPage() {
     smoking: false,
     bio: "",
     idealType: "",
+    photos: [],
   })
 
   const [step2, setStep2] = useState<Step2Data>({
@@ -125,6 +128,7 @@ export default function GalleryRegisterPage() {
         education: step1.education,
         height: step1.height || undefined,
         smoking: step1.smoking,
+        photos: step1.photos,
         ...(preference ? { preference } : {}),
       })
       toast.success("소개팅 매물이 등록되었습니다.")
@@ -286,6 +290,15 @@ export default function GalleryRegisterPage() {
                 <Switch
                   checked={step1.smoking}
                   onCheckedChange={(checked) => setStep1((p) => ({ ...p, smoking: checked }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">사진 (최대 5장)</Label>
+                <ImageUploader
+                  value={step1.photos}
+                  onChange={(photos) => setStep1((p) => ({ ...p, photos }))}
+                  maxCount={5}
                 />
               </div>
 

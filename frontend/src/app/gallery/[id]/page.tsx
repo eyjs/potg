@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart } from "lucide-react"
+import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart, Camera } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
 import { Textarea } from "@/common/components/ui/textarea"
@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import type { HeroWithPreference } from "@/modules/blind-date/types"
 import { statusConfig, EDUCATION_LABELS } from "@/modules/blind-date/types"
 import type { MinEducation } from "@/modules/blind-date/types"
+import { getImageUrl } from "@/lib/upload"
+import { ImageViewer } from "@/components/image-viewer"
 
 export default function GalleryDetailPage() {
   const params = useParams()
@@ -25,6 +27,8 @@ export default function GalleryDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState("안녕하세요! 프로필 보고 연락드렸습니다.")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState(0)
 
   useEffect(() => {
     if (params.id) {
@@ -54,6 +58,7 @@ export default function GalleryDetailPage() {
         education: h.education || "",
         height: h.height,
         avatar: h.photos?.[0],
+        photos: h.photos || [],
         preference: h.preference || undefined,
       }
       setHero(mapped)
@@ -139,9 +144,17 @@ export default function GalleryDetailPage() {
 
           {/* Header Section */}
           <div className="flex items-start gap-4">
-            <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/50 shrink-0 overflow-hidden">
+            <div
+              className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/50 shrink-0 overflow-hidden cursor-pointer"
+              onClick={() => {
+                if (hero.photos && hero.photos.length > 0) {
+                  setViewerIndex(0)
+                  setViewerOpen(true)
+                }
+              }}
+            >
               {hero.avatar ? (
-                <img src={hero.avatar} alt={hero.name} className="w-full h-full object-cover" />
+                <img src={getImageUrl(hero.avatar)} alt={hero.name} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-4xl font-bold text-foreground">{hero.name.charAt(0)}</span>
               )}
@@ -166,6 +179,37 @@ export default function GalleryDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Photos Gallery */}
+          {hero.photos && hero.photos.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Camera className="w-4 h-4 text-primary" />
+                사진 ({hero.photos.length})
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {hero.photos.map((photo, i) => (
+                  <div
+                    key={photo}
+                    className={cn(
+                      "relative rounded-lg overflow-hidden border border-border/50 cursor-pointer hover:border-primary/50 transition-colors",
+                      i === 0 ? "col-span-2 row-span-2" : "aspect-square",
+                    )}
+                    onClick={() => {
+                      setViewerIndex(i)
+                      setViewerOpen(true)
+                    }}
+                  >
+                    <img
+                      src={getImageUrl(photo)}
+                      alt={`${hero.name} 사진 ${i + 1}`}
+                      className={cn("w-full h-full object-cover", i === 0 && "aspect-square")}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Details Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -352,6 +396,16 @@ export default function GalleryDetailPage() {
             </div>
           )}
         </main>
+
+        {/* Image Viewer Lightbox */}
+        {hero.photos && hero.photos.length > 0 && (
+          <ImageViewer
+            images={hero.photos}
+            initialIndex={viewerIndex}
+            open={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+          />
+        )}
       </div>
     </AuthGuard>
   )

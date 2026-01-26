@@ -16,6 +16,8 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=potg_db
+    volumes:
+      - uploads_data:/usr/src/app/uploads
     depends_on:
       - db
     networks:
@@ -59,3 +61,4 @@ networks:
 
 volumes:
   postgres_data:
+  uploads_data:

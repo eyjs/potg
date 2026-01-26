@@ -41,6 +41,7 @@ async function bootstrap() {
     .addTag('shop', '상점')
     .addTag('wallet', '지갑')
     .addTag('blind-date', '소개팅')
+    .addTag('uploads', '파일 업로드')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

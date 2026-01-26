@@ -6,6 +6,7 @@ import { Badge } from "@/common/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { Hero } from "@/modules/blind-date/types"
 import { statusConfig } from "@/modules/blind-date/types"
+import { getImageUrl } from "@/lib/upload"
 
 interface HeroCardProps {
   hero: Hero
@@ -28,10 +29,18 @@ export function HeroCard({ hero }: HeroCardProps) {
         <Badge className={cn("absolute top-2 right-2 z-10 text-xs", statusConf.color)}>{statusConf.label}</Badge>
 
         {/* Avatar Area */}
-        <div className="aspect-[3/4] flex items-center justify-center bg-gradient-to-b from-primary/10 to-transparent">
-          <div className="w-20 h-20 rounded-full bg-muted/80 flex items-center justify-center border-2 border-border/50 group-hover:border-primary/50 transition-colors">
-            <span className="text-3xl font-bold text-foreground">{hero.name.charAt(0)}</span>
-          </div>
+        <div className="aspect-[3/4] flex items-center justify-center bg-gradient-to-b from-primary/10 to-transparent overflow-hidden">
+          {hero.avatar ? (
+            <img
+              src={getImageUrl(hero.avatar)}
+              alt={hero.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-muted/80 flex items-center justify-center border-2 border-border/50 group-hover:border-primary/50 transition-colors">
+              <span className="text-3xl font-bold text-foreground">{hero.name.charAt(0)}</span>
+            </div>
+          )}
         </div>
 
         {/* Info */}

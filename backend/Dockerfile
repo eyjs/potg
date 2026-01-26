@@ -32,6 +32,9 @@ RUN npm ci --only=production
 # Copy built assets from builder stage
 COPY --from=builder /usr/src/app/dist ./dist
 
+# uploads 디렉토리 생성
+RUN mkdir -p /usr/src/app/uploads
+
 EXPOSE 3000
 
 CMD ["npm", "run", "start:prod"]

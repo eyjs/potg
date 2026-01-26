@@ -3,12 +3,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
 import {
   WinstonModule,
   utilities as nestWinstonModuleUtilities,
 } from 'nest-winston';
 import * as winston from 'winston';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
@@ -21,12 +23,20 @@ import { ShopModule } from './modules/shop/shop.module';
 import { BettingModule } from './modules/betting/betting.module';
 import { BlindDateModule } from './modules/blind-date/blind-date.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+
+    // 정적 파일 서빙 (업로드 이미지)
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: { index: false },
     }),
 
     // Winston 로깅
@@ -115,6 +125,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
     BettingModule,
     BlindDateModule,
     WalletModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

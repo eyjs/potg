@@ -15,6 +15,7 @@ export interface Hero {
   education?: string
   height?: number
   avatar?: string
+  photos?: string[]
 }
 
 export interface HeroPreference {
