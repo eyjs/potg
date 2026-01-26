@@ -95,35 +95,67 @@ Entity 변경 시 필수 작업:
 2. 새로운 테이블/컬럼/관계 반영
 3. 변경 사항 handoff 문서에 기록
 
-## 커밋 메시지 규칙 (Notion 자동 연동)
+## Notion 연동 규칙 (WBS 자동화)
 
-**커밋 메시지에 WBS ID를 포함하면 Notion이 자동 업데이트됩니다.**
+### Claude의 역할
 
-### 기본 형식
-```
-[WBS-XXX] 작업 내용
-```
+Claude는 작업 완료 시 다음을 수행합니다:
 
-### 예시
+1. **WBS 매칭/생성**: 작업 내용과 일치하는 WBS 찾기. 없으면 새로 생성
+2. **커밋 메시지 작성**: `[WBS-XXX] 완료: 작업내용` 형식으로 제안
+3. **Notion 직접 업데이트**: 사용자 요청 시 Notion MCP로 WBS 상태 변경
+
+### 커밋 메시지 형식 (GitHub Actions 연동)
+
 ```bash
-# 진행 중 → Notion에서 "진행중"으로 변경
+# 진행 중
 git commit -m "[WBS-007] 환경변수 설정 작업 중"
 
-# 완료 → Notion에서 "완료"로 변경 + 완료일 기록
+# 완료
 git commit -m "[WBS-007] 완료: 환경변수 설정"
-git commit -m "[WBS-007][완료] SMTP 환경변수 설정"
 
-# 여러 WBS 동시 처리
-git commit -m "[WBS-007][WBS-008] 완료: 환경변수 및 DB 마이그레이션"
+# 여러 WBS
+git commit -m "[WBS-007][WBS-008] 완료: 환경변수 및 마이그레이션"
 ```
 
-### 자동 업데이트 항목
-- **상태**: 진행중 / 완료
-- **완료일**: 완료 시 자동 기록
-- **커밋링크**: GitHub 커밋 URL 자동 연결
+Push 시 GitHub Actions가 자동으로:
+- 상태 변경 (진행중/완료)
+- 완료일 기록
+- 커밋 링크 연결
 
-### WBS ID 목록 (Notion)
-https://www.notion.so/81de40b620ce47059f0a5cef62c2d4be
+### 사용자 요청 예시
+
+```
+사용자: "로그인 화면 작업 완료. 커밋해줘"
+
+Claude:
+1. WBS DB에서 "로그인" 관련 항목 검색
+2. 있으면 → 해당 WBS ID로 커밋 메시지 제안
+3. 없으면 → 새 WBS 생성 후 커밋 메시지 제안
+4. 커밋 메시지: "[WBS-015] 완료: 로그인 화면 UI 구현"
+```
+
+```
+사용자: "WBS 업데이트해줘" 또는 "노션 업데이트해줘"
+
+Claude:
+1. 현재 세션에서 진행한 작업 파악
+2. Notion MCP로 WBS DB 직접 업데이트
+3. 상태, 완료일, 실제공수 등 반영
+```
+
+### WBS 생성 규칙
+
+새 작업이 WBS에 없을 때 Claude가 생성:
+- **태스크ID**: 다음 번호 자동 부여 (WBS-015, WBS-016...)
+- **모듈**: 회원/상품/주문/결제/관리자/공통/기타
+- **예상공수**: Claude가 판단하여 입력
+- **우선순위**: 상/중/하
+
+### Notion 링크
+- WBS DB: https://www.notion.so/81de40b620ce47059f0a5cef62c2d4be
+- 프로젝트 DB: https://www.notion.so/80f5cbd4fdce403daabb70fc8dace147
+- 개발노트 DB: https://www.notion.so/d3f8092a3ba84d96a2485eb487e98f80
 
 ---
 
