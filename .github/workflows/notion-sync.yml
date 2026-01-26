@@ -20,13 +20,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: |
-          npm install @notionhq/client@latest
-          echo "Installed packages:"
-          npm list @notionhq/client
-
-      - name: Parse commit and sync to Notion
+      - name: Sync to Notion
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_WBS_DB_ID: ${{ secrets.NOTION_WBS_DB_ID }}
