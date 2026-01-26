@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -68,6 +69,16 @@ export class BlindDateController {
   @UseGuards(AuthGuard('jwt'))
   @Put('listings/:id')
   updateListing(
+    @Param('id') id: string,
+    @Body() dto: UpdateListingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.blindDateService.updateListing(id, dto, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('listings/:id')
+  patchListing(
     @Param('id') id: string,
     @Body() dto: UpdateListingDto,
     @Request() req: AuthenticatedRequest,

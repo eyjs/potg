@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart, Camera } from "lucide-react"
+import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart, Camera, Pencil } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
+import { Input } from "@/common/components/ui/input"
+import { Label } from "@/common/components/ui/label"
 import { Textarea } from "@/common/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { Header } from "@/common/layouts/header"
@@ -29,6 +31,18 @@ export default function GalleryDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [editingPref, setEditingPref] = useState(false)
+  const [prefForm, setPrefForm] = useState({
+    minAge: "",
+    maxAge: "",
+    preferredGender: "",
+    minEducation: "",
+    minHeight: "",
+    maxHeight: "",
+    preferredLocations: "",
+    preferredJobs: "",
+  })
+  const [isSavingPref, setIsSavingPref] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -67,6 +81,56 @@ export default function GalleryDetailPage() {
       router.push("/gallery")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const startEditPref = () => {
+    const p = hero?.preference
+    setPrefForm({
+      minAge: p?.minAge?.toString() || "",
+      maxAge: p?.maxAge?.toString() || "",
+      preferredGender: p?.preferredGender || "",
+      minEducation: p?.minEducation || "",
+      minHeight: p?.minHeight?.toString() || "",
+      maxHeight: p?.maxHeight?.toString() || "",
+      preferredLocations: p?.preferredLocations?.join(", ") || "",
+      preferredJobs: p?.preferredJobs?.join(", ") || "",
+    })
+    setEditingPref(true)
+  }
+
+  const handleSavePref = async () => {
+    if (!hero) return
+    const preference: Record<string, unknown> = {}
+    if (prefForm.minAge) preference.minAge = Number(prefForm.minAge)
+    if (prefForm.maxAge) preference.maxAge = Number(prefForm.maxAge)
+    if (prefForm.preferredGender) preference.preferredGender = prefForm.preferredGender
+    if (prefForm.minEducation) preference.minEducation = prefForm.minEducation
+    if (prefForm.minHeight) preference.minHeight = Number(prefForm.minHeight)
+    if (prefForm.maxHeight) preference.maxHeight = Number(prefForm.maxHeight)
+    if (prefForm.preferredLocations.trim()) {
+      preference.preferredLocations = prefForm.preferredLocations.split(",").map((s) => s.trim()).filter(Boolean)
+    }
+    if (prefForm.preferredJobs.trim()) {
+      preference.preferredJobs = prefForm.preferredJobs.split(",").map((s) => s.trim()).filter(Boolean)
+    }
+
+    if (Object.keys(preference).length === 0) {
+      toast.error("최소 하나의 조건을 입력해주세요.")
+      return
+    }
+
+    try {
+      setIsSavingPref(true)
+      await api.put(`/blind-date/listings/${hero.id}`, { preference })
+      toast.success("희망 조건이 저장되었습니다.")
+      setEditingPref(false)
+      fetchHero(hero.id)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "희망 조건 저장에 실패했습니다.")
+    } finally {
+      setIsSavingPref(false)
     }
   }
 
@@ -278,11 +342,19 @@ export default function GalleryDetailPage() {
           )}
 
           {/* Preference Section */}
-          {pref && (
+          {pref && !editingPref && (
             <div className="p-4 bg-pink-500/5 rounded border border-pink-500/20 space-y-3">
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-pink-500" />
-                <p className="text-xs text-pink-500 font-bold">희망 상대 조건</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  <p className="text-xs text-pink-500 font-bold">희망 상대 조건</p>
+                </div>
+                {isOwner && hero.status === "available" && (
+                  <Button variant="ghost" size="sm" onClick={startEditPref} className="text-pink-500 hover:text-pink-400 h-7 px-2">
+                    <Pencil className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {(pref.minAge || pref.maxAge) && (
@@ -342,6 +414,147 @@ export default function GalleryDetailPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Owner: Add preference button (when no preference exists) */}
+          {isOwner && !pref && !editingPref && hero.status === "available" && (
+            <Button
+              onClick={startEditPref}
+              variant="outline"
+              className="w-full border-pink-500/30 text-pink-500 hover:bg-pink-500/10"
+            >
+              <Heart className="w-4 h-4 mr-2" />
+              희망 상대 조건 등록하기
+            </Button>
+          )}
+
+          {/* Preference Edit Form */}
+          {editingPref && (
+            <div className="p-4 bg-pink-500/5 rounded border border-pink-500/20 space-y-4">
+              <div className="flex items-center gap-2">
+                <Heart className="w-4 h-4 text-pink-500" />
+                <p className="text-xs text-pink-500 font-bold">
+                  {pref ? "희망 상대 조건 수정" : "희망 상대 조건 등록"}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">모두 선택사항입니다. 원하는 항목만 입력하세요.</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">최소 나이</Label>
+                  <Input
+                    type="number" min={18} max={99}
+                    value={prefForm.minAge}
+                    onChange={(e) => setPrefForm((p) => ({ ...p, minAge: e.target.value }))}
+                    placeholder="예: 20"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">최대 나이</Label>
+                  <Input
+                    type="number" min={18} max={99}
+                    value={prefForm.maxAge}
+                    onChange={(e) => setPrefForm((p) => ({ ...p, maxAge: e.target.value }))}
+                    placeholder="예: 35"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">선호 성별</Label>
+                  <Select
+                    value={prefForm.preferredGender || "__none__"}
+                    onValueChange={(v) => setPrefForm((p) => ({ ...p, preferredGender: v === "__none__" ? "" : v }))}
+                  >
+                    <SelectTrigger className="bg-input border-border h-9 text-sm">
+                      <SelectValue placeholder="선택 안 함" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="__none__">선택 안 함</SelectItem>
+                      <SelectItem value="MALE">남성</SelectItem>
+                      <SelectItem value="FEMALE">여성</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">최소 학력</Label>
+                  <Select
+                    value={prefForm.minEducation || "__none__"}
+                    onValueChange={(v) => setPrefForm((p) => ({ ...p, minEducation: v === "__none__" ? "" : v }))}
+                  >
+                    <SelectTrigger className="bg-input border-border h-9 text-sm">
+                      <SelectValue placeholder="선택 안 함" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="__none__">선택 안 함</SelectItem>
+                      {(Object.entries(EDUCATION_LABELS) as [MinEducation, string][]).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">최소 키 (cm)</Label>
+                  <Input
+                    type="number" min={100} max={250}
+                    value={prefForm.minHeight}
+                    onChange={(e) => setPrefForm((p) => ({ ...p, minHeight: e.target.value }))}
+                    placeholder="예: 160"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">최대 키 (cm)</Label>
+                  <Input
+                    type="number" min={100} max={250}
+                    value={prefForm.maxHeight}
+                    onChange={(e) => setPrefForm((p) => ({ ...p, maxHeight: e.target.value }))}
+                    placeholder="예: 185"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-foreground">선호 지역</Label>
+                <Input
+                  value={prefForm.preferredLocations}
+                  onChange={(e) => setPrefForm((p) => ({ ...p, preferredLocations: e.target.value }))}
+                  placeholder="쉼표로 구분 (예: 서울, 경기, 인천)"
+                  className="bg-input border-border text-foreground h-9 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-foreground">선호 직업</Label>
+                <Input
+                  value={prefForm.preferredJobs}
+                  onChange={(e) => setPrefForm((p) => ({ ...p, preferredJobs: e.target.value }))}
+                  placeholder="쉼표로 구분 (예: 회사원, 공무원, 전문직)"
+                  className="bg-input border-border text-foreground h-9 text-sm"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditingPref(false)} className="flex-1">
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSavePref}
+                  disabled={isSavingPref}
+                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold"
+                >
+                  {isSavingPref ? "저장 중..." : "저장"}
+                </Button>
+              </div>
             </div>
           )}
 

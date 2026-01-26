@@ -1,8 +1,55 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-26
+마지막 업데이트: 2026-01-27
 
-## 0. 완료된 작업 (2026-01-26 세션)
+## 0. 완료된 작업 (2026-01-27 세션)
+
+### [WBS-012] 경매 포인트 차감 버그 수정 및 자동 낙찰 로직 추가
+
+> 로컬과 origin이 diverge된 상태에서 origin/master로 리셋 후, 로컬 커밋의 버그 수정 패치를 재적용하여 커밋/푸시 완료.
+
+#### 수정 내용
+
+1. **confirmCurrentBid 포인트 차감 누락 수정** (치명적 버그)
+   - **파일**: `backend/src/modules/auctions/auctions.service.ts`
+   - **문제**: 낙찰 확정 시 `captain.currentPoints -= amount` 없이 비드만 비활성화 → 팀장 포인트가 차감되지 않음
+   - **수정**: 낙찰 확정 시 포인트 차감 로직 추가
+
+2. **autoConfirmOnTimeout 포인트 차감 누락 수정** (치명적 버그)
+   - **파일**: `backend/src/modules/auctions/auctions.service.ts`
+   - **문제**: 타임아웃 자동 낙찰 시에도 포인트 미차감
+   - **수정**: 동일하게 포인트 차감 로직 추가
+
+3. **checkAutoConfirm() 자동 낙찰 로직 추가**
+   - **파일**: `backend/src/modules/auctions/auctions.service.ts`, `backend/src/modules/auctions/auction.gateway.ts`
+   - 입찰 후 모든 경쟁 팀장의 잔여 포인트가 최소 다음 입찰가 미만이면 자동 낙찰
+   - 경쟁자 없는 경우에도 자동 낙찰
+
+4. **window.location.reload() → socket requestRoomState 대체**
+   - **파일**: `frontend/src/app/auction/[id]/page.tsx`, `frontend/src/modules/auction/hooks/use-auction-socket.ts`
+   - 새로고침 대신 소켓으로 방 상태 재요청
+
+5. **선수 풀 상태 배지 UI 추가**
+   - **파일**: `frontend/src/app/auction/[id]/page.tsx`
+   - 현재 경매 중인 선수: "경매중" 배지 (파란색 하이라이트)
+   - 나머지 선수: "대기" 배지
+
+#### 수정된 파일
+```
+backend/src/modules/auctions/auction.gateway.ts      # requestRoomState 핸들러, 자동 낙찰 로직
+backend/src/modules/auctions/auctions.service.ts     # 포인트 차감 수정, checkAutoConfirm() 추가
+frontend/src/app/auction/[id]/page.tsx               # 상태 배지 UI, requestRoomState 연동
+frontend/src/modules/auction/hooks/use-auction-socket.ts  # requestRoomState 함수 추가
+```
+
+#### Git 작업
+- origin/master로 강제 리셋 (`git reset --hard origin/master`)
+- 로컬 패치 재적용 후 커밋: `d53b1ad [WBS-012]`
+- push 완료
+
+---
+
+## 0-1. 완료된 작업 (2026-01-26 세션)
 
 ### 프론트엔드 버그 수정 및 기능 개선 (6건)
 
@@ -221,7 +268,13 @@ export class BidDto {
 
 ### 즉시 해야할 것
 
-0. **배포 후 수동 테스트**
+0. **경매 포인트 차감 수동 검증** (WBS-012 배포 후)
+   - 낙찰 확정 시 팀장 포인트가 정상 차감되는지
+   - 타임아웃 자동 낙찰 시 포인트 차감 확인
+   - 자동 낙찰 조건 (경쟁자 포인트 부족) 트리거 확인
+   - 선수 풀 상태 배지(경매중/대기) 표시 확인
+
+1. **배포 후 수동 테스트** (이전 WBS 분)
    - 명예의전당: 기부자/수배자 등록 시 500 에러 안 나는지 확인
    - 베팅: 카운트다운 표시 + 관리자 마감/수정 버튼 동작
    - 상점: 카테고리 없이 상품 등록/구매 정상
@@ -229,17 +282,13 @@ export class BidDto {
    - Hydration: 콘솔에 #418 에러 없는지 확인
    - 경매 WebSocket 연결이 운영 서버로 정상 연결되는지 확인
 
-1. ~~**베팅 백엔드 확인**~~ ✅ 완료 (2026-01-26)
-   - `PATCH /betting/questions/:id` 엔드포인트 추가됨
-   - UpdateQuestionDto: question, rewardMultiplier, bettingDeadline, status(CLOSED만 허용)
-   - ADMIN 권한 필요 (RolesGuard)
+2. ~~**베팅 백엔드 확인**~~ ✅ 완료 (2026-01-26)
 
-2. **경매 비딩 테스트 완료**
-   - BidDto 버그 수정됨 (로컬에서 확인)
-   - 프로덕션 서버 재배포 후 비딩 테스트 필요
-   - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
+3. ~~**경매 포인트 차감 버그**~~ ✅ 완료 (WBS-012, 2026-01-27)
+   - confirmCurrentBid, autoConfirmOnTimeout 포인트 차감 수정
+   - checkAutoConfirm 자동 낙찰 로직 추가
 
-3. **환경변수 설정** (이메일 발송을 위해 필수)
+4. **환경변수 설정** (이메일 발송을 위해 필수)
    ```env
    # backend .env
    SMTP_HOST=smtp.gmail.com

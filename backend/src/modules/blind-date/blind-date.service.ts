@@ -241,7 +241,7 @@ export class BlindDateService {
     id: string,
     dto: UpdateListingDto,
     userId: string,
-  ): Promise<BlindDateListing> {
+  ): Promise<BlindDateListing & { preference?: BlindDatePreference }> {
     const listing = await this.listingsRepository.findOne({
       where: { id },
     });
@@ -256,8 +256,29 @@ export class BlindDateService {
     if (listing.status === ListingStatus.MATCHED)
       throw new BadRequestException('Cannot update matched listing');
 
-    Object.assign(listing, dto);
-    return this.listingsRepository.save(listing);
+    const { preference, ...listingData } = dto;
+    Object.assign(listing, listingData);
+    const saved = await this.listingsRepository.save(listing);
+
+    // Handle preference upsert
+    let savedPreference: BlindDatePreference | undefined;
+    if (preference) {
+      const existing = await this.preferencesRepository.findOne({
+        where: { listingId: id },
+      });
+      if (existing) {
+        Object.assign(existing, preference);
+        savedPreference = await this.preferencesRepository.save(existing);
+      } else {
+        const newPref = this.preferencesRepository.create({
+          ...preference,
+          listingId: id,
+        });
+        savedPreference = await this.preferencesRepository.save(newPref);
+      }
+    }
+
+    return { ...saved, preference: savedPreference };
   }
 
   async deleteListing(id: string, userId: string): Promise<void> {

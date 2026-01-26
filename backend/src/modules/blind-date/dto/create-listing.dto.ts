@@ -109,4 +109,13 @@ export class UpdateListingDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
+
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @ValidateNested()
+  @Type(() => CreatePreferenceDto)
+  @IsOptional()
+  preference?: CreatePreferenceDto;
 }
