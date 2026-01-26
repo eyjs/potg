@@ -1,8 +1,72 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-24
+마지막 업데이트: 2026-01-26
 
-## 1. 완료된 작업 (이번 세션)
+## 0. 완료된 작업 (2026-01-26 세션)
+
+### 프론트엔드 버그 수정 및 기능 개선 (6건)
+
+#### 1. 명예의전당 CRUD 500 에러 수정
+- **파일**: `frontend/src/components/dashboard/hall-of-fame.tsx`
+- **문제**: `handleCreate`에서 POST 요청 시 `title` 필드 누락 → 백엔드 필수 필드 검증 실패 500 에러
+- **수정**: `clanMembers`에서 `selectedMemberId`로 battleTag를 찾아 자동 title 생성
+  - DONOR: `"[battleTag] 기부"`, WANTED: `"[battleTag] 수배"`
+
+#### 2. WebSocket URL 운영환경 수정
+- **파일**: `frontend/src/modules/auction/hooks/use-auction-socket.ts`
+- **문제**: fallback URL이 `http://localhost:8100`으로 하드코딩
+- **수정**: `https://potg.joonbi.co.kr`로 변경 (api.ts와 동일)
+
+#### 3. 베팅 카운트다운 및 관리자 기능
+- **파일**: `frontend/src/app/betting/page.tsx`
+- **추가 기능**:
+  - `bettingDeadline`이 있는 OPEN 문항에 실시간 카운트다운 표시 (일/시/분/초)
+  - 마감 시 "베팅 시간 마감됨" 표시
+  - ADMIN 사용자에게 "마감하기" 버튼 (PATCH로 status CLOSED 변경)
+  - ADMIN 사용자에게 "수정하기" 버튼 (제목, 배율, 마감시간 수정 다이얼로그)
+
+#### 4. 상점 카테고리 제거 및 UX 개선
+- **파일들**: `frontend/src/app/shop/page.tsx`, `frontend/src/modules/shop/components/product-card.tsx`
+- **수정 내용**:
+  - 카테고리 탭 (`TabsList`) 제거 → 전체 상품 직접 표시
+  - 상품 등록 다이얼로그에서 카테고리 Select 필드 제거
+  - 상품 등록 시 기본 카테고리 `"ETC"` 자동 전송 (백엔드 호환)
+  - `ProductCard`에서 카테고리 Badge 제거
+  - `alert()`/`confirm()` → `toast()` 변경 (UX 통일)
+
+#### 5. 소개팅 필터링 개선
+- **파일**: `frontend/src/app/gallery/page.tsx`
+- **수정 내용**:
+  - 기존 상태 필터 (만남가능/소개팅중/매칭완료) 제거
+  - 새 필터 추가: 성별, 나이 범위(최소~최대), MBTI(16종 드롭다운), 지역(텍스트), 흡연여부
+  - 접기/펼치기 UI로 모바일 공간 절약
+  - "전체 매물" / "내 등록 매물" 뷰 모드 유지
+  - 필터 초기화 버튼 추가
+
+#### 6. React #418 Hydration 에러 수정
+- **파일**: `frontend/src/common/layouts/bottom-nav.tsx`
+- **문제**: 서버에서는 `user=null`로 `null` 반환, 클라이언트에서는 localStorage 기반으로 렌더링 → hydration 불일치
+- **수정**: `mounted` 상태 추가, `useEffect`로 클라이언트 마운트 후에만 렌더링
+
+#### 수정된 파일 목록
+```
+frontend/src/components/dashboard/hall-of-fame.tsx    # title 필드 추가
+frontend/src/modules/auction/hooks/use-auction-socket.ts  # fallback URL 수정
+frontend/src/app/betting/page.tsx                     # 카운트다운 + 관리자 기능
+frontend/src/app/shop/page.tsx                        # 카테고리 제거, toast 전환
+frontend/src/modules/shop/components/product-card.tsx  # 카테고리 Badge 제거
+frontend/src/app/gallery/page.tsx                     # 필터링 개선
+frontend/src/common/layouts/bottom-nav.tsx            # hydration 수정
+docs/handoff.md                                       # 최신화
+```
+
+#### 빌드 검증
+- `next build` 성공 (TypeScript 에러 없음)
+- ESLint는 기존 설정 문제(circular reference)로 실행 불가 (이번 변경과 무관)
+
+---
+
+## 1. 완료된 작업 (이전 세션 2026-01-24)
 
 ### 경매 비딩 버그 수정 및 테스트
 
@@ -157,13 +221,25 @@ export class BidDto {
 
 ### 즉시 해야할 것
 
-0. **경매 비딩 테스트 완료**
+0. **배포 후 수동 테스트**
+   - 명예의전당: 기부자/수배자 등록 시 500 에러 안 나는지 확인
+   - 베팅: 카운트다운 표시 + 관리자 마감/수정 버튼 동작
+   - 상점: 카테고리 없이 상품 등록/구매 정상
+   - 소개팅: 성별/나이/MBTI/지역/흡연 필터 동작
+   - Hydration: 콘솔에 #418 에러 없는지 확인
+   - 경매 WebSocket 연결이 운영 서버로 정상 연결되는지 확인
+
+1. **베팅 백엔드 확인**
+   - `PATCH /betting/questions/:id` 엔드포인트가 존재하는지 확인 필요
+   - 마감하기(status 변경), 수정하기(question, rewardMultiplier, bettingDeadline 수정) API 지원 필요
+   - 없으면 백엔드에 PATCH 엔드포인트 추가 필요
+
+2. **경매 비딩 테스트 완료**
    - BidDto 버그 수정됨 (로컬에서 확인)
    - 프로덕션 서버 재배포 후 비딩 테스트 필요
-   - 테스트 시나리오: TCaptain1과 TCaptain2가 Player1/Player2에 대해 경쟁 입찰
-   - 낙찰(SOLD) 플로우 확인 필요
+   - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
 
-1. **환경변수 설정** (이메일 발송을 위해 필수)
+3. **환경변수 설정** (이메일 발송을 위해 필수)
    ```env
    # backend .env
    SMTP_HOST=smtp.gmail.com
@@ -174,27 +250,22 @@ export class BidDto {
    FRONTEND_URL=http://localhost:3001
    ```
 
-2. **DB 마이그레이션**
+4. **DB 마이그레이션**
    - `PasswordReset` 엔티티 추가됨
    - `User` 엔티티에 `email` 필드 추가됨
    - Announcement, HallOfFame 엔티티 추가됨
    - 실제 DB와 동기화 필요
 
-3. **디자인 컴포넌트**
-   - 스켈레톤 로딩 적용 (react-loading-skeleton 활용)
-   - 오버워치 스타일 버튼
-   - 404/에러 페이지
-
-4. **테스트**
-   - 비밀번호 재설정 플로우 테스트
-   - 새 API 엔드포인트 테스트
-   - 모바일 UI 테스트
+5. **ESLint 설정 수정**
+   - 현재 ESLint 9.x에서 circular reference 에러 발생
+   - `eslint.config.mjs` 설정 점검 필요
 
 ### 선택적 개선사항
 
 - React Query 적용 확대 (API 호출 최적화)
 - Framer Motion 애니메이션 확장
-- Winston 로깅 적용 범위 확대
+- 스켈레톤 로딩 적용
+- 404/에러 페이지
 
 ---
 
@@ -217,7 +288,26 @@ export class BidDto {
 
 ## 4. 파일 위치 요약
 
-### 이번 세션에서 수정/생성된 파일
+### 2026-01-26 세션에서 수정된 파일
+
+```
+frontend/src/
+├── components/dashboard/
+│   └── hall-of-fame.tsx              # title 필드 누락 수정
+├── modules/
+│   ├── auction/hooks/
+│   │   └── use-auction-socket.ts     # WebSocket fallback URL 수정
+│   └── shop/components/
+│       └── product-card.tsx          # 카테고리 Badge 제거
+├── app/
+│   ├── betting/page.tsx              # 카운트다운 + 관리자 기능
+│   ├── shop/page.tsx                 # 카테고리 탭 제거, toast 전환
+│   └── gallery/page.tsx              # 필터링 개선
+└── common/layouts/
+    └── bottom-nav.tsx                # hydration 에러 수정 (mounted state)
+```
+
+### 2026-01-24 세션에서 수정된 파일
 
 ```
 frontend/src/common/layouts/
@@ -337,13 +427,16 @@ docs/
 ```
 
 ### 테스트 필요 항목
-- 비밀번호 재설정 플로우 (이메일 발송, 토큰 검증, 비밀번호 변경)
-- 회원가입 이메일 필드
-- 공지사항 CRUD API
-- 명예의전당 CRUD API
-- 스크림 today 필터
-- 경매 설정 패널 기능
-- 모바일 하단 네비게이션
-- **경매 비딩 플로우** (BidDto 수정 후 재테스트)
-  - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
-  - 테스트 경매 ID: 54079df7-f010-4923-a8e0-addbf8058622
+- **[2026-01-26 수정분]**
+  - 명예의전당 기부자/수배자 등록 (title 포함 여부)
+  - 경매 WebSocket 운영 서버 연결
+  - 베팅 카운트다운 표시 + 관리자 마감/수정 기능
+  - 상점 카테고리 제거 후 상품 등록/구매
+  - 소개팅 필터 (성별/나이/MBTI/지역/흡연)
+  - Hydration 에러 (#418) 해소 확인
+- **[이전 수정분]**
+  - 비밀번호 재설정 플로우 (이메일 발송, 토큰 검증, 비밀번호 변경)
+  - 공지사항 CRUD API
+  - 경매 비딩 플로우 (BidDto 수정 후 재테스트)
+    - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
+    - 테스트 경매 ID: 54079df7-f010-4923-a8e0-addbf8058622

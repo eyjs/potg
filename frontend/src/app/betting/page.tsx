@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Header } from "@/common/layouts/header"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
@@ -11,7 +11,7 @@ import { Label } from "@/common/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
-import { Coins, Clock, AlertCircle, Plus, TrendingUp, History } from "lucide-react"
+import { Coins, Clock, AlertCircle, Plus, TrendingUp, History, Lock, Pencil, Timer } from "lucide-react"
 import { Badge } from "@/common/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -40,16 +40,51 @@ export default function BettingPage() {
   const [selectedQuestion, setSelectedQuestion] = useState<BettingQuestion | null>(null)
   const [betPrediction, setBetPrediction] = useState<"O" | "X">("O")
   const [betAmount, setBetAmount] = useState("100")
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editQuestion, setEditQuestion] = useState({
+    question: "",
+    rewardMultiplier: 2.0,
+    bettingDeadline: ""
+  })
   const [newQuestion, setNewQuestion] = useState({
     question: "",
     minBetAmount: 100,
     rewardMultiplier: 2.0,
     bettingDeadline: ""
   })
+  const [countdowns, setCountdowns] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchQuestions()
   }, [])
+
+  // Countdown timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const updated: Record<string, string> = {}
+      for (const q of questions) {
+        if (q.bettingDeadline && q.status === "OPEN") {
+          const diff = new Date(q.bettingDeadline).getTime() - now
+          if (diff <= 0) {
+            updated[q.id] = "마감됨"
+          } else {
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+            updated[q.id] = days > 0
+              ? `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`
+              : hours > 0
+                ? `${hours}시간 ${minutes}분 ${seconds}초`
+                : `${minutes}분 ${seconds}초`
+          }
+        }
+      }
+      setCountdowns(updated)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [questions])
 
   const fetchQuestions = async () => {
     try {
@@ -126,6 +161,46 @@ export default function BettingPage() {
       fetchQuestions()
     } catch (error: any) {
       toast.error(error.response?.data?.message || "정산에 실패했습니다.")
+    }
+  }
+
+  const handleCloseQuestion = async (questionId: string) => {
+    try {
+      await api.patch(`/betting/questions/${questionId}`, { status: "CLOSED" })
+      toast.success("베팅이 마감되었습니다.")
+      fetchQuestions()
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "마감 처리에 실패했습니다.")
+    }
+  }
+
+  const openEditDialog = (question: BettingQuestion) => {
+    setSelectedQuestion(question)
+    setEditQuestion({
+      question: question.question,
+      rewardMultiplier: question.rewardMultiplier,
+      bettingDeadline: question.bettingDeadline
+        ? new Date(question.bettingDeadline).toISOString().slice(0, 16)
+        : ""
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleEditQuestion = async () => {
+    if (!selectedQuestion) return
+    try {
+      await api.patch(`/betting/questions/${selectedQuestion.id}`, {
+        question: editQuestion.question,
+        rewardMultiplier: editQuestion.rewardMultiplier,
+        bettingDeadline: editQuestion.bettingDeadline ? new Date(editQuestion.bettingDeadline).toISOString() : null
+      })
+      toast.success("베팅 문항이 수정되었습니다.")
+      setIsEditDialogOpen(false)
+      fetchQuestions()
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "수정에 실패했습니다.")
     }
   }
 
@@ -310,6 +385,23 @@ export default function BettingPage() {
                       </div>
                     </div>
 
+                    {/* Countdown */}
+                    {q.bettingDeadline && q.status === "OPEN" && (
+                      <div className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-sm font-bold",
+                        countdowns[q.id] === "마감됨"
+                          ? "bg-destructive/10 border-destructive/30 text-destructive"
+                          : "bg-primary/10 border-primary/30 text-primary"
+                      )}>
+                        <Timer className="w-4 h-4 shrink-0" />
+                        <span>
+                          {countdowns[q.id] === "마감됨"
+                            ? "베팅 시간 마감됨"
+                            : `마감까지 ${countdowns[q.id] || "계산 중..."}`}
+                        </span>
+                      </div>
+                    )}
+
                     {q.status === "SETTLED" && q.correctAnswer && (
                       <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg text-center">
                         <span className="text-sm text-muted-foreground font-bold">정답: </span>
@@ -318,19 +410,43 @@ export default function BettingPage() {
                     )}
 
                     {q.status === "OPEN" ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button
-                          onClick={() => openBetDialog(q, 'O')}
-                          className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-black rounded-md"
-                        >
-                          O
-                        </Button>
-                        <Button
-                          onClick={() => openBetDialog(q, 'X')}
-                          className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
-                        >
-                          X
-                        </Button>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Button
+                            onClick={() => openBetDialog(q, 'O')}
+                            className="h-16 text-2xl font-black bg-accent hover:bg-accent/90 text-black rounded-md"
+                          >
+                            O
+                          </Button>
+                          <Button
+                            onClick={() => openBetDialog(q, 'X')}
+                            className="h-16 text-2xl font-black bg-destructive hover:bg-destructive/90 text-white rounded-md"
+                          >
+                            X
+                          </Button>
+                        </div>
+                        {user?.role === "ADMIN" && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-destructive/50 text-destructive hover:bg-destructive/10 font-bold text-xs"
+                              onClick={() => handleCloseQuestion(q.id)}
+                            >
+                              <Lock className="w-3 h-3 mr-1" />
+                              마감하기
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-primary/50 text-primary hover:bg-primary/10 font-bold text-xs"
+                              onClick={() => openEditDialog(q)}
+                            >
+                              <Pencil className="w-3 h-3 mr-1" />
+                              수정하기
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : user?.role === "ADMIN" && q.status === "CLOSED" ? (
                       <Button
@@ -402,6 +518,55 @@ export default function BettingPage() {
                 className="w-full bg-primary hover:bg-primary/90 text-black font-black text-lg h-14 skew-btn"
               >
                 베팅하기
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="bg-card border-border text-foreground">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-primary">베팅 문항 수정</DialogTitle>
+              <DialogDescription className="sr-only">베팅 문항의 제목, 마감시간, 배율을 수정합니다</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="editQuestion">베팅 문항</Label>
+                <Input
+                  id="editQuestion"
+                  value={editQuestion.question}
+                  onChange={(e) => setEditQuestion({ ...editQuestion, question: e.target.value })}
+                  className="bg-[#050505] border-border focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editMultiplier">보상 배율</Label>
+                <Input
+                  id="editMultiplier"
+                  type="number"
+                  min="1"
+                  step="0.1"
+                  value={editQuestion.rewardMultiplier}
+                  onChange={(e) => setEditQuestion({ ...editQuestion, rewardMultiplier: Number(e.target.value) })}
+                  className="bg-[#050505] border-border focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editDeadline">베팅 마감 시간</Label>
+                <Input
+                  id="editDeadline"
+                  type="datetime-local"
+                  value={editQuestion.bettingDeadline}
+                  onChange={(e) => setEditQuestion({ ...editQuestion, bettingDeadline: e.target.value })}
+                  className="bg-[#050505] border-border focus:border-primary"
+                />
+              </div>
+              <Button
+                onClick={handleEditQuestion}
+                className="w-full bg-primary hover:bg-primary/90 text-black font-bold"
+              >
+                수정 완료
               </Button>
             </div>
           </DialogContent>

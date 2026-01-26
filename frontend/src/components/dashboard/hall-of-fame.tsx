@@ -99,9 +99,14 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
 
     setIsSubmitting(true)
     try {
+      const selectedMember = clanMembers.find((m) => m.id === selectedMemberId)
+      const battleTag = selectedMember?.battleTag || "Unknown"
+      const title = activeTab === "DONOR" ? `${battleTag} 기부` : `${battleTag} 수배`
+
       await api.post(`/clans/${clanId}/hall-of-fame`, {
         type: activeTab,
         userId: selectedMemberId,
+        title,
         amount: activeTab === "DONOR" ? Number(amount) : 0,
         description: reason || undefined,
       })

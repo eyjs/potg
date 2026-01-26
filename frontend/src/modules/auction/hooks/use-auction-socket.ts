@@ -129,7 +129,7 @@ export function useAuctionSocket({
   const [messages, setMessages] = useState<ChatMessage[]>([])
 
   useEffect(() => {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100"
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://potg.joonbi.co.kr"
     const socket = io(`${backendUrl}/auction`, {
       transports: ["websocket", "polling"],
       withCredentials: true,

@@ -3,7 +3,6 @@
 import { ShoppingCart, Package } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/common/components/ui/card"
-import { Badge } from "@/common/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 interface ProductCardProps {
@@ -12,7 +11,6 @@ interface ProductCardProps {
   description?: string
   price: number
   stock: number
-  category: string
   imageUrl?: string
   onPurchase: (id: string) => void
 }
@@ -23,7 +21,6 @@ export function ProductCard({
   description,
   price,
   stock,
-  category,
   imageUrl,
   onPurchase,
 }: ProductCardProps) {
@@ -41,9 +38,6 @@ export function ProductCard({
         ) : (
           <Package className="w-12 h-12 text-muted-foreground opacity-20" />
         )}
-        <Badge className="absolute top-2 left-2 bg-black/50 backdrop-blur-md border-none text-[10px] font-bold uppercase tracking-wider">
-          {category}
-        </Badge>
         {isOutOfStock && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
             <span className="text-white font-black italic uppercase tracking-tighter text-2xl -rotate-12">SOLD OUT</span>

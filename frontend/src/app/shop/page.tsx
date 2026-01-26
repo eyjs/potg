@@ -5,15 +5,12 @@ import { Header } from "@/common/layouts/header"
 import { ProductCard } from "@/modules/shop/components/product-card"
 import { ShoppingBag, Ticket, History, Gift, Plus } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Textarea } from "@/common/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
-import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
@@ -30,14 +27,12 @@ export default function ShopPage() {
   const [myCoupons, setMyCoupons] = useState<any[]>([])
   const [membership, setMembership] = useState<Membership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("all")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
     price: 1000,
     stock: 10,
-    category: "VOUCHER",
     imageUrl: ""
   })
 
@@ -84,6 +79,7 @@ export default function ShopPage() {
     try {
       await api.post('/shop/products', {
         ...newProduct,
+        category: "ETC",
         clanId: user?.clanId
       })
       toast.success("상품이 등록되었습니다.")
@@ -93,7 +89,6 @@ export default function ShopPage() {
         description: "",
         price: 1000,
         stock: 10,
-        category: "VOUCHER",
         imageUrl: ""
       })
       fetchData()
@@ -103,21 +98,15 @@ export default function ShopPage() {
   }
 
   const handlePurchase = async (productId: string) => {
-    if (!confirm("이 상품을 구매하시겠습니까?")) return
     try {
       await api.post('/shop/purchase', { productId, quantity: 1 })
-      alert("구매 요청이 완료되었습니다! 클랜마스터 승인 후 쿠폰함에서 확인하실 수 있습니다.")
+      toast.success("구매 요청이 완료되었습니다! 클랜마스터 승인 후 쿠폰함에서 확인하실 수 있습니다.")
       fetchData()
-    } catch (error: any) {
-      alert(error.response?.data?.message || "구매 실패")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "구매 실패")
     }
   }
-
-  const categories = ["all", "VOUCHER", "GOODS", "GAME_ITEM", "ETC"]
-
-  const filteredProducts = activeTab === "all" 
-    ? products 
-    : products.filter(p => p.category === activeTab)
 
   if (isLoading) return (
     <div className="min-h-screen bg-background">
@@ -160,149 +149,116 @@ export default function ShopPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
-            <div className="flex flex-col gap-4 mb-6">
-              {/* 카테고리 탭 - 모바일에서 그리드 */}
-              <TabsList className="bg-muted/50 p-1 h-auto grid grid-cols-3 md:flex md:w-auto w-full gap-1">
-                {categories.map(cat => (
-                  <TabsTrigger
-                    key={cat}
-                    value={cat}
-                    className="px-3 md:px-6 py-2 uppercase font-black italic text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                  >
-                    {cat === 'all' ? '전체' : cat}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              {/* 기능 버튼 */}
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="flex-1 md:flex-none skew-btn border-border/50 text-xs font-bold gap-2">
-                  <Ticket className="w-4 h-4" />
-                  <span>내 쿠폰함 ({myCoupons.length})</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="flex-1 md:flex-none skew-btn text-xs font-bold gap-2">
-                  <History className="w-4 h-4" />
-                  <span>구매 내역</span>
-                </Button>
-                {canManage && (
-                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="flex-1 md:flex-none skew-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-2">
-                        <Plus className="w-4 h-4" />
-                        <span>상품 등록</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-card border-border text-foreground max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="text-xl font-bold">새 상품 등록</DialogTitle>
-                        <DialogDescription className="text-muted-foreground">클랜 상점에 새 상품을 등록합니다.</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">상품명</Label>
-                          <Input
-                            id="name"
-                            placeholder="상품명을 입력하세요"
-                            value={newProduct.name}
-                            onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                            className="bg-muted/30 border-border"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="description">설명</Label>
-                          <Textarea
-                            id="description"
-                            placeholder="상품 설명"
-                            value={newProduct.description}
-                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                            className="bg-muted/30 border-border min-h-[80px]"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="price">가격 (P)</Label>
-                            <Input
-                              id="price"
-                              type="number"
-                              min="1"
-                              value={newProduct.price}
-                              onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                              className="bg-muted/30 border-border"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="stock">재고</Label>
-                            <Input
-                              id="stock"
-                              type="number"
-                              min="0"
-                              value={newProduct.stock}
-                              onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                              className="bg-muted/30 border-border"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="category">카테고리</Label>
-                          <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
-                            <SelectTrigger className="bg-muted/30 border-border">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="VOUCHER">VOUCHER</SelectItem>
-                              <SelectItem value="GOODS">GOODS</SelectItem>
-                              <SelectItem value="GAME_ITEM">GAME_ITEM</SelectItem>
-                              <SelectItem value="ETC">ETC</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="imageUrl">이미지 URL (선택)</Label>
-                          <Input
-                            id="imageUrl"
-                            placeholder="https://..."
-                            value={newProduct.imageUrl}
-                            onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                            className="bg-muted/30 border-border"
-                          />
-                        </div>
-                        <Button onClick={handleCreateProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-                          등록하기
-                        </Button>
+          {/* 기능 버튼 */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Button variant="outline" size="sm" className="flex-1 md:flex-none skew-btn border-border/50 text-xs font-bold gap-2">
+              <Ticket className="w-4 h-4" />
+              <span>내 쿠폰함 ({myCoupons.length})</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="flex-1 md:flex-none skew-btn text-xs font-bold gap-2">
+              <History className="w-4 h-4" />
+              <span>구매 내역</span>
+            </Button>
+            {canManage && (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="flex-1 md:flex-none skew-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-2">
+                    <Plus className="w-4 h-4" />
+                    <span>상품 등록</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-card border-border text-foreground max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-bold">새 상품 등록</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">클랜 상점에 새 상품을 등록합니다.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">상품명</Label>
+                      <Input
+                        id="name"
+                        placeholder="상품명을 입력하세요"
+                        value={newProduct.name}
+                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                        className="bg-muted/30 border-border"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">설명</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="상품 설명"
+                        value={newProduct.description}
+                        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                        className="bg-muted/30 border-border min-h-[80px]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="price">가격 (P)</Label>
+                        <Input
+                          id="price"
+                          type="number"
+                          min="1"
+                          value={newProduct.price}
+                          onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
+                          className="bg-muted/30 border-border"
+                        />
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="stock">재고</Label>
+                        <Input
+                          id="stock"
+                          type="number"
+                          min="0"
+                          value={newProduct.stock}
+                          onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
+                          className="bg-muted/30 border-border"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="imageUrl">이미지 URL (선택)</Label>
+                      <Input
+                        id="imageUrl"
+                        placeholder="https://..."
+                        value={newProduct.imageUrl}
+                        onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                        className="bg-muted/30 border-border"
+                      />
+                    </div>
+                    <Button onClick={handleCreateProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+                      등록하기
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
 
-            <TabsContent value={activeTab} className="mt-0">
-              {filteredProducts.length === 0 ? (
-                <div className="py-20 text-center border-2 border-dashed border-border/30 rounded-lg">
-                  <Gift className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-20" />
-                  <h3 className="text-xl font-bold text-foreground italic uppercase">상품이 없습니다</h3>
-                  <p className="text-muted-foreground mt-1">곧 새로운 상품이 등록될 예정입니다.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      description={product.description}
-                      price={product.price}
-                      stock={product.stock}
-                      category={product.category}
-                      imageUrl={product.imageUrl}
-                      onPurchase={handlePurchase}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          {/* 상품 목록 */}
+          {products.length === 0 ? (
+            <div className="py-20 text-center border-2 border-dashed border-border/30 rounded-lg">
+              <Gift className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-20" />
+              <h3 className="text-xl font-bold text-foreground italic uppercase">상품이 없습니다</h3>
+              <p className="text-muted-foreground mt-1">곧 새로운 상품이 등록될 예정입니다.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  name={product.name}
+                  description={product.description}
+                  price={product.price}
+                  stock={product.stock}
+                  imageUrl={product.imageUrl}
+                  onPurchase={handlePurchase}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Info Banner */}
           <div className="bg-primary/5 border border-primary/20 p-6 rounded-lg flex flex-col md:flex-row items-center gap-6">

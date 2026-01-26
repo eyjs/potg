@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Header } from "@/common/layouts/header"
 import { HeroCard } from "@/modules/blind-date/components/hero-card"
 import { HeroDetailModal } from "@/modules/blind-date/components/hero-detail-modal"
 import { CreateHeroModal } from "@/modules/blind-date/components/create-hero-modal"
 import { Button } from "@/common/components/ui/button"
+import { Input } from "@/common/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
+import { ChevronDown, ChevronUp, Filter } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
@@ -38,8 +41,14 @@ export default function GalleryPage() {
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [selectedHero, setSelectedHero] = useState<Hero | null>(null)
   const [viewMode, setViewMode] = useState<"all" | "my">("all")
-  const [filterStatus, setFilterStatus] = useState<"all" | "available" | "talking" | "taken">("all")
   const [isLoading, setIsLoading] = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filterGender, setFilterGender] = useState<"all" | "MALE" | "FEMALE">("all")
+  const [filterAgeMin, setFilterAgeMin] = useState("")
+  const [filterAgeMax, setFilterAgeMax] = useState("")
+  const [filterMbti, setFilterMbti] = useState("all")
+  const [filterLocation, setFilterLocation] = useState("")
+  const [filterSmoking, setFilterSmoking] = useState<"all" | "true" | "false">("all")
 
   useEffect(() => {
     if (!user) return
@@ -84,11 +93,16 @@ export default function GalleryPage() {
     }
   }
 
-  const filteredHeroes = heroes.filter((hero) => {
+  const filteredHeroes = useMemo(() => heroes.filter((hero) => {
     if (viewMode === "my" && hero.registerId !== user?.id) return false
-    if (filterStatus !== "all" && hero.status !== filterStatus) return false
+    if (filterGender !== "all" && hero.gender !== filterGender) return false
+    if (filterAgeMin && hero.age < Number(filterAgeMin)) return false
+    if (filterAgeMax && hero.age > Number(filterAgeMax)) return false
+    if (filterMbti !== "all" && hero.mbti.toUpperCase() !== filterMbti) return false
+    if (filterLocation && !hero.location.includes(filterLocation)) return false
+    if (filterSmoking !== "all" && String(hero.smoking) !== filterSmoking) return false
     return true
-  })
+  }), [heroes, viewMode, user?.id, filterGender, filterAgeMin, filterAgeMax, filterMbti, filterLocation, filterSmoking])
 
   const myHeroesCount = heroes.filter(h => h.registerId === user?.id).length
   const allHeroesCount = heroes.length
@@ -145,12 +159,12 @@ export default function GalleryPage() {
     }
   }
 
-  const statusCounts = {
-    all: heroes.length,
-    available: heroes.filter((h) => h.status === "available").length,
-    talking: heroes.filter((h) => h.status === "talking").length,
-    taken: heroes.filter((h) => h.status === "taken").length,
-  }
+  const mbtiTypes = [
+    "ISTJ", "ISFJ", "INFJ", "INTJ",
+    "ISTP", "ISFP", "INFP", "INTP",
+    "ESTP", "ESFP", "ENFP", "ENTP",
+    "ESTJ", "ESFJ", "ENFJ", "ENTJ"
+  ]
 
   if (isLoading) return (
     <div className="min-h-screen bg-background">
@@ -197,24 +211,120 @@ export default function GalleryPage() {
           </div>
 
           {/* Filters */}
-          <div className="space-y-2">
-            <span className="text-sm text-muted-foreground">상태:</span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {(["all", "available", "talking", "taken"] as const).map((status) => (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              <span className="flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                필터 ({filteredHeroes.length}명)
+              </span>
+              {filtersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+            {filtersOpen && (
+              <div className="p-4 border-t border-border space-y-4 bg-muted/20">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {/* 성별 */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">성별</span>
+                    <Select value={filterGender} onValueChange={(v) => setFilterGender(v as "all" | "MALE" | "FEMALE")}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">전체</SelectItem>
+                        <SelectItem value="MALE">남성</SelectItem>
+                        <SelectItem value="FEMALE">여성</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* MBTI */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">MBTI</span>
+                    <Select value={filterMbti} onValueChange={setFilterMbti}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">전체</SelectItem>
+                        {mbtiTypes.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 흡연여부 */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">흡연여부</span>
+                    <Select value={filterSmoking} onValueChange={(v) => setFilterSmoking(v as "all" | "true" | "false")}>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">전체</SelectItem>
+                        <SelectItem value="false">비흡연</SelectItem>
+                        <SelectItem value="true">흡연</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {/* 나이 범위 */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">최소 나이</span>
+                    <Input
+                      type="number"
+                      placeholder="예: 20"
+                      value={filterAgeMin}
+                      onChange={(e) => setFilterAgeMin(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">최대 나이</span>
+                    <Input
+                      type="number"
+                      placeholder="예: 35"
+                      value={filterAgeMax}
+                      onChange={(e) => setFilterAgeMax(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  {/* 지역 */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-bold">지역</span>
+                    <Input
+                      placeholder="예: 서울"
+                      value={filterLocation}
+                      onChange={(e) => setFilterLocation(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
                 <Button
-                  key={status}
+                  variant="ghost"
                   size="sm"
-                  variant={filterStatus === status ? "default" : "ghost"}
-                  className={cn("w-full text-xs md:text-sm", filterStatus === status ? "bg-primary text-primary-foreground" : "")}
-                  onClick={() => setFilterStatus(status)}
+                  className="text-xs text-muted-foreground"
+                  onClick={() => {
+                    setFilterGender("all")
+                    setFilterAgeMin("")
+                    setFilterAgeMax("")
+                    setFilterMbti("all")
+                    setFilterLocation("")
+                    setFilterSmoking("all")
+                  }}
                 >
-                  {status === "all" && `전체 (${statusCounts.all})`}
-                  {status === "available" && `만남 가능 (${statusCounts.available})`}
-                  {status === "talking" && `소개팅 중 (${statusCounts.talking})`}
-                  {status === "taken" && `매칭 완료 (${statusCounts.taken})`}
+                  필터 초기화
                 </Button>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Hero Grid */}

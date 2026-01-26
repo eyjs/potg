@@ -16,7 +16,7 @@ import {
   Swords
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/common/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
@@ -25,8 +25,13 @@ export function BottomNav() {
   const pathname = usePathname()
   const { user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  if (!user) return null
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || !user) return null
 
   const mainItems = [
     { href: "/", label: "홈", icon: Home },
