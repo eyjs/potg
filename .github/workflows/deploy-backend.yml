@@ -1,0 +1,45 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stop existing containers
+        run: |
+          cd /Users/eyjs/Desktop/WorkSpace/potg/potg
+          docker-compose stop backend
+        continue-on-error: true
+
+      - name: Pull latest changes
+        run: |
+          cd /Users/eyjs/Desktop/WorkSpace/potg/potg
+          git pull origin main
+
+      - name: Build and start backend
+        run: |
+          cd /Users/eyjs/Desktop/WorkSpace/potg/potg
+          docker-compose up -d --build backend
+
+      - name: Health check
+        run: |
+          echo "Waiting for backend to start..."
+          sleep 10
+          curl -f http://localhost:8100/health || echo "Health check endpoint not available"
+
+      - name: Cleanup old images
+        run: |
+          docker image prune -f
+        continue-on-error: true
