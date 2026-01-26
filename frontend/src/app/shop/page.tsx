@@ -14,6 +14,7 @@ import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
+import { ImageUploader } from "@/components/image-uploader"
 
 interface ShopProduct {
   id: string
@@ -228,13 +229,11 @@ export default function ShopPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="imageUrl">이미지 URL (선택)</Label>
-                      <Input
-                        id="imageUrl"
-                        placeholder="https://..."
-                        value={newProduct.imageUrl}
-                        onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                        className="bg-muted/30 border-border"
+                      <Label>상품 이미지 (선택)</Label>
+                      <ImageUploader
+                        value={newProduct.imageUrl ? [newProduct.imageUrl] : []}
+                        onChange={(urls) => setNewProduct({ ...newProduct, imageUrl: urls[0] || "" })}
+                        maxCount={1}
                       />
                     </div>
                     <Button onClick={handleCreateProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold">

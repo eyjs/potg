@@ -4,6 +4,7 @@ import { ShoppingCart, Package } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/common/components/ui/card"
 import { cn } from "@/lib/utils"
+import { getImageUrl } from "@/lib/upload"
 
 interface ProductCardProps {
   id: string
@@ -34,7 +35,7 @@ export function ProductCard({
       {/* Product Image Placeholder */}
       <div className="aspect-video bg-muted relative flex items-center justify-center overflow-hidden">
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="object-cover w-full h-full" />
+          <img src={getImageUrl(imageUrl)} alt={name} className="object-cover w-full h-full" />
         ) : (
           <Package className="w-12 h-12 text-muted-foreground opacity-20" />
         )}

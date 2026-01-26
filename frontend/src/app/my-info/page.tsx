@@ -12,8 +12,10 @@ import { AuthGuard } from "@/common/components/auth-guard"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { User, Shield, Lock, LogOut, Camera, Save, Wallet, ChevronRight } from "lucide-react"
+import { User, Shield, Lock, LogOut, Save, Wallet, ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { ImageUploader } from "@/components/image-uploader"
+import { getImageUrl } from "@/lib/upload"
 
 export default function MyInfoPage() {
   const { user } = useAuth()
@@ -143,15 +145,10 @@ export default function MyInfoPage() {
               <Card className="bg-card border-border overflow-hidden">
                 <div className="h-24 bg-gradient-to-r from-primary/20 to-accent/20" />
                 <CardContent className="pt-0 -mt-12 flex flex-col items-center">
-                  <div className="relative group">
-                    <Avatar className="w-24 h-24 border-4 border-[#0B0B0B] shadow-xl">
-                      <AvatarImage src={formData.avatarUrl} />
-                      <AvatarFallback className="bg-muted text-2xl font-bold">{user?.battleTag?.slice(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                      <Camera className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
+                  <Avatar className="w-24 h-24 border-4 border-[#0B0B0B] shadow-xl">
+                    <AvatarImage src={getImageUrl(formData.avatarUrl)} />
+                    <AvatarFallback className="bg-muted text-2xl font-bold">{user?.battleTag?.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
                   <h2 className="mt-4 text-xl font-bold text-foreground italic uppercase">{user?.battleTag}</h2>
                   <p className="text-primary text-sm font-bold uppercase tracking-widest">{user?.role}</p>
                   
@@ -295,13 +292,11 @@ export default function MyInfoPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="avatarUrl" className="text-xs uppercase font-bold text-primary">프로필 이미지 URL</Label>
-                      <Input 
-                        id="avatarUrl"
-                        value={formData.avatarUrl}
-                        onChange={(e) => setFormData({...formData, avatarUrl: e.target.value})}
-                        placeholder="https://..."
-                        className="bg-input border-border focus:border-primary transition-all"
+                      <Label className="text-xs uppercase font-bold text-primary">프로필 이미지</Label>
+                      <ImageUploader
+                        value={formData.avatarUrl ? [formData.avatarUrl] : []}
+                        onChange={(urls) => setFormData({ ...formData, avatarUrl: urls[0] || "" })}
+                        maxCount={1}
                       />
                     </div>
                     <div className="pt-2 flex justify-end">
