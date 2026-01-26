@@ -1,45 +1,24 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
 import { HeroCard } from "@/modules/blind-date/components/hero-card"
-import { HeroDetailModal } from "@/modules/blind-date/components/hero-detail-modal"
-import { CreateHeroModal } from "@/modules/blind-date/components/create-hero-modal"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
-import { ChevronDown, ChevronUp, Filter } from "lucide-react"
+import { ChevronDown, ChevronUp, Filter, Plus } from "lucide-react"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-
-export interface Hero {
-  id: string
-  registerId: string
-  registerNickname?: string
-  name: string
-  age: number
-  gender: 'MALE' | 'FEMALE'
-  location: string
-  job: string
-  mbti: string
-  status: "available" | "talking" | "taken"
-  bio: string
-  idealType?: string
-  smoking: boolean
-  education?: string
-  height?: number
-  avatar?: string
-}
+import type { Hero } from "@/modules/blind-date/types"
 
 export default function GalleryPage() {
   const router = useRouter()
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const [heroes, setHeroes] = useState<Hero[]>([])
-  const [selectedHero, setSelectedHero] = useState<Hero | null>(null)
   const [viewMode, setViewMode] = useState<"all" | "my">("all")
   const [isLoading, setIsLoading] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -66,27 +45,26 @@ export default function GalleryPage() {
       const response = await api.get(`/blind-date/listings?clanId=${user.clanId}`)
 
       const data = Array.isArray(response.data) ? response.data : []
-      const mapped: Hero[] = data.map((h: any) => ({
-        id: h.id,
-        registerId: h.registerId,
-        registerNickname: h.register?.nickname || h.register?.username || "Unknown",
-        name: h.name || "",
-        age: h.age || 0,
-        gender: h.gender || "MALE",
-        location: h.location || "",
-        job: h.job || "",
-        mbti: h.mbti || "",
-        status: (h.status === 'OPEN' ? 'available' : h.status === 'MATCHED' ? 'talking' : 'taken') as Hero["status"],
-        bio: h.description || "",
-        idealType: h.idealType || "",
-        smoking: h.smoking || false,
-        education: h.education || "",
-        height: h.height,
-        avatar: h.photos?.[0]
+      const mapped: Hero[] = data.map((h: Record<string, unknown>) => ({
+        id: h.id as string,
+        registerId: h.registerId as string,
+        registerNickname: ((h.register as Record<string, unknown>)?.nickname || (h.register as Record<string, unknown>)?.username || "Unknown") as string,
+        name: (h.name as string) || "",
+        age: (h.age as number) || 0,
+        gender: ((h.gender as string) || "MALE") as Hero["gender"],
+        location: (h.location as string) || "",
+        job: (h.job as string) || "",
+        mbti: (h.mbti as string) || "",
+        status: (h.status === "OPEN" ? "available" : h.status === "MATCHED" ? "talking" : "taken") as Hero["status"],
+        bio: (h.description as string) || "",
+        idealType: (h.idealType as string) || "",
+        smoking: (h.smoking as boolean) || false,
+        education: (h.education as string) || "",
+        height: h.height as number | undefined,
+        avatar: (h.photos as string[] | undefined)?.[0],
       }))
       setHeroes(mapped)
-    } catch (error) {
-      console.error("Failed to fetch heroes:", error)
+    } catch {
       toast.error("소개팅 목록을 불러오지 못했습니다.")
     } finally {
       setIsLoading(false)
@@ -106,58 +84,6 @@ export default function GalleryPage() {
 
   const myHeroesCount = heroes.filter(h => h.registerId === user?.id).length
   const allHeroesCount = heroes.length
-
-  const handleCreateHero = async (newHero: Omit<Hero, "id" | "registerId">) => {
-    if (!user?.clanId) return
-    try {
-      await api.post('/blind-date/listings', {
-        clanId: user.clanId,
-        name: newHero.name,
-        age: newHero.age,
-        gender: newHero.gender,
-        location: newHero.location,
-        job: newHero.job,
-        description: newHero.bio,
-        idealType: newHero.idealType,
-        mbti: newHero.mbti,
-        education: newHero.education,
-        height: newHero.height,
-        smoking: newHero.smoking
-      })
-      toast.success("소개팅 매물이 등록되었습니다.")
-      fetchHeroes()
-    } catch (error: any) {
-      console.error("Failed to create listing:", error)
-      toast.error(error.response?.data?.message || "매물 등록에 실패했습니다.")
-    }
-  }
-
-  const handleUpdateStatus = async (heroId: string, status: Hero["status"]) => {
-    try {
-      const backendStatus = status === 'available' ? 'OPEN' : status === 'talking' ? 'MATCHED' : 'CLOSED'
-      await api.patch(`/blind-date/listings/${heroId}`, {
-        status: backendStatus
-      })
-      toast.success("상태가 업데이트되었습니다.")
-      fetchHeroes()
-    } catch (error) {
-      console.error("Failed to update status:", error)
-      toast.error("상태 변경에 실패했습니다.")
-    }
-  }
-
-  const handleDeleteHero = async (heroId: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return
-    try {
-      await api.delete(`/blind-date/listings/${heroId}`)
-      toast.success("삭제되었습니다.")
-      setSelectedHero(null) // Close the modal
-      fetchHeroes()
-    } catch (error: any) {
-      console.error("Failed to delete hero:", error)
-      toast.error(error.response?.data?.message || "매물 삭제에 실패했습니다.")
-    }
-  }
 
   const mbtiTypes = [
     "ISTJ", "ISFJ", "INFJ", "INTJ",
@@ -189,7 +115,13 @@ export default function GalleryPage() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1">소개팅 매물 관리 - 마음에 드는 상대방을 찾아보세요</p>
             </div>
-            <CreateHeroModal onCreateHero={handleCreateHero} />
+            <Button
+              onClick={() => router.push("/gallery/register")}
+              className="bg-primary hover:bg-primary/90 text-black font-bold uppercase tracking-wide rounded-md"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              <span>소개팅 등록</span>
+            </Button>
           </div>
 
           {/* View Mode Tabs */}
@@ -330,7 +262,7 @@ export default function GalleryPage() {
           {/* Hero Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredHeroes.map((hero) => (
-              <HeroCard key={hero.id} hero={hero} onClick={() => setSelectedHero(hero)} />
+              <HeroCard key={hero.id} hero={hero} />
             ))}
           </div>
 
@@ -340,15 +272,6 @@ export default function GalleryPage() {
               <p className="text-muted-foreground">조건에 맞는 영웅이 없습니다</p>
             </div>
           )}
-
-          {/* Hero Detail Modal */}
-          <HeroDetailModal
-            hero={selectedHero}
-            isAdmin={isAdmin}
-            onClose={() => setSelectedHero(null)}
-            onUpdateStatus={handleUpdateStatus}
-            onDelete={handleDeleteHero}
-          />
         </main>
       </div>
     </AuthGuard>

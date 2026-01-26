@@ -1,5 +1,15 @@
-import { IsString, IsInt, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { Gender } from '../entities/blind-date-listing.entity';
+import { CreatePreferenceDto } from './create-preference.dto';
 
 export class CreateListingDto {
   @IsString()
@@ -47,6 +57,11 @@ export class CreateListingDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
+
+  @ValidateNested()
+  @Type(() => CreatePreferenceDto)
+  @IsOptional()
+  preference?: CreatePreferenceDto;
 }
 
 export class UpdateListingDto {

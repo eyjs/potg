@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import {
@@ -10,6 +14,7 @@ import {
   RequestStatus,
 } from './entities/blind-date-request.entity';
 import { BlindDateMatch } from './entities/blind-date-match.entity';
+import { BlindDatePreference } from './entities/blind-date-preference.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
 import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
@@ -23,16 +28,43 @@ export class BlindDateService {
     private requestsRepository: Repository<BlindDateRequest>,
     @InjectRepository(BlindDateMatch)
     private matchesRepository: Repository<BlindDateMatch>,
+    @InjectRepository(BlindDatePreference)
+    private preferencesRepository: Repository<BlindDatePreference>,
     private dataSource: DataSource,
   ) {}
 
   async createListing(dto: CreateListingDto, userId: string) {
+    const { preference, ...listingData } = dto;
     const listing = this.listingsRepository.create({
-      ...dto,
+      ...listingData,
       registerId: userId,
-      status: ListingStatus.OPEN, // Set to OPEN by default
+      status: ListingStatus.OPEN,
     });
-    return this.listingsRepository.save(listing);
+    const saved = await this.listingsRepository.save(listing);
+
+    if (preference) {
+      const pref = this.preferencesRepository.create({
+        ...preference,
+        listingId: saved.id,
+      });
+      await this.preferencesRepository.save(pref);
+    }
+
+    return saved;
+  }
+
+  async findOne(id: string) {
+    const listing = await this.listingsRepository.findOne({
+      where: { id },
+      relations: ['register'],
+    });
+    if (!listing) throw new NotFoundException('Listing not found');
+
+    const preference = await this.preferencesRepository.findOne({
+      where: { listingId: id },
+    });
+
+    return { ...listing, preference };
   }
 
   async findAll(clanId: string) {

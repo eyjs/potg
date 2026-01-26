@@ -35,6 +35,11 @@ export class BlindDateController {
     return this.blindDateService.findAll(clanId);
   }
 
+  @Get('listings/:id')
+  findOne(@Param('id') id: string) {
+    return this.blindDateService.findOne(id);
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Post('listings/:id/request')
   requestDate(
