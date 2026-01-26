@@ -124,6 +124,21 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     client.to(auctionId).emit('userLeft', { userId });
   }
 
+  @SubscribeMessage('requestRoomState')
+  async handleRequestRoomState(
+    @MessageBody() payload: { auctionId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { auctionId } = payload;
+
+    try {
+      const roomState = await this.auctionsService.getRoomState(auctionId);
+      client.emit('roomState', roomState);
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+
   @SubscribeMessage('placeBid')
   async handlePlaceBid(
     @MessageBody() payload: PlaceBidPayload,
@@ -140,7 +155,7 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       );
 
       // Broadcast new bid to all in room
-      const roomState = await this.auctionsService.getRoomState(auctionId);
+      let roomState = await this.auctionsService.getRoomState(auctionId);
       this.server.to(auctionId).emit('bidPlaced', {
         bidderId,
         targetPlayerId,
@@ -149,8 +164,31 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
         roomState,
       });
 
-      // Reset timer
-      this.resetBiddingTimer(auctionId);
+      // Check if auto-confirm should happen (all competitors can't bid higher)
+      const autoConfirmCheck = await this.auctionsService.checkAutoConfirm(auctionId);
+      if (autoConfirmCheck.shouldAutoConfirm) {
+        this.logger.log(`Auto-confirming bid for auction ${auctionId}: ${autoConfirmCheck.reason}`);
+        this.stopBiddingTimer(auctionId);
+
+        // Get auction to find creator for admin context
+        const auction = await this.auctionsService.findOne(auctionId);
+        if (auction) {
+          const confirmResult = await this.auctionsService.confirmCurrentBid(auctionId, auction.creatorId);
+          roomState = await this.auctionsService.getRoomState(auctionId);
+
+          this.server.to(auctionId).emit('bidConfirmed', {
+            playerId: confirmResult.playerId,
+            captainId: confirmResult.captainId,
+            amount: confirmResult.amount,
+            auto: true,
+            reason: autoConfirmCheck.reason,
+            roomState,
+          });
+        }
+      } else {
+        // Reset timer only if not auto-confirmed
+        this.resetBiddingTimer(auctionId);
+      }
     } catch (error) {
       client.emit('bidError', { message: error.message });
     }

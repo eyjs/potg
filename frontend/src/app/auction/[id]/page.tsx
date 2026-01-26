@@ -67,6 +67,7 @@ export default function AuctionRoomPage() {
     manualAssignPlayer,
     createScrim,
     sendChatMessage,
+    requestRoomState,
   } = useAuctionSocket({
     auctionId,
     userId: user?.id || "",
@@ -306,6 +307,7 @@ export default function AuctionRoomPage() {
                       const Icon = config.icon
                       const isClickable = userRole === "admin" && isActive
                       const handleSelect = () => isClickable && selectPlayer(player.id)
+                      const isBiddingPlayer = roomState?.auction?.currentBiddingPlayerId === player.id
                       return (
                         <div
                           key={player.id}
@@ -319,8 +321,11 @@ export default function AuctionRoomPage() {
                             }
                           }}
                           className={cn(
-                            "flex items-center gap-3 p-2 rounded border border-border/50 transition-colors",
-                            isClickable
+                            "flex items-center gap-3 p-2 rounded border transition-colors",
+                            isBiddingPlayer
+                              ? "border-primary bg-primary/10"
+                              : "border-border/50",
+                            isClickable && !isBiddingPlayer
                               ? "cursor-pointer hover:bg-muted/50 hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
                               : ""
                           )}
@@ -329,9 +334,21 @@ export default function AuctionRoomPage() {
                             <Icon className={cn("w-5 h-5", config.color)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold truncate">{player.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold truncate">{player.name}</p>
+                              {isBiddingPlayer && (
+                                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
+                                  경매중
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground capitalize">{config.label}</p>
                           </div>
+                          {!isBiddingPlayer && (
+                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                              대기
+                            </Badge>
+                          )}
                         </div>
                       )
                     })
@@ -499,7 +516,7 @@ export default function AuctionRoomPage() {
                     startingPoints: roomState.auction.startingPoints || 10000,
                     turnTimeLimit: roomState.auction.turnTimeLimit || 30,
                   }}
-                  onRefresh={() => window.location.reload()}
+                  onRefresh={requestRoomState}
                 />
               )}
 

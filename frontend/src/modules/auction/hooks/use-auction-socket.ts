@@ -402,6 +402,10 @@ export function useAuctionSocket({
     [auctionId, userId]
   )
 
+  const requestRoomState = useCallback(() => {
+    socketRef.current?.emit("requestRoomState", { auctionId })
+  }, [auctionId])
+
   return {
     isConnected,
     roomState,
@@ -425,5 +429,6 @@ export function useAuctionSocket({
     manualAssignPlayer,
     createScrim,
     sendChatMessage,
+    requestRoomState,
   }
 }

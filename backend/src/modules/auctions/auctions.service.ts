@@ -511,7 +511,11 @@ export class AuctionsService {
       });
 
       if (captain) {
-        // Refund previous held amounts for this player and deduct final
+        // Deduct the winning bid amount from captain's points
+        captain.currentPoints -= highestBid.amount;
+        await manager.save(captain);
+
+        // Deactivate all bids for this player
         const previousBids = await manager.find(AuctionBid, {
           where: {
             auctionId,
@@ -521,7 +525,6 @@ export class AuctionsService {
           },
         });
 
-        // Only deduct the winning bid amount, mark all as inactive
         for (const bid of previousBids) {
           bid.isActive = false;
           await manager.save(bid);
@@ -617,6 +620,16 @@ export class AuctionsService {
         await manager.save(player);
       }
 
+      // Deduct points from winning captain
+      const captain = await manager.findOne(AuctionParticipant, {
+        where: { auctionId, userId: highestBid.bidderId },
+      });
+
+      if (captain) {
+        captain.currentPoints -= highestBid.amount;
+        await manager.save(captain);
+      }
+
       // Deactivate bids
       await manager.update(
         AuctionBid,
@@ -640,6 +653,73 @@ export class AuctionsService {
         amount: highestBid.amount,
       };
     });
+  }
+
+  async checkAutoConfirm(auctionId: string): Promise<{ shouldAutoConfirm: boolean; reason?: string }> {
+    const auction = await this.auctionsRepository.findOne({
+      where: { id: auctionId },
+      relations: ['participants', 'bids'],
+    });
+
+    if (!auction || auction.status !== AuctionStatus.ONGOING || !auction.currentBiddingPlayerId) {
+      return { shouldAutoConfirm: false };
+    }
+
+    const participants = auction.participants || [];
+    const bids = auction.bids || [];
+
+    // Find highest active bid for current player
+    const highestBid = bids
+      .filter(
+        (b) =>
+          b.targetPlayerId === auction.currentBiddingPlayerId && b.isActive,
+      )
+      .sort((a, b) => b.amount - a.amount)[0];
+
+    if (!highestBid) {
+      return { shouldAutoConfirm: false };
+    }
+
+    const minNextBid = highestBid.amount + 1;
+    const currentBidderId = highestBid.bidderId;
+
+    // Get all captains except the current highest bidder
+    const captains = participants.filter(
+      (p) => p.role === AuctionRole.CAPTAIN && p.userId !== currentBidderId,
+    );
+
+    if (captains.length === 0) {
+      // Only one captain, auto-confirm
+      return { shouldAutoConfirm: true, reason: '경쟁자 없음 - 자동 낙찰' };
+    }
+
+    // Check if any captain can afford to outbid
+    // Calculate each captain's available points (considering their active bids)
+    let anyCanBid = false;
+
+    for (const captain of captains) {
+      const captainActiveBids = bids.filter(
+        (b) => b.bidderId === captain.userId && b.isActive,
+      );
+
+      // Points committed to other players (not the current one being auctioned)
+      const committedPoints = captainActiveBids
+        .filter((b) => b.targetPlayerId !== auction.currentBiddingPlayerId)
+        .reduce((sum, b) => sum + b.amount, 0);
+
+      const availablePoints = captain.currentPoints - committedPoints;
+
+      if (availablePoints >= minNextBid) {
+        anyCanBid = true;
+        break;
+      }
+    }
+
+    if (!anyCanBid) {
+      return { shouldAutoConfirm: true, reason: '모든 경쟁자 포인트 부족 - 자동 낙찰' };
+    }
+
+    return { shouldAutoConfirm: false };
   }
 
   async getRoomState(auctionId: string): Promise<RoomState> {
