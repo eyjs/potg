@@ -10,7 +10,7 @@ import {
 } from './enums/betting.enum';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
-import { CreateQuestionDto, PlaceBetDto } from './dto/betting.dto';
+import { CreateQuestionDto, PlaceBetDto, UpdateQuestionDto } from './dto/betting.dto';
 
 @Injectable()
 export class BettingService {
@@ -30,6 +30,33 @@ export class BettingService {
       ...createDto,
       creatorId,
     });
+    return this.questionsRepository.save(question);
+  }
+
+  async updateQuestion(
+    questionId: string,
+    updateDto: UpdateQuestionDto,
+  ): Promise<BettingQuestion> {
+    const question = await this.questionsRepository.findOne({
+      where: { id: questionId },
+    });
+    if (!question) throw new BadRequestException('Question not found');
+    if (question.status !== BettingStatus.OPEN)
+      throw new BadRequestException('Only OPEN questions can be updated');
+
+    if (updateDto.question !== undefined) {
+      question.question = updateDto.question;
+    }
+    if (updateDto.rewardMultiplier !== undefined) {
+      question.rewardMultiplier = updateDto.rewardMultiplier;
+    }
+    if (updateDto.bettingDeadline !== undefined) {
+      question.bettingDeadline = updateDto.bettingDeadline as Date;
+    }
+    if (updateDto.status === BettingStatus.CLOSED) {
+      question.status = BettingStatus.CLOSED;
+    }
+
     return this.questionsRepository.save(question);
   }
 

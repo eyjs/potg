@@ -229,10 +229,10 @@ export class BidDto {
    - Hydration: 콘솔에 #418 에러 없는지 확인
    - 경매 WebSocket 연결이 운영 서버로 정상 연결되는지 확인
 
-1. **베팅 백엔드 확인**
-   - `PATCH /betting/questions/:id` 엔드포인트가 존재하는지 확인 필요
-   - 마감하기(status 변경), 수정하기(question, rewardMultiplier, bettingDeadline 수정) API 지원 필요
-   - 없으면 백엔드에 PATCH 엔드포인트 추가 필요
+1. ~~**베팅 백엔드 확인**~~ ✅ 완료 (2026-01-26)
+   - `PATCH /betting/questions/:id` 엔드포인트 추가됨
+   - UpdateQuestionDto: question, rewardMultiplier, bettingDeadline, status(CLOSED만 허용)
+   - ADMIN 권한 필요 (RolesGuard)
 
 2. **경매 비딩 테스트 완료**
    - BidDto 버그 수정됨 (로컬에서 확인)

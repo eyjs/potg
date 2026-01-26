@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -10,7 +11,7 @@ import {
 import { BettingService } from './betting.service';
 import { AuthGuard } from '@nestjs/passport';
 import { BettingAnswer } from './enums/betting.enum';
-import { CreateQuestionDto, PlaceBetDto } from './dto/betting.dto';
+import { CreateQuestionDto, PlaceBetDto, UpdateQuestionDto } from './dto/betting.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -37,6 +38,16 @@ export class BettingController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.bettingService.placeBet(id, req.user.userId, betDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('questions/:id')
+  updateQuestion(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateQuestionDto,
+  ) {
+    return this.bettingService.updateQuestion(id, updateDto);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
