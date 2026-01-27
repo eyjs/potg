@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Save } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/common/components/ui/dialog"
@@ -17,6 +17,7 @@ interface EditVoteModalProps {
 export function EditVoteModal({ vote, onClose, onUpdate }: EditVoteModalProps) {
   const [title, setTitle] = useState("")
   const [deadline, setDeadline] = useState("")
+  const isOpenRef = useRef(false)
 
   useEffect(() => {
     if (vote) {
@@ -30,16 +31,40 @@ export function EditVoteModal({ vote, onClose, onUpdate }: EditVoteModalProps) {
     }
   }, [vote])
 
+  // 뒤로가기로 모달 닫기 지원
+  useEffect(() => {
+    if (!vote) return
+    isOpenRef.current = true
+    window.history.pushState({ dialog: true }, "")
+
+    const handlePopState = () => {
+      if (isOpenRef.current) {
+        isOpenRef.current = false
+        onClose()
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [vote, onClose])
+
+  const handleDialogClose = useCallback(() => {
+    if (isOpenRef.current) {
+      isOpenRef.current = false
+      onClose()
+      window.history.back()
+    }
+  }, [onClose])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (vote && title && deadline) {
       onUpdate(vote.id, { title, deadline: new Date(deadline).toISOString() })
-      onClose()
+      handleDialogClose()
     }
   }
 
   return (
-    <Dialog open={!!vote} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={!!vote} onOpenChange={(open) => !open && handleDialogClose()}>
       <DialogContent className="bg-card border-border">
         <DialogHeader>
           <DialogTitle className="font-bold italic uppercase tracking-wide text-foreground">
@@ -76,7 +101,7 @@ export function EditVoteModal({ vote, onClose, onUpdate }: EditVoteModalProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleDialogClose}
               className="border-border text-muted-foreground"
             >
               취소

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { ChevronLeft, ChevronRight, X, Shield, Crosshair, Heart, Download, Shuffle, Users } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
@@ -134,15 +135,15 @@ function TeamMemberCard({
 }
 
 function ImportAuctionDialog({ onImport, hasAuction }: { onImport: () => void; hasAuction: boolean }) {
-  const [open, setOpen] = useState(false)
+  const dialog = useDialog()
 
   const handleImport = () => {
     onImport()
-    setOpen(false)
+    dialog.close()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog {...dialog.dialogProps}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -170,7 +171,7 @@ function ImportAuctionDialog({ onImport, hasAuction }: { onImport: () => void; h
           </p>
 
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setOpen(false)}>
+            <Button variant="outline" className="flex-1 bg-transparent" onClick={() => dialog.close()}>
               취소
             </Button>
             <Button

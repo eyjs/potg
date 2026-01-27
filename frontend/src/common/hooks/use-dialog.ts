@@ -18,8 +18,9 @@ export function useDialog() {
 
   const close = useCallback(() => {
     if (!isOpenRef.current) return
-    setIsOpen(false)
     isOpenRef.current = false
+    setIsOpen(false)
+    window.history.back()
   }, [])
 
   useEffect(() => {
@@ -38,14 +39,9 @@ export function useDialog() {
     if (nextOpen) {
       open()
     } else {
-      // 사용자가 X 버튼이나 overlay 클릭으로 닫을 때 history.back()으로 pushState 엔트리 제거
-      if (isOpenRef.current) {
-        isOpenRef.current = false
-        setIsOpen(false)
-        window.history.back()
-      }
+      close()
     }
-  }, [open])
+  }, [open, close])
 
   return {
     isOpen,

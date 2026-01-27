@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { ImagePlus, Trophy, Minus, Plus, Search, HelpCircle } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card } from "@/common/components/ui/card"
@@ -53,7 +54,7 @@ function MapSelectorDialog({
   onSelect: (map: MatchMap | null) => void
 }) {
   const [search, setSearch] = useState("")
-  const [open, setOpen] = useState(false)
+  const dialog = useDialog()
 
   const filteredMaps = maps.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
 
@@ -63,11 +64,11 @@ function MapSelectorDialog({
     } else {
       onSelect(null)
     }
-    setOpen(false)
+    dialog.close()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog {...dialog.dialogProps}>
       <DialogTrigger asChild>
         <button className="w-full h-24 rounded-sm border-2 border-dashed border-border/50 bg-muted/30 hover:border-primary/50 hover:bg-muted/50 transition-all overflow-hidden relative group">
           {currentMap ? (

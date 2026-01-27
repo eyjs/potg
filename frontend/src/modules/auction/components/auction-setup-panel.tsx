@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
@@ -83,8 +84,8 @@ export function AuctionSetupPanel({
   onRefresh,
 }: AuctionSetupPanelProps) {
   const confirm = useConfirm()
-  const [isAddPlayersOpen, setIsAddPlayersOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const settingsDialog = useDialog()
+  const addPlayersDialog = useDialog()
   const [clanMembers, setClanMembers] = useState<ClanMember[]>([])
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -94,10 +95,10 @@ export function AuctionSetupPanel({
   const captains = participants.filter(p => p.role === "CAPTAIN")
 
   useEffect(() => {
-    if (isAddPlayersOpen) {
+    if (addPlayersDialog.isOpen) {
       fetchClanMembers()
     }
-  }, [isAddPlayersOpen])
+  }, [addPlayersDialog.isOpen])
 
   const fetchClanMembers = async () => {
     try {
@@ -119,7 +120,7 @@ export function AuctionSetupPanel({
       await api.post(`/auctions/${auctionId}/players/bulk`, { userIds: selectedMembers })
       toast.success(`${selectedMembers.length}명의 매물이 등록되었습니다.`)
       setSelectedMembers([])
-      setIsAddPlayersOpen(false)
+      addPlayersDialog.close()
       onRefresh()
     } catch (error) {
       toast.error("매물 등록에 실패했습니다.")
@@ -169,7 +170,7 @@ export function AuctionSetupPanel({
     try {
       await api.patch(`/auctions/${auctionId}/settings`, editSettings)
       toast.success("설정이 저장되었습니다.")
-      setIsSettingsOpen(false)
+      settingsDialog.close()
       onRefresh()
     } catch (error) {
       toast.error("설정 저장에 실패했습니다.")
@@ -199,7 +200,7 @@ export function AuctionSetupPanel({
             경매 설정
           </h3>
           <div className="flex gap-2">
-            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <Dialog {...settingsDialog.dialogProps}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Settings className="w-4 h-4 mr-1" />
@@ -253,7 +254,7 @@ export function AuctionSetupPanel({
                 </div>
               </DialogContent>
             </Dialog>
-            <Dialog open={isAddPlayersOpen} onOpenChange={setIsAddPlayersOpen}>
+            <Dialog {...addPlayersDialog.dialogProps}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary text-primary-foreground">
                   <UserPlus className="w-4 h-4 mr-1" />

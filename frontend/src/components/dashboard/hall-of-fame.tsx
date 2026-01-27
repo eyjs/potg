@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Trophy, DollarSign, Plus, Trash2, Crosshair } from "lucide-react"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
@@ -63,6 +64,7 @@ const RANK_STYLES = [
 
 export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: HallOfFameProps) {
   const confirm = useConfirm()
+  const dialog = useDialog()
   const [dialogType, setDialogType] = useState<"DONOR" | "WANTED" | null>(null)
   const [clanMembers, setClanMembers] = useState<ClanMember[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState("")
@@ -115,6 +117,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
         description: reason || undefined,
       })
       toast.success("등록되었습니다")
+      dialog.close()
       setDialogType(null)
       resetForm()
       onRefresh?.()
@@ -288,7 +291,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
                   size="sm"
                   variant="ghost"
                   className="h-7 px-2 text-xs text-primary hover:bg-primary/10"
-                  onClick={() => { resetForm(); setDialogType("DONOR") }}
+                  onClick={() => { resetForm(); setDialogType("DONOR"); dialog.open() }}
                 >
                   <Plus className="w-3 h-3 mr-1" />
                   등록
@@ -314,7 +317,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
                   size="sm"
                   variant="ghost"
                   className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                  onClick={() => { resetForm(); setDialogType("WANTED") }}
+                  onClick={() => { resetForm(); setDialogType("WANTED"); dialog.open() }}
                 >
                   <Plus className="w-3 h-3 mr-1" />
                   등록
@@ -327,7 +330,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
       </div>
 
       {/* Create Dialog */}
-      <Dialog open={dialogType !== null} onOpenChange={(open) => { if (!open) setDialogType(null) }}>
+      <Dialog open={dialog.isOpen} onOpenChange={(open) => { if (!open) { dialog.close(); setDialogType(null) } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">

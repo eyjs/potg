@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Megaphone, Pin, Calendar, Plus, Pencil, Trash2, X } from "lucide-react"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
@@ -34,7 +35,7 @@ interface AnnouncementsProps {
 
 export function Announcements({ announcements, clanId, canManage = false, onRefresh }: AnnouncementsProps) {
   const confirm = useConfirm()
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const createDialog = useDialog()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ title: "", content: "", isPinned: false })
 
@@ -43,7 +44,7 @@ export function Announcements({ announcements, clanId, canManage = false, onRefr
     try {
       await api.post(`/clans/${clanId}/announcements`, form)
       toast.success("공지사항이 등록되었습니다.")
-      setIsCreateOpen(false)
+      createDialog.close()
       setForm({ title: "", content: "", isPinned: false })
       onRefresh?.()
     } catch {
@@ -93,7 +94,7 @@ export function Announcements({ announcements, clanId, canManage = false, onRefr
         </h2>
 
         {canManage && (
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Dialog {...createDialog.dialogProps}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-primary text-primary-foreground">
                 <Plus className="w-4 h-4 mr-1" /> 작성
