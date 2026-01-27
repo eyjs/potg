@@ -160,8 +160,9 @@ export default function ClanManagePage() {
     }
   }
 
-  const canManageMembers = myMembership?.role === "MASTER" || myMembership?.role === "MANAGER"
-  const isMaster = myMembership?.role === "MASTER"
+  const isAdmin = user?.role === "ADMIN"
+  const canManageMembers = myMembership?.role === "MASTER" || myMembership?.role === "MANAGER" || isAdmin
+  const isMaster = myMembership?.role === "MASTER" || isAdmin
 
   const groupedMembers = {
     MASTER: members.filter(m => m.role === "MASTER"),
