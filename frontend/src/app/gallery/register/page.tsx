@@ -15,6 +15,7 @@ import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { handleApiError } from "@/lib/api-error"
 import type { MinEducation } from "@/modules/blind-date/types"
 import { EDUCATION_LABELS } from "@/modules/blind-date/types"
 import { ImageUploader } from "@/components/image-uploader"
@@ -133,9 +134,8 @@ export default function GalleryRegisterPage() {
       })
       toast.success("소개팅 매물이 등록되었습니다.")
       router.push("/gallery")
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "매물 등록에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "매물 등록에 실패했습니다.")
     } finally {
       setIsSubmitting(false)
     }

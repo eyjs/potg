@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { ArrowUpRight, ArrowDownLeft, Gift, Clock } from "lucide-react"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 import type { PointLog, ParsedTransaction } from "../types"
 
 interface TransactionHistoryProps {
@@ -78,7 +79,7 @@ export function TransactionHistory({
       const response = await api.get(`/wallet/history?clanId=${clanId}`)
       setTransactions(response.data)
     } catch (error) {
-      console.error("Failed to fetch transaction history:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }

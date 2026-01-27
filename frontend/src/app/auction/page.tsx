@@ -9,6 +9,8 @@ import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
+import { useConfirm } from "@/common/components/confirm-dialog"
+import { handleApiError } from "@/lib/api-error"
 
 interface AuctionRoom {
   id: string
@@ -21,6 +23,7 @@ interface AuctionRoom {
 
 export default function AuctionListPage() {
   const { isAdmin } = useAuth()
+  const confirm = useConfirm()
   const [auctionRooms, setAuctionRooms] = useState<AuctionRoom[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -34,7 +37,7 @@ export default function AuctionListPage() {
       const response = await api.get('/auctions')
       setAuctionRooms(response.data)
     } catch (error) {
-      console.error("Failed to fetch auctions:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }
@@ -56,22 +59,19 @@ export default function AuctionListPage() {
       })
       fetchAuctions()
     } catch (error) {
-      console.error("Failed to create auction:", error)
-      alert("경매 생성 실패")
+      handleApiError(error, "경매 생성 실패")
     }
   }
 
   const handleDeleteAuction = async (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return
+    const ok = await confirm({ title: "정말 삭제하시겠습니까?", variant: "destructive", confirmText: "삭제" })
+    if (!ok) return
     try {
       await api.post(`/auctions/${id}/delete`)
       toast.success("경매가 삭제되었습니다.")
       fetchAuctions()
-    } catch (error: unknown) {
-      console.error("Failed to delete auction:", error)
-      const axiosError = error as { response?: { data?: { message?: string } } }
-      const message = axiosError.response?.data?.message || "경매 삭제 실패"
-      toast.error(message)
+    } catch (error) {
+      handleApiError(error, "경매 삭제 실패")
     }
   }
 

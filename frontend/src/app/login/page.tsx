@@ -12,7 +12,7 @@ import { Label } from "@/common/components/ui/label"
 import { Checkbox } from "@/common/components/ui/checkbox"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
-import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,8 +36,7 @@ export default function LoginPage() {
       await login(response.data.access_token)
       router.replace("/")
     } catch (error) {
-      console.error(error)
-      toast.error("로그인 실패: 아이디나 비밀번호를 확인해주세요.")
+      handleApiError(error, "로그인 실패: 아이디나 비밀번호를 확인해주세요.")
     } finally {
       setIsLoading(false)
     }

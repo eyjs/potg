@@ -6,8 +6,10 @@ import { Header } from "@/common/layouts/header"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/common/components/ui/card"
 import api from "@/lib/api"
-
+import { toast } from "sonner"
 import { useAuth } from "@/context/auth-context"
+import { useConfirm } from "@/common/components/confirm-dialog"
+import { handleApiError } from "@/lib/api-error"
 import { cn } from "@/lib/utils"
 
 interface Clan {
@@ -20,6 +22,7 @@ interface Clan {
 export default function JoinClanPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const confirm = useConfirm()
   const [clans, setClans] = useState<Clan[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -32,21 +35,21 @@ export default function JoinClanPage() {
       const response = await api.get('/clans')
       setClans(response.data)
     } catch (error) {
-      console.error(error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleJoin = async (clanId: string) => {
-    if (!confirm("이 클랜에 가입 신청을 하시겠습니까?")) return
+    const ok = await confirm({ title: "이 클랜에 가입 신청을 하시겠습니까?", confirmText: "신청" })
+    if (!ok) return
     try {
       await api.post(`/clans/${clanId}/join`)
-      alert("가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.")
+      toast.success("가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.")
       router.push("/")
-    } catch (error: any) {
-      console.error(error)
-      alert(error.response?.data?.message || "클랜 가입 실패")
+    } catch (error) {
+      handleApiError(error, "클랜 가입 실패")
     }
   }
 

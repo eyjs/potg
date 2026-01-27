@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
@@ -55,7 +56,7 @@ export function MasterControlPanel({
 }: MasterControlPanelProps) {
   const [scrimDate, setScrimDate] = useState("")
   const [scrimTime, setScrimTime] = useState("")
-  const [showScrimDialog, setShowScrimDialog] = useState(false)
+  const scrimDialog = useDialog()
 
   const { auction, currentBid, currentPlayer, unsoldPlayers } = roomState
   const status = auction.status
@@ -66,7 +67,7 @@ export function MasterControlPanel({
     if (!scrimDate || !scrimTime) return
     const date = new Date(`${scrimDate}T${scrimTime}`)
     onCreateScrim(date)
-    setShowScrimDialog(false)
+    scrimDialog.close()
   }
 
   return (
@@ -266,7 +267,7 @@ export function MasterControlPanel({
         {status === "COMPLETED" && (
           <div className="space-y-3">
             <p className="text-xs font-bold text-muted-foreground uppercase">스크림 생성</p>
-            <Dialog open={showScrimDialog} onOpenChange={setShowScrimDialog}>
+            <Dialog {...scrimDialog.dialogProps}>
               <DialogTrigger asChild>
                 <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
                   <Calendar className="w-4 h-4 mr-2" />

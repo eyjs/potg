@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
 import Link from "next/link"
-import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 interface ScrimHistory {
   id: string
@@ -131,8 +131,7 @@ export default function StatisticsPage() {
 
       setMonthlyStats(monthly)
     } catch (error) {
-      console.error(error)
-      toast.error("통계 데이터를 불러오지 못했습니다.")
+      handleApiError(error, "통계 데이터를 불러오지 못했습니다.")
     } finally {
       setIsLoading(false)
     }
@@ -235,16 +234,16 @@ export default function StatisticsPage() {
 
               {/* Tabs */}
               <Tabs defaultValue="history" className="space-y-6">
-                <TabsList className="bg-muted/30 h-10">
-                  <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <TabsList className="h-10">
+                  <TabsTrigger value="history">
                     <Calendar className="w-4 h-4 mr-2" />
                     내전 기록
                   </TabsTrigger>
-                  <TabsTrigger value="leaderboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <TabsTrigger value="leaderboard">
                     <Medal className="w-4 h-4 mr-2" />
                     리더보드
                   </TabsTrigger>
-                  <TabsTrigger value="monthly" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <TabsTrigger value="monthly">
                     <TrendingUp className="w-4 h-4 mr-2" />
                     월별 통계
                   </TabsTrigger>

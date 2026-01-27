@@ -12,6 +12,7 @@ import { Label } from "@/common/components/ui/label"
 import { Checkbox } from "@/common/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 
 const RANK_OPTIONS = [
   { value: "bronze", label: "브론즈" },
@@ -102,8 +103,7 @@ export default function SignupPage() {
       await api.post('/auth/register', payload)
       router.push("/login?registered=true")
     } catch (error) {
-      console.error(error)
-      alert("회원가입 실패: 아이디 또는 배틀태그가 중복되었거나 입력 정보를 확인해주세요.")
+      handleApiError(error, "회원가입 실패: 아이디 또는 배틀태그가 중복되었거나 입력 정보를 확인해주세요.")
     } finally {
       setIsLoading(false)
     }

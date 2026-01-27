@@ -10,6 +10,9 @@ import { MatchList } from "@/modules/scrim/components/match-list"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { AuthGuard } from "@/common/components/auth-guard"
+import { toast } from "sonner"
+import { useConfirm } from "@/common/components/confirm-dialog"
+import { handleApiError } from "@/lib/api-error"
 
 // Type definition
 interface Match {
@@ -42,6 +45,7 @@ export default function ScrimDetailPage() {
   const scrimId = params.id as string
   const router = useRouter()
   const { user, isAdmin, isLoading: authLoading } = useAuth()
+  const confirm = useConfirm()
 
   const [scrim, setScrim] = useState<any>(null)
   const [pool, setPool] = useState<any[]>([])
@@ -95,7 +99,7 @@ export default function ScrimDetailPage() {
         screenshot: m.screenshotUrl,
       })) || [])
     } catch (error) {
-      console.error("Failed to fetch scrim data:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }
@@ -111,10 +115,8 @@ export default function ScrimDetailPage() {
     try {
       await api.post(`/scrims/${scrimId}/join`)
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to join scrim:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "참가 신청에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "참가 신청에 실패했습니다.")
     }
   }
 
@@ -122,10 +124,8 @@ export default function ScrimDetailPage() {
     try {
       await api.post(`/scrims/${scrimId}/leave`)
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to leave scrim:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "참가 취소에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "참가 취소에 실패했습니다.")
     }
   }
 
@@ -136,7 +136,7 @@ export default function ScrimDetailPage() {
       })
       fetchScrimData()
     } catch (error) {
-      console.error("Failed to update schedule:", error)
+      handleApiError(error)
     }
   }
 
@@ -147,7 +147,7 @@ export default function ScrimDetailPage() {
       })
       fetchScrimData()
     } catch (error) {
-      console.error("Failed to move to team:", error)
+      handleApiError(error)
     }
   }
 
@@ -158,47 +158,41 @@ export default function ScrimDetailPage() {
       })
       fetchScrimData()
     } catch (error) {
-      console.error("Failed to move to pool:", error)
+      handleApiError(error)
     }
   }
 
   const handleImportFromAuction = async () => {
     if (!scrim?.auctionId) {
-      alert("이 스크림은 경매와 연결되어 있지 않습니다.")
+      toast.error("이 스크림은 경매와 연결되어 있지 않습니다.")
       return
     }
 
-    if (!confirm("경매 참가자를 불러오면 현재 경매 출처 대기 명단이 초기화됩니다. 계속하시겠습니까?")) {
-      return
-    }
+    const ok = await confirm({ title: "경매 참가자를 불러오시겠습니까?", description: "현재 경매 출처 대기 명단이 초기화됩니다.", confirmText: "불러오기" })
+    if (!ok) return
 
     try {
       await api.post(`/scrims/${scrimId}/import-auction`)
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to import from auction:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "경매 불러오기에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "경매 불러오기에 실패했습니다.")
     }
   }
 
   const handleShuffleTeams = async () => {
     if (pool.length === 0) {
-      alert("대기 명단에 참가자가 없습니다.")
+      toast.error("대기 명단에 참가자가 없습니다.")
       return
     }
 
-    if (!confirm(`대기 명단 ${pool.length}명을 랜덤으로 팀에 배정하시겠습니까?`)) {
-      return
-    }
+    const ok = await confirm({ title: `대기 명단 ${pool.length}명을 랜덤으로 팀에 배정하시겠습니까?`, confirmText: "배정" })
+    if (!ok) return
 
     try {
       await api.post(`/scrims/${scrimId}/shuffle-teams`)
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to shuffle teams:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "팀 섞기에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "팀 섞기에 실패했습니다.")
     }
   }
 
@@ -206,10 +200,8 @@ export default function ScrimDetailPage() {
     try {
       await api.post(`/scrims/${scrimId}/matches`, { count })
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to update match count:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "경기 수 조절에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "경기 수 조절에 실패했습니다.")
     }
   }
 
@@ -241,10 +233,8 @@ export default function ScrimDetailPage() {
 
       await api.patch(`/scrims/${scrimId}/matches/${matchId}`, backendUpdates)
       fetchScrimData()
-    } catch (error: unknown) {
-      console.error("Failed to update match:", error)
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "경기 정보 업데이트에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "경기 정보 업데이트에 실패했습니다.")
     }
   }
 

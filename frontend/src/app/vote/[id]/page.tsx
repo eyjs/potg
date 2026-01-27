@@ -14,6 +14,7 @@ import { Vote as VoteIcon, Clock, AlertCircle, ArrowLeft, CheckCircle2, Users } 
 import { Badge } from "@/common/components/ui/badge"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { handleApiError, getApiErrorMessage } from "@/lib/api-error"
 import { Progress } from "@/common/components/ui/progress"
 
 interface VoteOption {
@@ -60,9 +61,8 @@ export default function VoteDetailPage() {
 
       // Check if user has already voted (by checking if any option count shows participation)
       // Note: This is a simplified check. Backend should provide hasVoted status.
-    } catch (error: any) {
-      console.error(error)
-      toast.error("투표를 불러오지 못했습니다.")
+    } catch (error: unknown) {
+      handleApiError(error, "투표를 불러오지 못했습니다.")
       router.push("/")
     } finally {
       setIsLoading(false)
@@ -99,13 +99,13 @@ export default function VoteDetailPage() {
       toast.success("투표가 완료되었습니다!")
       setHasVoted(true)
       fetchVote() // Refresh to show updated counts
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "투표에 실패했습니다."
+    } catch (error: unknown) {
+      const errorMsg = getApiErrorMessage(error)
       if (errorMsg.includes("already voted") || errorMsg.includes("이미")) {
         toast.error("이미 투표하셨습니다.")
         setHasVoted(true)
       } else {
-        toast.error(errorMsg)
+        handleApiError(error, "투표에 실패했습니다.")
       }
     } finally {
       setIsSubmitting(false)

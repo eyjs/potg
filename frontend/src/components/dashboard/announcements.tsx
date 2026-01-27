@@ -12,6 +12,7 @@ import { Switch } from "@/common/components/ui/switch"
 import { Label } from "@/common/components/ui/label"
 import api from "@/lib/api"
 import { toast } from "sonner"
+import { useConfirm } from "@/common/components/confirm-dialog"
 
 interface Announcement {
   id: string
@@ -32,6 +33,7 @@ interface AnnouncementsProps {
 }
 
 export function Announcements({ announcements, clanId, canManage = false, onRefresh }: AnnouncementsProps) {
+  const confirm = useConfirm()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ title: "", content: "", isPinned: false })
@@ -62,7 +64,8 @@ export function Announcements({ announcements, clanId, canManage = false, onRefr
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return
+    const ok = await confirm({ title: "정말 삭제하시겠습니까?", variant: "destructive", confirmText: "삭제" })
+    if (!ok) return
     try {
       await api.post(`/clans/announcements/${id}/delete`)
       toast.success("삭제되었습니다.")

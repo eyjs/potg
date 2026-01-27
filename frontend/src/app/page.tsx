@@ -11,6 +11,7 @@ import api from "@/lib/api"
 import Link from "next/link"
 import { Button } from "@/common/components/ui/button"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 interface Scrim {
   id: string
@@ -56,41 +57,43 @@ export default function DashboardPage() {
   const [membership, setMembership] = useState<Membership | null>(null)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [pendingRequest, setPendingRequest] = useState<{ clan?: { name: string } } | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refreshData = () => setRefreshKey(k => k + 1)
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        router.push("/login")
-      } else if (!user.clanId) {
-        // Check for pending request
-        api.get('/clans/requests/me')
-          .then(res => setPendingRequest(res.data))
-          .catch(console.error)
-          .finally(() => setIsDataLoading(false))
-      } else {
-        fetchDashboardData()
+    if (isLoading) return
+    if (!user) {
+      router.push("/login")
+      return
+    }
+    if (!user.clanId) {
+      api.get('/clans/requests/me')
+        .then(res => setPendingRequest(res.data))
+        .catch((err) => handleApiError(err))
+        .finally(() => setIsDataLoading(false))
+      return
+    }
+
+    const fetchData = async () => {
+      try {
+        const [scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
+          api.get(`/scrims?clanId=${user.clanId}&today=true`).catch(() => ({ data: [] })),
+          api.get(`/clans/${user.clanId}/announcements`).catch(() => ({ data: [] })),
+          api.get(`/clans/${user.clanId}/hall-of-fame`).catch(() => ({ data: [] })),
+          api.get('/clans/membership/me').catch(() => ({ data: null })),
+        ])
+        setScrims(scrimsRes.data)
+        setAnnouncements(announcementsRes.data)
+        setHallOfFame(hallOfFameRes.data)
+        setMembership(membershipRes.data)
+      } catch (error) {
+        handleApiError(error)
+      } finally {
+        setIsDataLoading(false)
       }
     }
-  }, [user, isLoading, router])
-
-  const fetchDashboardData = async () => {
-    try {
-      const [scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
-        api.get(`/scrims?clanId=${user?.clanId}&today=true`).catch(() => ({ data: [] })),
-        api.get(`/clans/${user?.clanId}/announcements`).catch(() => ({ data: [] })),
-        api.get(`/clans/${user?.clanId}/hall-of-fame`).catch(() => ({ data: [] })),
-        api.get('/clans/membership/me').catch(() => ({ data: null })),
-      ])
-      setScrims(scrimsRes.data)
-      setAnnouncements(announcementsRes.data)
-      setHallOfFame(hallOfFameRes.data)
-      setMembership(membershipRes.data)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setIsDataLoading(false)
-    }
-  }
+    fetchData()
+  }, [user, isLoading, router, refreshKey])
 
   // Check if user can manage (admin, master, or manager)
   const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
@@ -105,13 +108,9 @@ export default function DashboardPage() {
         ...(scrimData.signupDeadline ? { signupDeadline: new Date(scrimData.signupDeadline).toISOString() } : {}),
       })
       toast.success("내전이 생성되었습니다.")
-      fetchDashboardData()
+      refreshData()
     } catch (error: unknown) {
-      console.error("Failed to create scrim:", error)
-      const errorMessage = error instanceof Error && 'response' in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined
-      toast.error(errorMessage || "내전 생성 실패")
+      handleApiError(error, "내전 생성 실패")
     }
   }
 
@@ -193,7 +192,7 @@ export default function DashboardPage() {
               announcements={announcements}
               clanId={user?.clanId}
               canManage={canManage}
-              onRefresh={fetchDashboardData}
+              onRefresh={refreshData}
             />
 
           </div>
@@ -205,7 +204,7 @@ export default function DashboardPage() {
               entries={hallOfFame}
               clanId={user?.clanId}
               canManage={canManage}
-              onRefresh={fetchDashboardData}
+              onRefresh={refreshData}
             />
           </div>
         </div>

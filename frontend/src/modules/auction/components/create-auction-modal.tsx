@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Plus, Users, Hash } from "lucide-react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Button } from "@/common/components/ui/button"
 import {
   Dialog,
@@ -22,7 +23,7 @@ interface CreateAuctionModalProps {
 }
 
 export function CreateAuctionModal({ onCreateAuction }: CreateAuctionModalProps) {
-  const [open, setOpen] = useState(false)
+  const dialog = useDialog()
   const [title, setTitle] = useState("")
   const [maxParticipants, setMaxParticipants] = useState(20)
   const [teamCount, setTeamCount] = useState(2)
@@ -40,11 +41,11 @@ export function CreateAuctionModal({ onCreateAuction }: CreateAuctionModalProps)
     setTitle("")
     setMaxParticipants(20)
     setTeamCount(2)
-    setOpen(false)
+    dialog.close()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog {...dialog.dialogProps}>
       <DialogTrigger asChild>
         <Button className="skew-btn bg-primary hover:bg-primary/90 text-primary-foreground font-semibold uppercase tracking-wide">
           <Plus className="w-4 h-4 mr-2" />
@@ -110,7 +111,7 @@ export function CreateAuctionModal({ onCreateAuction }: CreateAuctionModalProps)
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => dialog.close()}>
               취소
             </Button>
             <Button

@@ -11,7 +11,10 @@ import { Badge } from "@/common/components/ui/badge"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
+import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useConfirm } from "@/common/components/confirm-dialog"
+import { handleApiError } from "@/lib/api-error"
 import { User, Shield, Lock, LogOut, Save, Wallet, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { ImageUploader } from "@/components/image-uploader"
@@ -20,6 +23,7 @@ import { getImageUrl } from "@/lib/upload"
 export default function MyInfoPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const confirm = useConfirm()
   const [formData, setFormData] = useState({
     battleTag: "",
     avatarUrl: "",
@@ -48,7 +52,7 @@ export default function MyInfoPage() {
       const response = await api.get(`/clans/${clanId}`)
       setClanDetails(response.data)
     } catch (error) {
-      console.error("Failed to fetch clan details:", error)
+      handleApiError(error)
     }
   }
 
@@ -74,11 +78,10 @@ export default function MyInfoPage() {
       }
       
       await api.patch("/users/me", payload)
-      alert("프로필 정보가 저장되었습니다.")
+      toast.success("프로필 정보가 저장되었습니다.")
       window.location.reload()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "저장 실패")
+    } catch (error) {
+      handleApiError(error, "저장 실패")
     } finally {
       setIsLoading(false)
     }
@@ -88,7 +91,7 @@ export default function MyInfoPage() {
     e.preventDefault()
     if (!formData.newPassword) return
     if (formData.newPassword !== formData.confirmNewPassword) {
-      alert("새 비밀번호가 일치하지 않습니다.")
+      toast.error("새 비밀번호가 일치하지 않습니다.")
       return
     }
 
@@ -98,26 +101,25 @@ export default function MyInfoPage() {
         password: formData.newPassword,
         currentPassword: formData.currentPassword
       })
-      alert("비밀번호가 변경되었습니다.")
+      toast.success("비밀번호가 변경되었습니다.")
       setFormData(p => ({ ...p, currentPassword: "", newPassword: "", confirmNewPassword: "" }))
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "비밀번호 변경 실패")
+    } catch (error) {
+      handleApiError(error, "비밀번호 변경 실패")
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleLeaveClan = async () => {
-    if (!confirm("정말 클랜을 탈퇴하시겠습니까? 보유 포인트가 소멸되며 즉시 반영됩니다.")) return
-    
+    const ok = await confirm({ title: "정말 클랜을 탈퇴하시겠습니까?", description: "보유 포인트가 소멸되며 즉시 반영됩니다.", variant: "destructive", confirmText: "탈퇴" })
+    if (!ok) return
+
     try {
       await api.post("/clans/leave")
-      alert("클랜에서 탈퇴했습니다.")
+      toast.success("클랜에서 탈퇴했습니다.")
       window.location.href = "/"
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message || "탈퇴 실패")
+    } catch (error) {
+      handleApiError(error, "탈퇴 실패")
     }
   }
 

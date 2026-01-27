@@ -6,6 +6,7 @@ import { Button } from "@/common/components/ui/button"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { AuthGuard } from "@/common/components/auth-guard"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 import { useAuth } from "@/context/auth-context"
 import { Swords, Calendar, Users, ChevronRight, AlertCircle } from "lucide-react"
 import { Badge } from "@/common/components/ui/badge"
@@ -39,7 +40,7 @@ export default function ScrimListPage() {
       const response = await api.get(`/scrims?clanId=${user?.clanId}`)
       setScrims(response.data)
     } catch (error) {
-      console.error("Failed to fetch scrims:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }

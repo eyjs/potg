@@ -15,6 +15,7 @@ import {
 import { Send, Coins, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 import type { ClanMemberWithUser } from "../types"
 
 interface SendPointsFormProps {
@@ -82,9 +83,8 @@ export function SendPointsForm({
       setAmount("")
       setMessage("")
       onSendSuccess()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "포인트 전송에 실패했습니다")
+    } catch (error) {
+      handleApiError(error, "포인트 전송에 실패했습니다")
     } finally {
       setIsSending(false)
     }

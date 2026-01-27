@@ -10,7 +10,7 @@ import { useAuth } from "@/context/auth-context"
 import { Coins, Clock, AlertCircle, ArrowLeft, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
 import { Badge } from "@/common/components/ui/badge"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 interface BettingTicket {
   id: string
@@ -47,8 +47,7 @@ export default function MyBetsPage() {
       const response = await api.get('/betting/tickets/my')
       setTickets(response.data)
     } catch (error) {
-      console.error(error)
-      toast.error("베팅 내역을 불러오지 못했습니다.")
+      handleApiError(error, "베팅 내역을 불러오지 못했습니다.")
     } finally {
       setIsLoading(false)
     }

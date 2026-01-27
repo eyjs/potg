@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { toast } from "sonner"
 import { ImageUploader } from "@/components/image-uploader"
+import { handleApiError } from "@/lib/api-error"
+import { useDialog } from "@/common/hooks/use-dialog"
 
 interface ShopProduct {
   id: string
@@ -37,7 +39,7 @@ export default function ShopPage() {
   const [myCoupons, setMyCoupons] = useState<Record<string, unknown>[]>([])
   const [membership, setMembership] = useState<Membership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const createDialog = useDialog()
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
@@ -68,7 +70,7 @@ export default function ShopPage() {
       setMyCoupons(couponsRes.data)
       setMembership(membershipRes.data)
     } catch (error) {
-      console.error("Failed to fetch shop data:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }
@@ -93,7 +95,7 @@ export default function ShopPage() {
         clanId: user?.clanId
       })
       toast.success("상품이 등록되었습니다.")
-      setIsCreateDialogOpen(false)
+      createDialog.close()
       setNewProduct({
         name: "",
         description: "",
@@ -102,9 +104,8 @@ export default function ShopPage() {
         imageUrl: ""
       })
       fetchData()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "상품 등록에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "상품 등록에 실패했습니다.")
     }
   }
 
@@ -113,9 +114,8 @@ export default function ShopPage() {
       await api.post('/shop/purchase', { productId, quantity: 1 })
       toast.success("구매 요청이 완료되었습니다! 클랜마스터 승인 후 쿠폰함에서 확인하실 수 있습니다.")
       fetchData()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "구매 실패")
+    } catch (error) {
+      handleApiError(error, "구매 실패")
     }
   }
 
@@ -171,7 +171,7 @@ export default function ShopPage() {
               <span>구매 내역</span>
             </Button>
             {canManage && (
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <Dialog {...createDialog.dialogProps}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="flex-1 md:flex-none skew-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-2">
                     <Plus className="w-4 h-4" />

@@ -14,6 +14,8 @@ import api from '@/lib/api';
 import { Check, X, User, Crown, Shield, UserX, ArrowRightLeft, Info, Save, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/common/components/ui/badge';
+import { useConfirm } from '@/common/components/confirm-dialog';
+import { handleApiError } from '@/lib/api-error';
 
 type ClanRole = 'MASTER' | 'MANAGER' | 'MEMBER';
 
@@ -47,6 +49,7 @@ interface ClanInfo {
 
 export default function ClanManagePage() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [members, setMembers] = useState<ClanMember[]>([]);
   const [myMembership, setMyMembership] = useState<ClanMember | null>(null);
@@ -76,7 +79,7 @@ export default function ClanManagePage() {
       setEditName(clanRes.data.name || '');
       setEditDescription(clanRes.data.description || '');
     } catch (error) {
-      console.error(error);
+      handleApiError(error);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +112,8 @@ export default function ClanManagePage() {
 
   const handleKick = async (userId: string, battleTag: string) => {
     if (!user?.clanId) return;
-    if (!confirm(`정말 ${battleTag}님을 추방하시겠습니까?`)) return;
+    const ok = await confirm({ title: `정말 ${battleTag}님을 추방하시겠습니까?`, variant: "destructive", confirmText: "추방" });
+    if (!ok) return;
     try {
       await api.post(`/clans/${user.clanId}/members/${userId}/kick`);
       toast.success('추방되었습니다.');
@@ -121,7 +125,8 @@ export default function ClanManagePage() {
 
   const handleTransferMaster = async (newMasterId: string, battleTag: string) => {
     if (!user?.clanId) return;
-    if (!confirm(`정말 ${battleTag}님에게 마스터 권한을 양도하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const ok = await confirm({ title: `정말 ${battleTag}님에게 마스터 권한을 양도하시겠습니까?`, description: "이 작업은 되돌릴 수 없습니다.", variant: "destructive", confirmText: "양도" });
+    if (!ok) return;
     try {
       await api.post(`/clans/${user.clanId}/transfer-master`, { newMasterId });
       toast.success('마스터 권한이 양도되었습니다.');
@@ -144,9 +149,8 @@ export default function ClanManagePage() {
       });
       toast.success('클랜 정보가 수정되었습니다.');
       fetchData();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || '수정 실패');
+    } catch (error) {
+      handleApiError(error, '수정 실패');
     } finally {
       setIsSaving(false);
     }
@@ -189,7 +193,7 @@ export default function ClanManagePage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="members" className="gap-1.5">
                 <Users className="w-3.5 h-3.5" />
                 멤버 현황

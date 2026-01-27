@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Swords } from "lucide-react"
+import { useDialog } from "@/common/hooks/use-dialog"
 import { Button } from "@/common/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
 import { Input } from "@/common/components/ui/input"
@@ -14,7 +15,7 @@ interface CreateScrimModalProps {
 }
 
 export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
-  const [open, setOpen] = useState(false)
+  const dialog = useDialog()
   const [title, setTitle] = useState("")
   const [scheduledDate, setScheduledDate] = useState("")
   const [signupDeadline, setSignupDeadline] = useState("")
@@ -30,12 +31,12 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
       setTitle("")
       setScheduledDate("")
       setSignupDeadline("")
-      setOpen(false)
+      dialog.close()
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog {...dialog.dialogProps}>
       <DialogTrigger asChild>
         <Button className="skew-btn bg-accent text-accent-foreground font-bold uppercase tracking-wide hover:bg-accent/90">
           <span className="flex items-center gap-2">
@@ -92,7 +93,7 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => dialog.close()}
               className="border-border text-muted-foreground"
             >
               취소

@@ -9,7 +9,7 @@ import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import api from "@/lib/api"
-import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -23,8 +23,7 @@ export default function ForgotPasswordPage() {
       await api.post('/auth/forgot-password', { email })
       setIsSubmitted(true)
     } catch (error) {
-      console.error(error)
-      toast.error("이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.")
+      handleApiError(error, "이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.")
     } finally {
       setIsLoading(false)
     }

@@ -6,6 +6,7 @@ import "./globals.css"
 import { AuthProvider } from "@/context/auth-context"
 import { QueryProvider } from "@/providers/query-provider"
 import { MotionProvider } from "@/providers/motion-provider"
+import { ConfirmProvider } from "@/common/components/confirm-dialog"
 import { Toaster } from "sonner"
 
 import { BottomNav } from "@/common/layouts/bottom-nav"
@@ -37,11 +38,13 @@ export default function RootLayout({
       <body className={`${exo2.className} antialiased pb-16 md:pb-0`}>
         <QueryProvider>
           <AuthProvider>
-            <MotionProvider>
-              {children}
-            </MotionProvider>
-            <BottomNav />
-            <Toaster position="top-center" richColors />
+            <ConfirmProvider>
+              <MotionProvider>
+                {children}
+              </MotionProvider>
+              <BottomNav />
+              <Toaster position="top-center" richColors />
+            </ConfirmProvider>
           </AuthProvider>
         </QueryProvider>
         <Analytics />

@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import api from "@/lib/api"
+import { useConfirm } from "@/common/components/confirm-dialog"
 
 interface ClanMember {
   userId: string
@@ -81,6 +82,7 @@ export function AuctionSetupPanel({
   settings,
   onRefresh,
 }: AuctionSetupPanelProps) {
+  const confirm = useConfirm()
   const [isAddPlayersOpen, setIsAddPlayersOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [clanMembers, setClanMembers] = useState<ClanMember[]>([])
@@ -127,7 +129,8 @@ export function AuctionSetupPanel({
   }
 
   const handleRemoveParticipant = async (userId: string) => {
-    if (!confirm("정말 제거하시겠습니까?")) return
+    const ok = await confirm({ title: "정말 제거하시겠습니까?", variant: "destructive", confirmText: "제거" })
+    if (!ok) return
 
     try {
       await api.post(`/auctions/${auctionId}/participants/${userId}/remove`)
@@ -149,7 +152,8 @@ export function AuctionSetupPanel({
   }
 
   const handleDemoteFromCaptain = async (userId: string) => {
-    if (!confirm("팀장 지정을 해제하시겠습니까?")) return
+    const ok = await confirm({ title: "팀장 지정을 해제하시겠습니까?", confirmText: "해제" })
+    if (!ok) return
 
     try {
       await api.post(`/auctions/${auctionId}/captains/${userId}/remove`)

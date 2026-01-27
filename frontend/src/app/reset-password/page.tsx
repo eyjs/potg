@@ -11,6 +11,7 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import api from "@/lib/api"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/api-error"
 
 function ResetPasswordContent() {
   const router = useRouter()
@@ -48,7 +49,7 @@ function ResetPasswordContent() {
         const response = await api.get(`/auth/verify-reset-token?token=${token}`)
         setIsValidToken(response.data.valid)
       } catch (error) {
-        console.error(error)
+        handleApiError(error)
         setIsValidToken(false)
       } finally {
         setIsVerifying(false)
@@ -71,8 +72,7 @@ function ResetPasswordContent() {
       setIsSuccess(true)
       toast.success("비밀번호가 성공적으로 변경되었습니다.")
     } catch (error) {
-      console.error(error)
-      toast.error("비밀번호 변경에 실패했습니다. 링크가 만료되었을 수 있습니다.")
+      handleApiError(error, "비밀번호 변경에 실패했습니다. 링크가 만료되었을 수 있습니다.")
     } finally {
       setIsLoading(false)
     }

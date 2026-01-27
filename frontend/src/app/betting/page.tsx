@@ -15,7 +15,9 @@ import { Coins, Clock, AlertCircle, Plus, TrendingUp, History, Lock, Pencil, Tim
 import { Badge } from "@/common/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { Switch } from "@/common/components/ui/switch"
+import { ToggleSwitch } from "@/common/components/toggle-filter"
+import { handleApiError } from "@/lib/api-error"
+import { useDialog } from "@/common/hooks/use-dialog"
 import Link from "next/link"
 
 interface BettingQuestion {
@@ -35,13 +37,13 @@ export default function BettingPage() {
   const { user } = useAuth()
   const [questions, setQuestions] = useState<BettingQuestion[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isBetDialogOpen, setIsBetDialogOpen] = useState(false)
-  const [isSettleDialogOpen, setIsSettleDialogOpen] = useState(false)
+  const createDialog = useDialog()
+  const betDialog = useDialog()
+  const settleDialog = useDialog()
+  const editDialog = useDialog()
   const [selectedQuestion, setSelectedQuestion] = useState<BettingQuestion | null>(null)
   const [betPrediction, setBetPrediction] = useState<"O" | "X">("O")
   const [betAmount, setBetAmount] = useState("100")
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editQuestion, setEditQuestion] = useState({
     question: "",
     rewardMultiplier: 2.0,
@@ -93,8 +95,7 @@ export default function BettingPage() {
       const response = await api.get('/betting/questions')
       setQuestions(response.data)
     } catch (error) {
-      console.error(error)
-      toast.error("베팅 문항을 불러오지 못했습니다.")
+      handleApiError(error, "베팅 문항을 불러오지 못했습니다.")
     } finally {
       setIsLoading(false)
     }
@@ -115,7 +116,7 @@ export default function BettingPage() {
       })
 
       toast.success("베팅 문항이 생성되었습니다.")
-      setIsCreateDialogOpen(false)
+      createDialog.close()
       setNewQuestion({
         question: "",
         minBetAmount: 100,
@@ -123,9 +124,8 @@ export default function BettingPage() {
         bettingDeadline: ""
       })
       fetchQuestions()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "베팅 문항 생성에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "베팅 문항 생성에 실패했습니다.")
     }
   }
 
@@ -146,12 +146,11 @@ export default function BettingPage() {
       })
 
       toast.success(`${betPrediction}에 ${amount}P를 베팅했습니다!`)
-      setIsBetDialogOpen(false)
+      betDialog.close()
       setBetAmount("100")
       fetchQuestions()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "베팅에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "베팅에 실패했습니다.")
     }
   }
 
@@ -161,11 +160,10 @@ export default function BettingPage() {
     try {
       await api.post(`/betting/questions/${selectedQuestion.id}/settle`, { result })
       toast.success(`베팅이 ${result}로 정산되었습니다.`)
-      setIsSettleDialogOpen(false)
+      settleDialog.close()
       fetchQuestions()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "정산에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "정산에 실패했습니다.")
     }
   }
 
@@ -174,9 +172,8 @@ export default function BettingPage() {
       await api.patch(`/betting/questions/${questionId}`, { status: "CLOSED" })
       toast.success("베팅이 마감되었습니다.")
       fetchQuestions()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "마감 처리에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "마감 처리에 실패했습니다.")
     }
   }
 
@@ -189,7 +186,7 @@ export default function BettingPage() {
         ? new Date(question.bettingDeadline).toISOString().slice(0, 16)
         : ""
     })
-    setIsEditDialogOpen(true)
+    editDialog.open()
   }
 
   const handleEditQuestion = async () => {
@@ -201,11 +198,10 @@ export default function BettingPage() {
         bettingDeadline: editQuestion.bettingDeadline ? new Date(editQuestion.bettingDeadline).toISOString() : null
       })
       toast.success("베팅 문항이 수정되었습니다.")
-      setIsEditDialogOpen(false)
+      editDialog.close()
       fetchQuestions()
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "수정에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "수정에 실패했습니다.")
     }
   }
 
@@ -213,12 +209,12 @@ export default function BettingPage() {
     setSelectedQuestion(question)
     setBetPrediction(prediction)
     setBetAmount(question.minBetAmount.toString())
-    setIsBetDialogOpen(true)
+    betDialog.open()
   }
 
   const openSettleDialog = (question: BettingQuestion) => {
     setSelectedQuestion(question)
-    setIsSettleDialogOpen(true)
+    settleDialog.open()
   }
 
   const getStatusColor = (status: string) => {
@@ -274,7 +270,7 @@ export default function BettingPage() {
                   내 베팅 내역
                 </Button>
               </Link>
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <Dialog {...createDialog.dialogProps}>
                 <DialogTrigger asChild>
                   <Button className="w-full bg-primary hover:bg-primary/90 text-black font-bold text-sm">
                     <Plus className="w-4 h-4 mr-2" />
@@ -356,7 +352,7 @@ export default function BettingPage() {
               <AlertCircle className="mx-auto w-12 h-12 text-muted-foreground mb-4 opacity-20" />
               <p className="text-muted-foreground mb-4">진행 중인 베팅 문항이 없습니다.</p>
               <Button
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={() => createDialog.open()}
                 className="bg-primary hover:bg-primary/90 text-black font-bold"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -367,12 +363,9 @@ export default function BettingPage() {
             <div className="space-y-4">
               {/* 종료 베팅 토글 */}
               {questions.some((q) => q.status !== "OPEN") && (
-                <div className="flex items-center justify-end gap-2">
-                  <label htmlFor="show-finished" className="text-xs text-muted-foreground font-bold cursor-pointer select-none">
-                    종료된 베팅 보기 ({questions.filter((q) => q.status !== "OPEN").length})
-                  </label>
-                  <Switch
-                    id="show-finished"
+                <div className="flex items-center justify-end">
+                  <ToggleSwitch
+                    label={`종료된 베팅 보기 (${questions.filter((q) => q.status !== "OPEN").length})`}
                     checked={showFinished}
                     onCheckedChange={setShowFinished}
                   />
@@ -499,7 +492,7 @@ export default function BettingPage() {
         </main>
 
         {/* Bet Dialog */}
-        <Dialog open={isBetDialogOpen} onOpenChange={setIsBetDialogOpen}>
+        <Dialog {...betDialog.dialogProps}>
           <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
@@ -554,7 +547,7 @@ export default function BettingPage() {
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog {...editDialog.dialogProps}>
           <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-primary">베팅 문항 수정</DialogTitle>
@@ -603,7 +596,7 @@ export default function BettingPage() {
         </Dialog>
 
         {/* Settle Dialog */}
-        <Dialog open={isSettleDialogOpen} onOpenChange={setIsSettleDialogOpen}>
+        <Dialog {...settleDialog.dialogProps}>
           <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-primary">베팅 정산</DialogTitle>

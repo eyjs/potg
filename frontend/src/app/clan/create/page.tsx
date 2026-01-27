@@ -8,6 +8,7 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Textarea } from "@/common/components/ui/textarea"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 
 export default function CreateClanPage() {
   const router = useRouter()
@@ -25,8 +26,7 @@ export default function CreateClanPage() {
       await api.post('/clans', formData)
       router.push("/")
     } catch (error) {
-      console.error(error)
-      alert("클랜 생성 실패")
+      handleApiError(error, "클랜 생성 실패")
     } finally {
       setIsLoading(false)
     }

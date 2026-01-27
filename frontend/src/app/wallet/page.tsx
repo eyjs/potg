@@ -8,6 +8,7 @@ import { SendPointsForm } from "@/modules/wallet/components/send-points-form"
 import { TransactionHistory } from "@/modules/wallet/components/transaction-history"
 import { Wallet, Send, History, Coins } from "lucide-react"
 import api from "@/lib/api"
+import { handleApiError } from "@/lib/api-error"
 import { useAuth } from "@/context/auth-context"
 import type { ClanMemberWithUser } from "@/modules/wallet/types"
 
@@ -33,7 +34,7 @@ export default function WalletPage() {
       const response = await api.get(`/clans/${user.clanId}`)
       setClanMembers(response.data.members || [])
     } catch (error) {
-      console.error("Failed to fetch clan members:", error)
+      handleApiError(error)
     } finally {
       setIsLoading(false)
     }
@@ -137,17 +138,17 @@ export default function WalletPage() {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="bg-muted/50 p-1 h-auto w-full md:w-auto">
+            <TabsList className="p-1 h-auto w-full md:w-auto">
               <TabsTrigger
                 value="send"
-                className="flex-1 md:flex-none px-6 py-3 uppercase font-black italic text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+                className="flex-1 md:flex-none px-6 py-3 gap-2"
               >
                 <Send className="w-4 h-4" />
                 포인트 전송
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="flex-1 md:flex-none px-6 py-3 uppercase font-black italic text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+                className="flex-1 md:flex-none px-6 py-3 gap-2"
               >
                 <History className="w-4 h-4" />
                 거래 내역

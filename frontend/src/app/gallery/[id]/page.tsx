@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
+import { useConfirm } from "@/common/components/confirm-dialog"
+import { handleApiError } from "@/lib/api-error"
 import type { HeroWithPreference } from "@/modules/blind-date/types"
 import { statusConfig, EDUCATION_LABELS } from "@/modules/blind-date/types"
 import type { MinEducation } from "@/modules/blind-date/types"
@@ -26,6 +28,7 @@ export default function GalleryDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user, isAdmin } = useAuth()
+  const confirm = useConfirm()
   const [hero, setHero] = useState<HeroWithPreference | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState("안녕하세요! 프로필 보고 연락드렸습니다.")
@@ -130,9 +133,8 @@ export default function GalleryDetailPage() {
       toast.success("희망 조건이 저장되었습니다.")
       setEditingPref(false)
       fetchHero(hero.id)
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "희망 조건 저장에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "희망 조건 저장에 실패했습니다.")
     } finally {
       setIsSavingPref(false)
     }
@@ -151,9 +153,8 @@ export default function GalleryDetailPage() {
       toast.success("사진이 저장되었습니다.")
       setEditingPhotos(false)
       fetchHero(hero.id)
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "사진 저장에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "사진 저장에 실패했습니다.")
     } finally {
       setIsSavingPhotos(false)
     }
@@ -166,9 +167,8 @@ export default function GalleryDetailPage() {
       await api.post(`/blind-date/listings/${hero.id}/request`, { message })
       toast.success("신청이 완료되었습니다! 매니저의 확인을 기다려주세요.")
       router.push("/gallery")
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "신청에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "신청에 실패했습니다.")
     } finally {
       setIsSubmitting(false)
     }
@@ -187,14 +187,15 @@ export default function GalleryDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!hero || !confirm("정말 삭제하시겠습니까?")) return
+    if (!hero) return
+    const ok = await confirm({ title: "정말 삭제하시겠습니까?", variant: "destructive", confirmText: "삭제" })
+    if (!ok) return
     try {
       await api.delete(`/blind-date/listings/${hero.id}`)
       toast.success("삭제되었습니다.")
       router.push("/gallery")
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "매물 삭제에 실패했습니다.")
+    } catch (error) {
+      handleApiError(error, "매물 삭제에 실패했습니다.")
     }
   }
 

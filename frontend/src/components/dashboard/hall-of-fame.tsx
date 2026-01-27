@@ -24,6 +24,7 @@ import { Label } from "@/common/components/ui/label"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useConfirm } from "@/common/components/confirm-dialog"
 
 type HallOfFameType = "MVP" | "DONOR" | "WANTED"
 
@@ -61,6 +62,7 @@ const RANK_STYLES = [
 ]
 
 export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: HallOfFameProps) {
+  const confirm = useConfirm()
   const [dialogType, setDialogType] = useState<"DONOR" | "WANTED" | null>(null)
   const [clanMembers, setClanMembers] = useState<ClanMember[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState("")
@@ -80,7 +82,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
           }))
           setClanMembers(members)
         })
-        .catch(console.error)
+        .catch(() => { /* silently fail - member list is supplementary */ })
     }
   }, [dialogType, clanId, clanMembers.length])
 
@@ -124,7 +126,9 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
   }
 
   const handleDelete = async (id: string) => {
-    if (!clanId || !confirm("정말 삭제하시겠습니까?")) return
+    if (!clanId) return
+    const ok = await confirm({ title: "정말 삭제하시겠습니까?", variant: "destructive", confirmText: "삭제" })
+    if (!ok) return
     try {
       await api.post(`/clans/${clanId}/hall-of-fame/${id}/delete`)
       toast.success("삭제되었습니다")
