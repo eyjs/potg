@@ -16,6 +16,7 @@ export interface Hero {
   height?: number
   avatar?: string
   photos?: string[]
+  contactInfo?: string
 }
 
 export interface HeroPreference {
@@ -47,6 +48,27 @@ export const EDUCATION_LABELS: Record<MinEducation, string> = {
   BACHELOR: "대졸",
   MASTER: "석사",
   DOCTORATE: "박사",
+}
+
+export interface BlindDateRequestItem {
+  id: string
+  listingId: string
+  requesterId: string
+  requester?: {
+    id: string
+    nickname?: string
+    username?: string
+  }
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"
+  message?: string
+  createdAt: string
+}
+
+export const REQUEST_STATUS_CONFIG: Record<BlindDateRequestItem["status"], { label: string; color: string }> = {
+  PENDING: { label: "대기", color: "bg-yellow-500 text-black" },
+  APPROVED: { label: "승인", color: "bg-green-500 text-white" },
+  REJECTED: { label: "거절", color: "bg-red-500 text-white" },
+  CANCELLED: { label: "취소", color: "bg-muted text-muted-foreground" },
 }
 
 export const statusConfig = {

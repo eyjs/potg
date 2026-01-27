@@ -33,6 +33,7 @@ interface Step1Data {
   bio: string
   idealType: string
   photos: string[]
+  contactInfo: string
 }
 
 interface Step2Data {
@@ -65,6 +66,7 @@ export default function GalleryRegisterPage() {
     bio: "",
     idealType: "",
     photos: [],
+    contactInfo: "",
   })
 
   const [step2, setStep2] = useState<Step2Data>({
@@ -130,6 +132,7 @@ export default function GalleryRegisterPage() {
         height: step1.height || undefined,
         smoking: step1.smoking,
         photos: step1.photos,
+        ...(step1.contactInfo ? { contactInfo: step1.contactInfo } : {}),
         ...(preference ? { preference } : {}),
       })
       toast.success("소개팅 매물이 등록되었습니다.")
@@ -322,6 +325,17 @@ export default function GalleryRegisterPage() {
                   className="bg-input border-border text-foreground"
                   rows={2}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-foreground">연락처 (매칭 후 공개)</Label>
+                <Input
+                  value={step1.contactInfo}
+                  onChange={(e) => setStep1((p) => ({ ...p, contactInfo: e.target.value }))}
+                  placeholder="예: 카카오톡 ID, 전화번호 등"
+                  className="bg-input border-border text-foreground"
+                />
+                <p className="text-xs text-muted-foreground">매칭이 성사된 후에만 상대방에게 공개됩니다.</p>
               </div>
 
               <div className="flex gap-3 pt-4">

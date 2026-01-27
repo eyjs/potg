@@ -75,6 +75,21 @@ export class BlindDateService {
     });
   }
 
+  async getListingRequests(listingId: string, userId: string) {
+    const listing = await this.listingsRepository.findOne({
+      where: { id: listingId },
+    });
+    if (!listing) throw new NotFoundException('Listing not found');
+    if (listing.registerId !== userId)
+      throw new BadRequestException('Not authorized');
+
+    return this.requestsRepository.find({
+      where: { listingId },
+      relations: ['requester'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async requestDate(listingId: string, userId: string, message?: string) {
     const listing = await this.listingsRepository.findOne({
       where: { id: listingId },

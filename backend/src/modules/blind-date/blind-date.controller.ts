@@ -42,6 +42,15 @@ export class BlindDateController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('listings/:id/requests')
+  getListingRequests(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.blindDateService.getListingRequests(id, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post('listings/:id/request')
   requestDate(
     @Param('id') id: string,

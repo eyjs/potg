@@ -58,6 +58,10 @@ export class CreateListingDto {
   @IsOptional()
   photos?: string[];
 
+  @IsString()
+  @IsOptional()
+  contactInfo?: string;
+
   @ValidateNested()
   @Type(() => CreatePreferenceDto)
   @IsOptional()
@@ -109,6 +113,10 @@ export class UpdateListingDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
+
+  @IsString()
+  @IsOptional()
+  contactInfo?: string;
 
   @IsString()
   @IsOptional()

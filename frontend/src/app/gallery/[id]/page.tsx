@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart, Camera, Pencil } from "lucide-react"
+import { ArrowLeft, MapPin, Briefcase, Brain, Cigarette, Trash2, GraduationCap, Ruler, User as UserIcon, Send, Heart, Camera, Pencil, XCircle } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Textarea } from "@/common/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
+import { Switch } from "@/common/components/ui/switch"
 import { Header } from "@/common/layouts/header"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { cn } from "@/lib/utils"
@@ -17,8 +18,8 @@ import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import { useConfirm } from "@/common/components/confirm-dialog"
 import { handleApiError } from "@/lib/api-error"
-import type { HeroWithPreference } from "@/modules/blind-date/types"
-import { statusConfig, EDUCATION_LABELS } from "@/modules/blind-date/types"
+import type { HeroWithPreference, BlindDateRequestItem } from "@/modules/blind-date/types"
+import { statusConfig, EDUCATION_LABELS, REQUEST_STATUS_CONFIG } from "@/modules/blind-date/types"
 import type { MinEducation } from "@/modules/blind-date/types"
 import { getImageUrl } from "@/lib/upload"
 import { ImageViewer } from "@/components/image-viewer"
@@ -50,6 +51,23 @@ export default function GalleryDetailPage() {
   const [editingPhotos, setEditingPhotos] = useState(false)
   const [photoForm, setPhotoForm] = useState<string[]>([])
   const [isSavingPhotos, setIsSavingPhotos] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    age: 25,
+    location: "",
+    job: "",
+    education: "",
+    height: "" as string,
+    mbti: "",
+    smoking: false,
+    bio: "",
+    idealType: "",
+    contactInfo: "",
+  })
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [requests, setRequests] = useState<BlindDateRequestItem[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -80,6 +98,7 @@ export default function GalleryDetailPage() {
         height: h.height,
         avatar: h.photos?.[0],
         photos: h.photos || [],
+        contactInfo: h.contactInfo || "",
         preference: h.preference || undefined,
       }
       setHero(mapped)
@@ -88,6 +107,51 @@ export default function GalleryDetailPage() {
       router.push("/gallery")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (hero && user?.id === hero.registerId) {
+      fetchRequests(hero.id)
+    }
+  }, [hero?.id, hero?.registerId, user?.id])
+
+  const fetchRequests = async (listingId: string) => {
+    try {
+      setRequestsLoading(true)
+      const response = await api.get(`/blind-date/listings/${listingId}/requests`)
+      setRequests(response.data)
+    } catch {
+      // silently fail — user may not be owner
+    } finally {
+      setRequestsLoading(false)
+    }
+  }
+
+  const handleApproveRequest = async (requestId: string) => {
+    const ok = await confirm({ title: "신청을 승인하시겠습니까?", description: "승인 시 다른 대기 중인 신청은 자동 거절됩니다.", confirmText: "승인" })
+    if (!ok) return
+    try {
+      await api.post(`/blind-date/requests/${requestId}/approve`)
+      toast.success("신청이 승인되었습니다.")
+      if (hero) {
+        fetchHero(hero.id)
+        fetchRequests(hero.id)
+      }
+    } catch (error) {
+      handleApiError(error, "승인에 실패했습니다.")
+    }
+  }
+
+  const handleRejectRequest = async (requestId: string) => {
+    const ok = await confirm({ title: "신청을 거절하시겠습니까?", variant: "destructive", confirmText: "거절" })
+    if (!ok) return
+    try {
+      await api.post(`/blind-date/requests/${requestId}/reject`)
+      toast.success("신청이 거절되었습니다.")
+      if (hero) fetchRequests(hero.id)
+    } catch (error) {
+      handleApiError(error, "거절에 실패했습니다.")
     }
   }
 
@@ -103,6 +167,8 @@ export default function GalleryDetailPage() {
       preferredLocations: p?.preferredLocations?.join(", ") || "",
       preferredJobs: p?.preferredJobs?.join(", ") || "",
     })
+    setEditingProfile(false)
+    setEditingPhotos(false)
     setEditingPref(true)
   }
 
@@ -142,6 +208,8 @@ export default function GalleryDetailPage() {
 
   const startEditPhotos = () => {
     setPhotoForm(hero?.photos || [])
+    setEditingProfile(false)
+    setEditingPref(false)
     setEditingPhotos(true)
   }
 
@@ -157,6 +225,57 @@ export default function GalleryDetailPage() {
       handleApiError(error, "사진 저장에 실패했습니다.")
     } finally {
       setIsSavingPhotos(false)
+    }
+  }
+
+  const startEditProfile = () => {
+    if (!hero) return
+    setProfileForm({
+      name: hero.name || "",
+      age: hero.age || 25,
+      location: hero.location || "",
+      job: hero.job || "",
+      education: hero.education || "",
+      height: hero.height?.toString() || "",
+      mbti: hero.mbti || "",
+      smoking: hero.smoking || false,
+      bio: hero.bio || "",
+      idealType: hero.idealType || "",
+      contactInfo: hero.contactInfo || "",
+    })
+    setEditingPhotos(false)
+    setEditingPref(false)
+    setEditingProfile(true)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!hero) return
+    if (!profileForm.name.trim() || profileForm.age < 18) {
+      toast.error("이름과 나이(18세 이상)는 필수입니다.")
+      return
+    }
+    try {
+      setIsSavingProfile(true)
+      await api.put(`/blind-date/listings/${hero.id}`, {
+        name: profileForm.name,
+        age: profileForm.age,
+        location: profileForm.location,
+        job: profileForm.job,
+        education: profileForm.education,
+        height: profileForm.height ? Number(profileForm.height) : undefined,
+        mbti: profileForm.mbti,
+        smoking: profileForm.smoking,
+        description: profileForm.bio,
+        idealType: profileForm.idealType,
+        ...(profileForm.contactInfo ? { contactInfo: profileForm.contactInfo } : {}),
+      })
+      toast.success("프로필이 저장되었습니다.")
+      setEditingProfile(false)
+      fetchHero(hero.id)
+    } catch (error) {
+      handleApiError(error, "프로필 저장에 실패했습니다.")
+    } finally {
+      setIsSavingProfile(false)
     }
   }
 
@@ -345,69 +464,235 @@ export default function GalleryDetailPage() {
             </div>
           )}
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-              <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">거주지</p>
-                <p className="text-sm font-semibold text-foreground">{hero.location || "-"}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-              <Briefcase className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">직업</p>
-                <p className="text-sm font-semibold text-foreground">{hero.job || "-"}</p>
-              </div>
-            </div>
-            {hero.education && (
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-                <GraduationCap className="w-4 h-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">학력</p>
-                  <p className="text-sm font-semibold text-foreground">{hero.education}</p>
+          {/* Profile Section: View or Edit */}
+          {!editingProfile ? (
+            <>
+              {/* Details Grid */}
+              <div className="space-y-2">
+                {isOwner && hero.status === "available" && (
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" onClick={startEditProfile} className="text-primary hover:text-primary/80 h-7 px-2">
+                      <Pencil className="w-3 h-3 mr-1" />
+                      프로필 수정
+                    </Button>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                    <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">거주지</p>
+                      <p className="text-sm font-semibold text-foreground">{hero.location || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                    <Briefcase className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">직업</p>
+                      <p className="text-sm font-semibold text-foreground">{hero.job || "-"}</p>
+                    </div>
+                  </div>
+                  {(hero.education || isOwner) && (
+                    <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                      <GraduationCap className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">학력</p>
+                        <p className="text-sm font-semibold text-foreground">{hero.education || "-"}</p>
+                      </div>
+                    </div>
+                  )}
+                  {(hero.height || isOwner) && (
+                    <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                      <Ruler className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">키</p>
+                        <p className="text-sm font-semibold text-foreground">{hero.height ? `${hero.height}cm` : "-"}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                    <Brain className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">MBTI</p>
+                      <p className="text-sm font-semibold text-foreground">{hero.mbti || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
+                    <Cigarette className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">흡연</p>
+                      <p className="text-sm font-semibold text-foreground">{hero.smoking ? "O" : "X"}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-            {hero.height && (
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-                <Ruler className="w-4 h-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">키</p>
-                  <p className="text-sm font-semibold text-foreground">{hero.height}cm</p>
+
+              {/* Bio */}
+              {(hero.bio || isOwner) && (
+                <div className="p-4 bg-muted/20 rounded border border-border/50">
+                  <p className="text-xs text-muted-foreground font-bold mb-1">소개</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{hero.bio ? `"${hero.bio}"` : "-"}</p>
+                </div>
+              )}
+
+              {/* Ideal Type */}
+              {(hero.idealType || isOwner) && (
+                <div className="p-4 bg-primary/5 rounded border border-primary/20">
+                  <p className="text-xs text-primary font-bold mb-1">원하는 상대 조건</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{hero.idealType || "-"}</p>
+                </div>
+              )}
+
+              {/* Contact Info - Owner always sees, others see after match */}
+              {hero.contactInfo && isOwner && (
+                <div className="p-4 bg-blue-500/5 rounded border border-blue-500/20">
+                  <p className="text-xs text-blue-500 font-bold mb-1">연락처 (매칭 후 공개)</p>
+                  <p className="text-sm text-foreground">{hero.contactInfo}</p>
+                </div>
+              )}
+              {hero.contactInfo && !isOwner && (hero.status === "talking" || hero.status === "taken") && (
+                <div className="p-4 bg-blue-500/5 rounded border border-blue-500/20">
+                  <p className="text-xs text-blue-500 font-bold mb-1">연락처</p>
+                  <p className="text-sm text-foreground">{hero.contactInfo}</p>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Profile Edit Form */
+            <div className="p-4 border border-primary/20 rounded-lg bg-primary/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-foreground">프로필 수정</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">이름 *</Label>
+                  <Input
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, name: e.target.value }))}
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">나이 *</Label>
+                  <Input
+                    type="number" min={18} max={99}
+                    value={profileForm.age}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, age: Number(e.target.value) }))}
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
                 </div>
               </div>
-            )}
-            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-              <Brain className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">MBTI</p>
-                <p className="text-sm font-semibold text-foreground">{hero.mbti || "-"}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded">
-              <Cigarette className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">흡연</p>
-                <p className="text-sm font-semibold text-foreground">{hero.smoking ? "O" : "X"}</p>
-              </div>
-            </div>
-          </div>
 
-          {/* Bio */}
-          {hero.bio && (
-            <div className="p-4 bg-muted/20 rounded border border-border/50">
-              <p className="text-xs text-muted-foreground font-bold mb-1">소개</p>
-              <p className="text-sm text-foreground whitespace-pre-wrap">&quot;{hero.bio}&quot;</p>
-            </div>
-          )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">거주지</Label>
+                  <Input
+                    value={profileForm.location}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, location: e.target.value }))}
+                    placeholder="예: 서울 강남"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">직업</Label>
+                  <Input
+                    value={profileForm.job}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, job: e.target.value }))}
+                    placeholder="예: 회사원"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+              </div>
 
-          {/* Ideal Type */}
-          {hero.idealType && (
-            <div className="p-4 bg-primary/5 rounded border border-primary/20">
-              <p className="text-xs text-primary font-bold mb-1">원하는 상대 조건</p>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{hero.idealType}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">학력</Label>
+                  <Input
+                    value={profileForm.education}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, education: e.target.value }))}
+                    placeholder="예: 대학교 졸업"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">키 (cm)</Label>
+                  <Input
+                    type="number" min={140} max={220}
+                    value={profileForm.height}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, height: e.target.value }))}
+                    placeholder="예: 175"
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">MBTI</Label>
+                  <Input
+                    value={profileForm.mbti}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, mbti: e.target.value.toUpperCase() }))}
+                    placeholder="예: ENFP"
+                    maxLength={4}
+                    className="bg-input border-border text-foreground h-9 text-sm"
+                  />
+                </div>
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                  <Label className="text-xs text-foreground">흡연 여부</Label>
+                  <Switch
+                    checked={profileForm.smoking}
+                    onCheckedChange={(checked) => setProfileForm((p) => ({ ...p, smoking: checked }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-foreground">소개글</Label>
+                <Textarea
+                  value={profileForm.bio}
+                  onChange={(e) => setProfileForm((p) => ({ ...p, bio: e.target.value }))}
+                  placeholder="간단한 자기소개를 작성하세요"
+                  className="bg-input border-border text-foreground text-sm"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-foreground">원하는 상대 조건</Label>
+                <Textarea
+                  value={profileForm.idealType}
+                  onChange={(e) => setProfileForm((p) => ({ ...p, idealType: e.target.value }))}
+                  placeholder="예: 성실하고 유머 감각 있는 분"
+                  className="bg-input border-border text-foreground text-sm"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-foreground">연락처 (매칭 후 공개)</Label>
+                <Input
+                  value={profileForm.contactInfo}
+                  onChange={(e) => setProfileForm((p) => ({ ...p, contactInfo: e.target.value }))}
+                  placeholder="예: 카카오톡 ID, 전화번호 등"
+                  className="bg-input border-border text-foreground h-9 text-sm"
+                />
+                <p className="text-xs text-muted-foreground">매칭이 성사된 후에만 상대방에게 공개됩니다.</p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditingProfile(false)} className="flex-1">
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-black font-bold"
+                >
+                  {isSavingProfile ? "저장 중..." : "저장"}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -651,8 +936,84 @@ export default function GalleryDetailPage() {
           )}
 
           {isOwner && (
-            <div className="text-center p-3 bg-muted/20 rounded border border-dashed border-border text-xs text-muted-foreground">
-              내가 등록한 매물입니다. 신청 내역은 매니저를 통해 확인해주세요.
+            <div className="space-y-3">
+              {hero.status === "available" && (
+                <Button
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                  onClick={async () => {
+                    const ok = await confirm({ title: "매물을 닫으시겠습니까?", description: "닫힌 매물은 더 이상 신청을 받지 않습니다.", variant: "destructive", confirmText: "닫기" })
+                    if (!ok) return
+                    try {
+                      await api.patch(`/blind-date/listings/${hero.id}`, { status: "CLOSED" })
+                      toast.success("매물이 닫혔습니다.")
+                      fetchHero(hero.id)
+                    } catch (error) {
+                      handleApiError(error, "매물 닫기에 실패했습니다.")
+                    }
+                  }}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  매물 닫기
+                </Button>
+              )}
+              <div className="text-center p-3 bg-muted/20 rounded border border-dashed border-border text-xs text-muted-foreground">
+                내가 등록한 매물입니다.
+              </div>
+            </div>
+          )}
+
+          {/* Owner: Request List */}
+          {isOwner && requests.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-foreground">소개팅 신청 목록 ({requests.length})</p>
+              <div className="space-y-2">
+                {requests.map((req) => {
+                  const statusConf2 = REQUEST_STATUS_CONFIG[req.status]
+                  return (
+                    <div key={req.id} className="p-3 border border-border/50 rounded-lg bg-muted/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">
+                            {req.requester?.nickname || req.requester?.username || "Unknown"}
+                          </span>
+                          <Badge className={cn("text-xs", statusConf2.color)}>{statusConf2.label}</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(req.createdAt).toLocaleDateString("ko-KR")}
+                        </span>
+                      </div>
+                      {req.message && (
+                        <p className="text-sm text-muted-foreground">{req.message}</p>
+                      )}
+                      {req.status === "PENDING" && (
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRejectRequest(req.id)}
+                          >
+                            거절
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                            onClick={() => handleApproveRequest(req.id)}
+                          >
+                            승인
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {isOwner && !requestsLoading && requests.length === 0 && (
+            <div className="text-center p-3 text-xs text-muted-foreground">
+              아직 신청이 없습니다.
             </div>
           )}
 
