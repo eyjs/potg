@@ -15,6 +15,7 @@ import { Coins, Clock, AlertCircle, Plus, TrendingUp, History, Lock, Pencil, Tim
 import { Badge } from "@/common/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/common/components/ui/switch"
 import Link from "next/link"
 
 interface BettingQuestion {
@@ -53,6 +54,7 @@ export default function BettingPage() {
     bettingDeadline: ""
   })
   const [countdowns, setCountdowns] = useState<Record<string, string>>({})
+  const [showFinished, setShowFinished] = useState(false)
 
   useEffect(() => {
     fetchQuestions()
@@ -362,8 +364,25 @@ export default function BettingPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {questions.map((q) => (
+            <div className="space-y-4">
+              {/* 종료 베팅 토글 */}
+              {questions.some((q) => q.status !== "OPEN") && (
+                <div className="flex items-center justify-end gap-2">
+                  <label htmlFor="show-finished" className="text-xs text-muted-foreground font-bold cursor-pointer select-none">
+                    종료된 베팅 보기 ({questions.filter((q) => q.status !== "OPEN").length})
+                  </label>
+                  <Switch
+                    id="show-finished"
+                    checked={showFinished}
+                    onCheckedChange={setShowFinished}
+                  />
+                </div>
+              )}
+
+              <div className="grid gap-6 md:grid-cols-2">
+              {questions
+                .filter((q) => q.status === "OPEN" || showFinished)
+                .map((q) => (
                 <Card key={q.id} className="bg-card border-border overflow-hidden">
                   <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
                     <div className="flex justify-between items-start mb-2">
@@ -467,6 +486,14 @@ export default function BettingPage() {
                   </CardContent>
                 </Card>
               ))}
+              </div>
+
+              {/* 진행 중인 베팅이 없을 때 */}
+              {questions.filter((q) => q.status === "OPEN").length === 0 && (
+                <div className="bg-card border border-border border-dashed p-8 text-center rounded-lg">
+                  <p className="text-muted-foreground text-sm">현재 진행 중인 베팅이 없습니다.</p>
+                </div>
+              )}
             </div>
           )}
         </main>
