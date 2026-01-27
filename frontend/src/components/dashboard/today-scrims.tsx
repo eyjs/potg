@@ -22,7 +22,7 @@ interface Scrim {
 interface TodayScrimsProps {
   scrims: Scrim[]
   canManage?: boolean
-  onCreateScrim?: (scrim: { title: string; scheduledDate: string }) => void
+  onCreateScrim?: (scrim: { title: string; scheduledDate: string; signupDeadline?: string }) => void
 }
 
 export function TodayScrims({ scrims, canManage, onCreateScrim }: TodayScrimsProps) {

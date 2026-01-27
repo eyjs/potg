@@ -28,6 +28,8 @@ export class ScrimsService {
     private participantsRepository: Repository<ScrimParticipant>,
     @InjectRepository(ScrimMatch)
     private matchRepository: Repository<ScrimMatch>,
+    @InjectRepository(ClanMember)
+    private clanMemberRepository: Repository<ClanMember>,
     private dataSource: DataSource,
   ) {}
 
@@ -269,6 +271,13 @@ export class ScrimsService {
     if (scrim.status !== ScrimStatus.DRAFT)
       throw new BadRequestException('Can only join scrims in DRAFT status');
 
+    if (scrim.clanId) {
+      const membership = await this.clanMemberRepository.findOne({
+        where: { userId, clanId: scrim.clanId },
+      });
+      if (!membership) throw new BadRequestException('Not a member of this clan');
+    }
+
     if (scrim.signupDeadline && new Date() > new Date(scrim.signupDeadline)) {
       throw new BadRequestException('Signup deadline has passed');
     }
@@ -276,7 +285,15 @@ export class ScrimsService {
     const existing = await this.participantsRepository.findOne({
       where: { scrimId, userId },
     });
-    if (existing) throw new BadRequestException('Already joined this scrim');
+    if (existing) {
+      if (existing.status === ParticipantStatus.REMOVED || existing.status === ParticipantStatus.DECLINED) {
+        existing.status = ParticipantStatus.CONFIRMED;
+        existing.source = ParticipantSource.SIGNUP;
+        existing.assignedTeam = AssignedTeam.UNASSIGNED;
+        return this.participantsRepository.save(existing);
+      }
+      throw new BadRequestException('Already joined this scrim');
+    }
 
     const participant = this.participantsRepository.create({
       scrimId,

@@ -67,7 +67,8 @@ export default function ScrimDetailPage() {
       })
 
       const participants = data.participants || []
-      setParticipantUserIds(participants.map((p: any) => p.userId))
+      const activeParticipants = participants.filter((p: any) => p.status !== 'REMOVED' && p.status !== 'DECLINED')
+      setParticipantUserIds(activeParticipants.map((p: any) => p.userId))
       setPool(participants.filter((p: any) => p.assignedTeam === 'UNASSIGNED').map((p: any) => ({
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || "선수",
