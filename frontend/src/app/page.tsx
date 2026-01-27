@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { PenaltyTracker } from "@/modules/user/components/penalty-tracker"
 import { TodayScrims } from "@/components/dashboard/today-scrims"
 import { Announcements } from "@/components/dashboard/announcements"
 import { HallOfFame } from "@/components/dashboard/hall-of-fame"
@@ -201,9 +200,6 @@ export default function DashboardPage() {
 
           {/* Sidebar - 1/3 width */}
           <div className="space-y-6">
-            {/* Penalty Tracker */}
-            <PenaltyTracker users={[]} />
-
             {/* Hall of Fame & Donors & Wanted */}
             <HallOfFame
               entries={hallOfFame}
