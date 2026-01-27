@@ -1,18 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Trophy, DollarSign, AlertTriangle, Plus, Trash2, Crosshair } from "lucide-react"
-import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
+import { Trophy, DollarSign, Plus, Trash2, Crosshair } from "lucide-react"
+import { Card, CardContent } from "@/common/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
 import { Button } from "@/common/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/common/components/ui/dialog"
 import {
   Select,
@@ -57,14 +55,13 @@ interface HallOfFameProps {
 }
 
 const RANK_STYLES = [
-  "bg-yellow-500 text-yellow-950",   // 1st - Gold
-  "bg-gray-400 text-gray-950",       // 2nd - Silver
-  "bg-amber-600 text-amber-950",     // 3rd - Bronze
+  "bg-yellow-500 text-yellow-950",
+  "bg-gray-400 text-gray-950",
+  "bg-amber-600 text-amber-950",
 ]
 
 export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: HallOfFameProps) {
-  const [activeTab, setActiveTab] = useState<HallOfFameType>("MVP")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogType, setDialogType] = useState<"DONOR" | "WANTED" | null>(null)
   const [clanMembers, setClanMembers] = useState<ClanMember[]>([])
   const [selectedMemberId, setSelectedMemberId] = useState("")
   const [amount, setAmount] = useState("")
@@ -72,7 +69,7 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (isDialogOpen && clanId && clanMembers.length === 0) {
+    if (dialogType && clanId && clanMembers.length === 0) {
       api.get(`/clans/${clanId}/members`)
         .then((res) => {
           const data = Array.isArray(res.data) ? res.data : []
@@ -85,19 +82,19 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
         })
         .catch(console.error)
     }
-  }, [isDialogOpen, clanId, clanMembers.length])
+  }, [dialogType, clanId, clanMembers.length])
 
   const mvpEntries = entries.filter((e) => e.type === "MVP")
   const donorEntries = entries.filter((e) => e.type === "DONOR").sort((a, b) => b.amount - a.amount)
   const wantedEntries = entries.filter((e) => e.type === "WANTED")
 
   const handleCreate = async () => {
-    if (!clanId || !selectedMemberId) {
+    if (!clanId || !selectedMemberId || !dialogType) {
       toast.error("클랜원을 선택해주세요")
       return
     }
 
-    if (activeTab === "DONOR" && (!amount || Number(amount) <= 0)) {
+    if (dialogType === "DONOR" && (!amount || Number(amount) <= 0)) {
       toast.error("기부 금액을 입력해주세요")
       return
     }
@@ -106,17 +103,17 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
     try {
       const selectedMember = clanMembers.find((m) => m.id === selectedMemberId)
       const battleTag = selectedMember?.battleTag || "Unknown"
-      const title = activeTab === "DONOR" ? `${battleTag} 기부` : `${battleTag} 수배`
+      const title = dialogType === "DONOR" ? `${battleTag} 기부` : `${battleTag} 수배`
 
       await api.post(`/clans/${clanId}/hall-of-fame`, {
-        type: activeTab,
+        type: dialogType,
         userId: selectedMemberId,
         title,
-        amount: activeTab === "DONOR" ? Number(amount) : 0,
+        amount: dialogType === "DONOR" ? Number(amount) : 0,
         description: reason || undefined,
       })
       toast.success("등록되었습니다")
-      setIsDialogOpen(false)
+      setDialogType(null)
       resetForm()
       onRefresh?.()
     } catch {
@@ -127,9 +124,9 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return
+    if (!clanId || !confirm("정말 삭제하시겠습니까?")) return
     try {
-      await api.post(`/clans/hall-of-fame/${id}/delete`)
+      await api.post(`/clans/${clanId}/hall-of-fame/${id}/delete`)
       toast.success("삭제되었습니다")
       onRefresh?.()
     } catch {
@@ -173,21 +170,11 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
 
     if (list.length === 0) {
       return (
-        <div className="py-10 text-center">
-          <div className={cn(
-            "inline-flex p-4 rounded-full mb-3",
-            isWanted ? "bg-destructive/10" : "bg-muted/50"
-          )}>
-            {type === "MVP" && <Trophy className="w-6 h-6 text-muted-foreground" />}
-            {type === "DONOR" && <DollarSign className="w-6 h-6 text-muted-foreground" />}
-            {type === "WANTED" && <Crosshair className="w-6 h-6 text-destructive/50" />}
-          </div>
-          <p className="text-sm text-muted-foreground font-bold">
-            {type === "MVP" && "이번 달 MVP를 집계중입니다"}
-            {type === "DONOR" && "등록된 기부자가 없습니다"}
-            {type === "WANTED" && "현상수배 대상이 없습니다"}
-          </p>
-        </div>
+        <p className="py-4 text-center text-xs text-muted-foreground">
+          {type === "MVP" && "이번 달 MVP를 집계중입니다"}
+          {type === "DONOR" && "등록된 기부자가 없습니다"}
+          {type === "WANTED" && "현상수배 대상이 없습니다"}
+        </p>
       )
     }
 
@@ -264,26 +251,79 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
     )
   }
 
-  const renderCreateDialog = (type: "DONOR" | "WANTED") => {
-    const isWanted = type === "WANTED"
+  const isWanted = dialogType === "WANTED"
 
-    return (
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            size="sm"
-            className={cn(
-              "w-full h-9 font-bold text-xs",
-              isWanted
-                ? "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
-                : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-            )}
-            variant="outline"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            {isWanted ? "현상수배 등록" : "기부자 등록"}
-          </Button>
-        </DialogTrigger>
+  return (
+    <>
+      <div className="space-y-4">
+        {/* MVP Section */}
+        <Card className="border border-border/50 bg-card overflow-hidden">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-yellow-500/20 flex items-center justify-center">
+                <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-tight text-foreground">MVP</h3>
+            </div>
+            {renderEntries(mvpEntries, "MVP")}
+          </CardContent>
+        </Card>
+
+        {/* Donor Section */}
+        <Card className="border border-border/50 bg-card overflow-hidden">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center">
+                  <DollarSign className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-tight text-foreground">기부자</h3>
+              </div>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-primary hover:bg-primary/10"
+                  onClick={() => { resetForm(); setDialogType("DONOR") }}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  등록
+                </Button>
+              )}
+            </div>
+            {renderEntries(donorEntries, "DONOR")}
+          </CardContent>
+        </Card>
+
+        {/* Wanted Section */}
+        <Card className="border border-destructive/20 bg-card overflow-hidden">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-destructive/20 flex items-center justify-center">
+                  <Crosshair className="w-3.5 h-3.5 text-destructive" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-tight text-destructive">현상수배</h3>
+              </div>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                  onClick={() => { resetForm(); setDialogType("WANTED") }}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  등록
+                </Button>
+              )}
+            </div>
+            {renderEntries(wantedEntries, "WANTED")}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Create Dialog */}
+      <Dialog open={dialogType !== null} onOpenChange={(open) => { if (!open) setDialogType(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
@@ -363,48 +403,6 @@ export function HallOfFame({ entries, clanId, canManage = false, onRefresh }: Ha
           </div>
         </DialogContent>
       </Dialog>
-    )
-  }
-
-  return (
-    <Card className="border border-border/50 bg-card overflow-hidden">
-      <CardHeader className="pb-0 pt-4 px-4">
-        <h2 className="text-base font-black italic uppercase tracking-tighter text-foreground flex items-center gap-2">
-          <div className="w-7 h-7 rounded bg-primary/10 flex items-center justify-center">
-            <Trophy className="w-4 h-4 text-primary" />
-          </div>
-          명예의 <span className="text-primary">전당</span>
-        </h2>
-      </CardHeader>
-      <CardContent className="p-4 pt-3">
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as HallOfFameType); resetForm() }}>
-          <TabsList className="grid w-full grid-cols-3 h-9 bg-muted/30 mb-3">
-            <TabsTrigger value="MVP" className="text-xs font-black gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Trophy className="w-3.5 h-3.5" /> MVP
-            </TabsTrigger>
-            <TabsTrigger value="DONOR" className="text-xs font-black gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <DollarSign className="w-3.5 h-3.5" /> 기부
-            </TabsTrigger>
-            <TabsTrigger value="WANTED" className="text-xs font-black gap-1.5 data-[state=active]:bg-destructive data-[state=active]:text-white">
-              <Crosshair className="w-3.5 h-3.5" /> 현상수배
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="MVP" className="mt-0">
-            {renderEntries(mvpEntries, "MVP")}
-          </TabsContent>
-
-          <TabsContent value="DONOR" className="mt-0 space-y-3">
-            {renderEntries(donorEntries, "DONOR")}
-            {canManage && renderCreateDialog("DONOR")}
-          </TabsContent>
-
-          <TabsContent value="WANTED" className="mt-0 space-y-3">
-            {renderEntries(wantedEntries, "WANTED")}
-            {canManage && renderCreateDialog("WANTED")}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+    </>
   )
 }
