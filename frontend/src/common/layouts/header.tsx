@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, Shield, LogIn, LogOut, User } from "lucide-react"
+import { Menu, Shield, LogIn, LogOut, User, Settings } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -80,6 +80,14 @@ export function Header() {
                     내 정보
                   </DropdownMenuItem>
                 </Link>
+                {user.clanId && (
+                  <Link href="/clan/manage">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      클랜 관리
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={logout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   로그아웃

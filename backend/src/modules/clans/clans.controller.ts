@@ -22,6 +22,8 @@ import { ClanRoles } from '../../common/decorators/clan-roles.decorator';
 export class ClansController {
   constructor(private readonly clansService: ClansService) {}
 
+  // ========== 정적 라우트 (파라미터 라우트보다 먼저 선언) ==========
+
   @UseGuards(AuthGuard('jwt'))
   @Post()
   create(
@@ -36,134 +38,8 @@ export class ClansController {
     return this.clansService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.clansService.findOne(id);
-  }
-
-    @UseGuards(AuthGuard('jwt'))
-
-    @Post(':id/join')
-
-    join(@Param('id') id: string, @Request() req: AuthenticatedRequest, @Body('message') message?: string) {
-
-      // Now creates a request instead of direct join
-
-      return this.clansService.requestJoin(id, req.user.userId, message);
-
-    }
-
-  
-
-      @UseGuards(AuthGuard('jwt'))
-
-  
-
-      @Get('requests/me')
-
-  
-
-      getMyRequest(@Request() req: AuthenticatedRequest) {
-
-  
-
-        return this.clansService.getMyPendingRequest(req.user.userId);
-
-  
-
-      }
-
-  
-
-    
-
-  
-
-      @UseGuards(AuthGuard('jwt'))
-
-  
-
-      @Get(':id/requests')
-
-  
-
-      getClanRequests(@Param('id') id: string) {
-
-  
-
-        return this.clansService.getClanRequests(id);
-
-  
-
-      }
-
-  
-
-    
-
-  
-
-      @UseGuards(AuthGuard('jwt'))
-
-  
-
-      @Post('requests/:requestId/approve')
-
-  
-
-      approveRequest(@Param('requestId') id: string, @Request() req: AuthenticatedRequest) {
-
-  
-
-        return this.clansService.approveRequest(id, req.user.userId);
-
-  
-
-      }
-
-  
-
-    
-
-  
-
-      @UseGuards(AuthGuard('jwt'))
-
-  
-
-      @Post('requests/:requestId/reject')
-
-  
-
-      rejectRequest(@Param('requestId') id: string) {
-
-  
-
-        return this.clansService.rejectRequest(id);
-
-  
-
-      }
-
-  
-
-    
-
-  
-
-      @UseGuards(AuthGuard('jwt'))
-
-  
-
-      @Post('leave')
-
-  
-
-    
-
-   // Using POST for action, or DELETE if preferred. Let's stick to POST for 'leave action' or DELETE on resource.
-  // Actually DELETE /clans/membership makes sense, but context is user's membership.
-  // Let's use DELETE /clans/leave for simplicity
+  @UseGuards(AuthGuard('jwt'))
+  @Post('leave')
   leave(@Request() req: AuthenticatedRequest) {
     return this.clansService.leaveClan(req.user.userId);
   }
@@ -173,6 +49,91 @@ export class ClansController {
   @Get('membership/me')
   getMyMembership(@Request() req: AuthenticatedRequest) {
     return this.clansService.getMyMembership(req.user.userId);
+  }
+
+  // 내 가입 신청 조회
+  @UseGuards(AuthGuard('jwt'))
+  @Get('requests/me')
+  getMyRequest(@Request() req: AuthenticatedRequest) {
+    return this.clansService.getMyPendingRequest(req.user.userId);
+  }
+
+  // 가입 신청 승인
+  @UseGuards(AuthGuard('jwt'))
+  @Post('requests/:requestId/approve')
+  approveRequest(
+    @Param('requestId') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.approveRequest(id, req.user.userId);
+  }
+
+  // 가입 신청 거절
+  @UseGuards(AuthGuard('jwt'))
+  @Post('requests/:requestId/reject')
+  rejectRequest(
+    @Param('requestId') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.rejectRequest(id, req.user.userId);
+  }
+
+  // 공지사항 수정 (정적 prefix)
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('announcements/:announcementId')
+  updateAnnouncement(
+    @Param('announcementId') announcementId: string,
+    @Body() data: { title?: string; content?: string; isPinned?: boolean },
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.updateAnnouncement(announcementId, data, req.user.userId);
+  }
+
+  // 공지사항 삭제 (정적 prefix)
+  @UseGuards(AuthGuard('jwt'))
+  @Post('announcements/:announcementId/delete')
+  deleteAnnouncement(
+    @Param('announcementId') announcementId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.deleteAnnouncement(announcementId, req.user.userId);
+  }
+
+  // ========== 파라미터 라우트 (:id, :clanId) ==========
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.clansService.findOne(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id')
+  updateClan(
+    @Param('id') id: string,
+    @Body() data: { name?: string; description?: string },
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.updateClan(id, data, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/join')
+  join(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+    @Body('message') message?: string,
+  ) {
+    return this.clansService.requestJoin(id, req.user.userId, message);
+  }
+
+  // 클랜 가입 신청 목록 조회
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id/requests')
+  getClanRequests(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.getClanRequests(id, req.user.userId);
   }
 
   // 클랜 멤버 목록 조회
@@ -232,25 +193,6 @@ export class ClansController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.clansService.createAnnouncement(clanId, req.user.userId, data);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Patch('announcements/:announcementId')
-  updateAnnouncement(
-    @Param('announcementId') announcementId: string,
-    @Body() data: { title?: string; content?: string; isPinned?: boolean },
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return this.clansService.updateAnnouncement(announcementId, data, req.user.userId);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post('announcements/:announcementId/delete')
-  deleteAnnouncement(
-    @Param('announcementId') announcementId: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return this.clansService.deleteAnnouncement(announcementId, req.user.userId);
   }
 
   // ========== 명예의전당/기부자/현상수배 API ==========

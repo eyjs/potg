@@ -71,7 +71,14 @@ export class ClansService {
     });
   }
 
-  async getClanRequests(clanId: string) {
+  async getClanRequests(clanId: string, userId: string) {
+    const member = await this.clanMembersRepository.findOne({
+      where: { clanId, userId },
+    });
+    if (!member || member.role === ClanRole.MEMBER) {
+      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 조회할 수 있습니다.');
+    }
+
     return this.joinRequestsRepository.find({
       where: { clanId, status: RequestStatus.PENDING },
       relations: ['user'],
@@ -79,24 +86,40 @@ export class ClansService {
   }
 
   async approveRequest(requestId: string, adminId: string) {
-    const request = await this.joinRequestsRepository.findOne({ where: { id: requestId }, relations: ['clan'] });
+    const request = await this.joinRequestsRepository.findOne({
+      where: { id: requestId },
+      relations: ['clan'],
+    });
     if (!request) throw new BadRequestException('Request not found');
 
-    // Check admin rights (simplified: check if admin is in same clan as MASTER/MANAGER)
-    // In real app, check role.
-    
+    const admin = await this.clanMembersRepository.findOne({
+      where: { clanId: request.clanId, userId: adminId },
+    });
+    if (!admin || admin.role === ClanRole.MEMBER) {
+      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 승인할 수 있습니다.');
+    }
+
     request.status = RequestStatus.APPROVED;
     await this.joinRequestsRepository.save(request);
 
-    // Add to member
     await this.addMember(request.clanId, request.userId);
-    
+
     return request;
   }
 
-  async rejectRequest(requestId: string) {
-    const request = await this.joinRequestsRepository.findOne({ where: { id: requestId } });
+  async rejectRequest(requestId: string, userId: string) {
+    const request = await this.joinRequestsRepository.findOne({
+      where: { id: requestId },
+    });
     if (!request) throw new BadRequestException('Request not found');
+
+    const admin = await this.clanMembersRepository.findOne({
+      where: { clanId: request.clanId, userId },
+    });
+    if (!admin || admin.role === ClanRole.MEMBER) {
+      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 거절할 수 있습니다.');
+    }
+
     request.status = RequestStatus.REJECTED;
     return this.joinRequestsRepository.save(request);
   }
@@ -110,6 +133,37 @@ export class ClansService {
       where: { id },
       relations: ['members', 'members.user'],
     });
+  }
+
+  async updateClan(
+    id: string,
+    data: { name?: string; description?: string },
+    userId: string,
+  ) {
+    const member = await this.clanMembersRepository.findOne({
+      where: { clanId: id, userId },
+    });
+    if (!member || member.role !== ClanRole.MASTER) {
+      throw new ForbiddenException('클랜 마스터만 클랜 정보를 수정할 수 있습니다.');
+    }
+
+    const clan = await this.clansRepository.findOne({ where: { id } });
+    if (!clan) {
+      throw new BadRequestException('클랜을 찾을 수 없습니다.');
+    }
+
+    if (data.name !== undefined) {
+      const existing = await this.clansRepository.findOne({
+        where: { name: data.name },
+      });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('이미 사용 중인 클랜명입니다.');
+      }
+      clan.name = data.name;
+    }
+    if (data.description !== undefined) clan.description = data.description;
+
+    return this.clansRepository.save(clan);
   }
 
   async addMember(clanId: string, userId: string) {
