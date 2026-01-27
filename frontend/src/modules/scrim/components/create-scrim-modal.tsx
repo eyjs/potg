@@ -10,20 +10,26 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 
 interface CreateScrimModalProps {
-  onCreateScrim: (scrim: { title: string; scheduledDate: string }) => void
+  onCreateScrim: (scrim: { title: string; scheduledDate: string; signupDeadline?: string }) => void
 }
 
 export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [scheduledDate, setScheduledDate] = useState("")
+  const [signupDeadline, setSignupDeadline] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (title && scheduledDate) {
-      onCreateScrim({ title, scheduledDate })
+      onCreateScrim({
+        title,
+        scheduledDate,
+        ...(signupDeadline ? { signupDeadline } : {}),
+      })
       setTitle("")
       setScheduledDate("")
+      setSignupDeadline("")
       setOpen(false)
     }
   }
@@ -68,6 +74,18 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
               onChange={(e) => setScheduledDate(e.target.value)}
               className="bg-input border-border text-foreground"
               required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scrim-deadline" className="text-foreground font-semibold">
+              신청 마감시간 (선택)
+            </Label>
+            <Input
+              id="scrim-deadline"
+              type="datetime-local"
+              value={signupDeadline}
+              onChange={(e) => setSignupDeadline(e.target.value)}
+              className="bg-input border-border text-foreground"
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">

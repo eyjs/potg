@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { Header } from "@/common/layouts/header"
 import { ScrimHeader } from "@/modules/scrim/components/scrim-header"
 import { RosterSection } from "@/modules/scrim/components/roster-section"
+import { SignupCountdown } from "@/modules/scrim/components/signup-countdown"
 import { MatchList } from "@/modules/scrim/components/match-list"
 import api from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
@@ -48,6 +49,7 @@ export default function ScrimDetailPage() {
   const [teamB, setTeamB] = useState<any[]>([])
   const [matches, setMatches] = useState<Match[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [participantUserIds, setParticipantUserIds] = useState<string[]>([])
 
   const fetchScrimData = useCallback(async () => {
     try {
@@ -61,9 +63,11 @@ export default function ScrimDetailPage() {
         startTime: data.scheduledDate ? new Date(data.scheduledDate).toLocaleTimeString() : "",
         endTime: "",
         auctionId: data.auctionId,
+        signupDeadline: data.signupDeadline || null,
       })
 
       const participants = data.participants || []
+      setParticipantUserIds(participants.map((p: any) => p.userId))
       setPool(participants.filter((p: any) => p.assignedTeam === 'UNASSIGNED').map((p: any) => ({
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || "선수",
@@ -99,6 +103,30 @@ export default function ScrimDetailPage() {
   useEffect(() => {
     fetchScrimData()
   }, [fetchScrimData])
+
+  const isJoined = user ? participantUserIds.includes(user.id) : false
+
+  const handleJoinScrim = async () => {
+    try {
+      await api.post(`/scrims/${scrimId}/join`)
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to join scrim:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "참가 신청에 실패했습니다.")
+    }
+  }
+
+  const handleLeaveScrim = async () => {
+    try {
+      await api.post(`/scrims/${scrimId}/leave`)
+      fetchScrimData()
+    } catch (error: unknown) {
+      console.error("Failed to leave scrim:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message || "참가 취소에 실패했습니다.")
+    }
+  }
 
   const handleUpdateSchedule = async (date: string, startTime: string, endTime: string) => {
     try {
@@ -232,6 +260,16 @@ export default function ScrimDetailPage() {
 
         <main className="container px-4 py-6 space-y-6">
           <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
+
+          {scrim?.status === "draft" && scrim?.signupDeadline && (
+            <SignupCountdown
+              deadline={scrim.signupDeadline}
+              participantCount={participantUserIds.length}
+              isJoined={isJoined}
+              onJoin={handleJoinScrim}
+              onLeave={handleLeaveScrim}
+            />
+          )}
 
           <RosterSection
             teamA={teamA}

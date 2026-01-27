@@ -79,6 +79,24 @@ export class ScrimsController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Post(':id/join')
+  joinScrim(
+    @Param('id') scrimId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.scrimsService.joinScrim(scrimId, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/leave')
+  leaveScrim(
+    @Param('id') scrimId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.scrimsService.leaveScrim(scrimId, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/import-auction')
   importFromAuction(@Param('id') scrimId: string) {
     return this.scrimsService.importAuctionParticipants(scrimId);

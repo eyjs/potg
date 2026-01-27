@@ -33,6 +33,10 @@ export class CreateScrimDto {
   @IsOptional()
   @IsDateString()
   scheduledDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  signupDeadline?: string;
 }
 
 export class UpdateScrimDto {
@@ -47,6 +51,10 @@ export class UpdateScrimDto {
   @IsOptional()
   @IsDateString()
   scheduledDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  signupDeadline?: string;
 
   @IsOptional()
   teamSnapshot?: any;

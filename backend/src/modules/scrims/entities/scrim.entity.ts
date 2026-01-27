@@ -47,6 +47,9 @@ export class Scrim extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true })
   scheduledDate: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  signupDeadline: Date;
+
   @Column({ type: 'jsonb', nullable: true })
   teamSnapshot: any;
 

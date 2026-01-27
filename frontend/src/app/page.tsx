@@ -96,13 +96,14 @@ export default function DashboardPage() {
   // Check if user can manage (admin, master, or manager)
   const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
 
-  const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string }) => {
+  const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string; signupDeadline?: string }) => {
     try {
       await api.post('/scrims', {
         clanId: user?.clanId,
         title: scrimData.title,
         scheduledDate: new Date(scrimData.scheduledDate).toISOString(),
         recruitmentType: 'MANUAL',
+        ...(scrimData.signupDeadline ? { signupDeadline: new Date(scrimData.signupDeadline).toISOString() } : {}),
       })
       toast.success("내전이 생성되었습니다.")
       fetchDashboardData()

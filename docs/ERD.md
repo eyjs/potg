@@ -104,6 +104,7 @@ erDiagram
         enum recruitmentType "VOTE, AUCTION, MANUAL"
         uuid hostId FK
         timestamp scheduledDate "Nullable"
+        timestamp signupDeadline "Nullable - 참가 신청 마감시간"
         jsonb teamSnapshot "Nullable"
         int teamAScore "default: 0"
         int teamBScore "default: 0"
@@ -115,7 +116,7 @@ erDiagram
         uuid id PK
         uuid scrimId FK
         uuid userId FK
-        enum source "VOTE, AUCTION, MANUAL"
+        enum source "VOTE, AUCTION, MANUAL, SIGNUP"
         enum status "PENDING, CONFIRMED, BENCH, DECLINED, REMOVED"
         enum assignedTeam "TEAM_A, TEAM_B, BENCH, UNASSIGNED"
         timestamp created_at

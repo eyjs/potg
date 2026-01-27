@@ -11,6 +11,7 @@ interface Scrim {
   id: string
   title: string
   scheduledDate: string
+  signupDeadline?: string
   status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED"
   recruitmentType: "VOTE" | "AUCTION" | "MANUAL"
   teamAScore: number
@@ -52,6 +53,15 @@ export function TodayScrims({ scrims, canManage, onCreateScrim }: TodayScrimsPro
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr)
     return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const getDeadlineLabel = (deadline: string) => {
+    const diff = new Date(deadline).getTime() - Date.now()
+    if (diff <= 0) return "신청 마감"
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    if (hours > 0) return `신청중 · ${hours}시간 ${minutes}분 후 마감`
+    return `신청중 · ${minutes}분 후 마감`
   }
 
   return (
@@ -105,10 +115,15 @@ export function TodayScrims({ scrims, canManage, onCreateScrim }: TodayScrimsPro
                           <Clock className="w-3 h-3" />
                           {formatTime(scrim.scheduledDate)}
                         </span>
-                        {scrim.participantsCount && (
+                        {scrim.participantsCount != null && scrim.participantsCount > 0 && (
                           <span className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
                             {scrim.participantsCount}명
+                          </span>
+                        )}
+                        {scrim.status === "DRAFT" && scrim.signupDeadline && (
+                          <span className="text-primary font-semibold">
+                            {getDeadlineLabel(scrim.signupDeadline)}
                           </span>
                         )}
                       </div>

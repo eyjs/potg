@@ -7,6 +7,7 @@ export enum ParticipantSource {
   VOTE = 'VOTE',
   AUCTION = 'AUCTION',
   MANUAL = 'MANUAL',
+  SIGNUP = 'SIGNUP',
 }
 
 export enum ParticipantStatus {

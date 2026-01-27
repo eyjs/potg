@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between } from 'typeorm';
 import { Scrim, ScrimStatus } from './entities/scrim.entity';
@@ -258,6 +258,53 @@ export class ScrimsService {
 
     participant.status = ParticipantStatus.REMOVED;
     return this.participantsRepository.save(participant);
+  }
+
+  // Self-signup: user joins a scrim
+  async joinScrim(scrimId: string, userId: string) {
+    const scrim = await this.scrimsRepository.findOne({
+      where: { id: scrimId },
+    });
+    if (!scrim) throw new NotFoundException('Scrim not found');
+    if (scrim.status !== ScrimStatus.DRAFT)
+      throw new BadRequestException('Can only join scrims in DRAFT status');
+
+    if (scrim.signupDeadline && new Date() > new Date(scrim.signupDeadline)) {
+      throw new BadRequestException('Signup deadline has passed');
+    }
+
+    const existing = await this.participantsRepository.findOne({
+      where: { scrimId, userId },
+    });
+    if (existing) throw new BadRequestException('Already joined this scrim');
+
+    const participant = this.participantsRepository.create({
+      scrimId,
+      userId,
+      source: ParticipantSource.SIGNUP,
+      status: ParticipantStatus.CONFIRMED,
+      assignedTeam: AssignedTeam.UNASSIGNED,
+    });
+
+    return this.participantsRepository.save(participant);
+  }
+
+  // Self-leave: user leaves a scrim
+  async leaveScrim(scrimId: string, userId: string) {
+    const scrim = await this.scrimsRepository.findOne({
+      where: { id: scrimId },
+    });
+    if (!scrim) throw new NotFoundException('Scrim not found');
+    if (scrim.status !== ScrimStatus.DRAFT)
+      throw new BadRequestException('Can only leave scrims in DRAFT status');
+
+    const participant = await this.participantsRepository.findOne({
+      where: { scrimId, userId },
+    });
+    if (!participant) throw new BadRequestException('Not a participant');
+
+    await this.participantsRepository.remove(participant);
+    return { message: 'Left scrim successfully' };
   }
 
   // Import participants from linked auction
