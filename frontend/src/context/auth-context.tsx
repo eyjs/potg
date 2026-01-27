@@ -13,6 +13,7 @@ interface User {
   rating: number;
   avatarUrl?: string;
   clanId?: string;
+  clanRole?: 'MASTER' | 'MANAGER' | 'MEMBER';
   bettingFloatingEnabled: boolean;
   totalPoints: number;
   lockedPoints: number;

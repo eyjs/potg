@@ -222,19 +222,21 @@ export default function MyInfoPage() {
                       <div className="p-3 bg-muted/20 rounded-md border border-border/50">
                         <p className="text-lg font-black italic text-foreground mb-1">{clanDetails.name as string}</p>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-                          멤버 {(clanDetails.members as unknown[])?.length || 0}명 · 마스터 {(clanDetails.owner as Record<string, unknown>)?.nickname as string || (clanDetails.owner as Record<string, unknown>)?.username as string || "미지정"}
+                          멤버 {(clanDetails.members as unknown[])?.length || 0}명 · 마스터 {
+                            ((clanDetails.members as Record<string, unknown>[])?.find((m) => m.role === 'MASTER')?.user as Record<string, unknown>)?.battleTag as string || "미지정"
+                          }
                         </p>
                       </div>
 
                       <div className="space-y-1">
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">운영진</p>
                         <div className="flex flex-wrap gap-1">
-                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'ADMIN' || m.role === 'OWNER').slice(0, 3).map((m) => (
+                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'MASTER' || m.role === 'MANAGER').slice(0, 3).map((m) => (
                             <Badge key={m.id as string} variant="outline" className="text-[10px] border-primary/30 text-primary">
-                              {(m.user as Record<string, unknown>)?.nickname as string || (m.user as Record<string, unknown>)?.username as string}
+                              {(m.user as Record<string, unknown>)?.battleTag as string}
                             </Badge>
                           ))}
-                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'ADMIN' || m.role === 'OWNER').length > 3 && (
+                          {(clanDetails.members as Record<string, unknown>[])?.filter((m) => m.role === 'MASTER' || m.role === 'MANAGER').length > 3 && (
                             <span className="text-[10px] text-muted-foreground">...</span>
                           )}
                         </div>
@@ -242,7 +244,7 @@ export default function MyInfoPage() {
 
                       <div className="flex items-center justify-between pt-2">
                         <span className="text-xs text-muted-foreground uppercase font-bold">내 권한</span>
-                        <span className="text-xs font-bold text-primary italic uppercase">{user?.role}</span>
+                        <span className="text-xs font-bold text-primary italic uppercase">{user?.clanRole || "MEMBER"}</span>
                       </div>
                       <Button
                         variant="destructive"
