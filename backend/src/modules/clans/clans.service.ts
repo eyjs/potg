@@ -6,6 +6,7 @@ import { ClanMember, ClanRole } from './entities/clan-member.entity';
 import { ClanJoinRequest, RequestStatus } from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class ClansService {
@@ -20,6 +21,8 @@ export class ClansService {
     private announcementsRepository: Repository<Announcement>,
     @InjectRepository(HallOfFame)
     private hallOfFameRepository: Repository<HallOfFame>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async create(createClanDto: Partial<Clan>, userId: string) {
@@ -248,29 +251,43 @@ export class ClansService {
     return this.clanMembersRepository.save(target);
   }
 
-  // 마스터 권한 양도
-  async transferMaster(clanId: string, newMasterId: string, currentMasterId: string) {
-    // 현재 마스터 확인
-    const currentMaster = await this.clanMembersRepository.findOne({
-      where: { clanId, userId: currentMasterId },
+  // 마스터 권한 양도 (마스터 본인 또는 시스템 ADMIN)
+  async transferMaster(clanId: string, newMasterId: string, requesterId: string) {
+    const requester = await this.usersRepository.findOne({
+      where: { id: requesterId },
     });
-    if (!currentMaster || currentMaster.role !== ClanRole.MASTER) {
-      throw new BadRequestException('Only clan master can transfer ownership');
+    const isAdmin = requester?.role === UserRole.ADMIN;
+
+    const requesterMember = await this.clanMembersRepository.findOne({
+      where: { clanId, userId: requesterId },
+    });
+    const isMaster = requesterMember?.role === ClanRole.MASTER;
+
+    if (!isMaster && !isAdmin) {
+      throw new ForbiddenException('클랜 마스터 또는 시스템 관리자만 마스터를 양도할 수 있습니다.');
     }
+
+    // 현재 마스터 찾기
+    const currentMaster = await this.clanMembersRepository.findOne({
+      where: { clanId, role: ClanRole.MASTER },
+    });
 
     // 새 마스터 확인
     const newMaster = await this.clanMembersRepository.findOne({
       where: { clanId, userId: newMasterId },
     });
     if (!newMaster) {
-      throw new BadRequestException('Target user is not a clan member');
+      throw new BadRequestException('대상 유저가 클랜 멤버가 아닙니다.');
     }
 
     // 역할 교환
-    currentMaster.role = ClanRole.MANAGER;
+    if (currentMaster) {
+      currentMaster.role = ClanRole.MANAGER;
+      await this.clanMembersRepository.save(currentMaster);
+    }
     newMaster.role = ClanRole.MASTER;
+    await this.clanMembersRepository.save(newMaster);
 
-    await this.clanMembersRepository.save([currentMaster, newMaster]);
     return { message: 'Master transferred successfully' };
   }
 

@@ -7,6 +7,7 @@ import { ClanMember } from './entities/clan-member.entity';
 import { ClanJoinRequest } from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame } from './entities/hall-of-fame.entity';
+import { User } from '../users/entities/user.entity';
 import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 
 @Module({
@@ -17,6 +18,7 @@ import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
       ClanJoinRequest,
       Announcement,
       HallOfFame,
+      User,
     ]),
   ],
   controllers: [ClansController],
