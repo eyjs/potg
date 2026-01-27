@@ -55,8 +55,12 @@ export class ScrimsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post(':id/participants')
-  addParticipant(@Param('id') scrimId: string, @Body() dto: AddParticipantDto) {
-    return this.scrimsService.addParticipant(scrimId, dto.userId, dto.source);
+  addParticipant(
+    @Param('id') scrimId: string,
+    @Body() dto: AddParticipantDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.scrimsService.addParticipant(scrimId, dto.userId, req.user.userId, dto.source);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -65,8 +69,9 @@ export class ScrimsController {
     @Param('id') scrimId: string,
     @Param('userId') userId: string,
     @Body('team') team: AssignedTeam,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.scrimsService.assignTeam(scrimId, userId, team);
+    return this.scrimsService.assignTeam(scrimId, userId, team, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -74,8 +79,9 @@ export class ScrimsController {
   removeParticipant(
     @Param('id') scrimId: string,
     @Param('userId') userId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.scrimsService.removeParticipant(scrimId, userId);
+    return this.scrimsService.removeParticipant(scrimId, userId, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))

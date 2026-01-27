@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between } from 'typeorm';
 import { Scrim, ScrimStatus } from './entities/scrim.entity';
@@ -10,7 +10,7 @@ import {
 } from './entities/scrim-participant.entity';
 import { ScrimMatch } from './entities/scrim-match.entity';
 import { CreateScrimDto, UpdateScrimDto, UpdateMatchDto } from './dto/scrim.dto';
-import { ClanMember } from '../clans/entities/clan-member.entity';
+import { ClanMember, ClanRole } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
 import {
   AuctionParticipant,
@@ -34,6 +34,17 @@ export class ScrimsService {
   ) {}
 
   async create(createScrimDto: CreateScrimDto, userId: string) {
+    if (createScrimDto.signupDeadline) {
+      if (new Date(createScrimDto.signupDeadline) < new Date()) {
+        throw new BadRequestException('Signup deadline cannot be in the past');
+      }
+      if (
+        createScrimDto.scheduledDate &&
+        new Date(createScrimDto.signupDeadline) > new Date(createScrimDto.scheduledDate)
+      ) {
+        throw new BadRequestException('Signup deadline must be before scheduled date');
+      }
+    }
     const scrim = this.scrimsRepository.create({
       ...createScrimDto,
       hostId: userId,
@@ -195,16 +206,32 @@ export class ScrimsService {
     });
   }
 
+  // Verify the requester is the scrim host or a clan manager/master
+  private async verifyScrimManager(scrim: Scrim, requesterId: string) {
+    if (scrim.hostId === requesterId) return;
+    if (scrim.clanId) {
+      const member = await this.clanMemberRepository.findOne({
+        where: { userId: requesterId, clanId: scrim.clanId },
+      });
+      if (member && (member.role === ClanRole.MASTER || member.role === ClanRole.MANAGER)) {
+        return;
+      }
+    }
+    throw new ForbiddenException('Only scrim host or clan managers can manage participants');
+  }
+
   // Participant management APIs (docs/scrim/PROCESS.md:209-259)
   async addParticipant(
     scrimId: string,
     userId: string,
+    requesterId: string,
     source: ParticipantSource = ParticipantSource.MANUAL,
   ) {
     const scrim = await this.scrimsRepository.findOne({
       where: { id: scrimId },
     });
     if (!scrim) throw new BadRequestException('Scrim not found');
+    await this.verifyScrimManager(scrim, requesterId);
     if (scrim.status !== ScrimStatus.DRAFT)
       throw new BadRequestException(
         'Can only add participants in DRAFT status',
@@ -226,11 +253,12 @@ export class ScrimsService {
     return this.participantsRepository.save(participant);
   }
 
-  async assignTeam(scrimId: string, userId: string, team: AssignedTeam) {
+  async assignTeam(scrimId: string, userId: string, team: AssignedTeam, requesterId: string) {
     const scrim = await this.scrimsRepository.findOne({
       where: { id: scrimId },
     });
     if (!scrim) throw new BadRequestException('Scrim not found');
+    await this.verifyScrimManager(scrim, requesterId);
     if (scrim.status !== ScrimStatus.DRAFT)
       throw new BadRequestException('Can only assign teams in DRAFT status');
 
@@ -243,11 +271,12 @@ export class ScrimsService {
     return this.participantsRepository.save(participant);
   }
 
-  async removeParticipant(scrimId: string, userId: string) {
+  async removeParticipant(scrimId: string, userId: string, requesterId: string) {
     const scrim = await this.scrimsRepository.findOne({
       where: { id: scrimId },
     });
     if (!scrim) throw new BadRequestException('Scrim not found');
+    await this.verifyScrimManager(scrim, requesterId);
     if (scrim.status !== ScrimStatus.DRAFT)
       throw new BadRequestException(
         'Can only remove participants in DRAFT status',
@@ -264,49 +293,55 @@ export class ScrimsService {
 
   // Self-signup: user joins a scrim
   async joinScrim(scrimId: string, userId: string) {
-    const scrim = await this.scrimsRepository.findOne({
-      where: { id: scrimId },
-    });
-    if (!scrim) throw new NotFoundException('Scrim not found');
-    if (scrim.status !== ScrimStatus.DRAFT)
-      throw new BadRequestException('Can only join scrims in DRAFT status');
-
-    if (scrim.clanId) {
-      const membership = await this.clanMemberRepository.findOne({
-        where: { userId, clanId: scrim.clanId },
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id: scrimId },
       });
-      if (!membership) throw new BadRequestException('Not a member of this clan');
-    }
+      if (!scrim) throw new NotFoundException('Scrim not found');
+      if (scrim.status !== ScrimStatus.DRAFT)
+        throw new BadRequestException('Can only join scrims in DRAFT status');
 
-    if (scrim.signupDeadline && new Date() > new Date(scrim.signupDeadline)) {
-      throw new BadRequestException('Signup deadline has passed');
-    }
-
-    const existing = await this.participantsRepository.findOne({
-      where: { scrimId, userId },
-    });
-    if (existing) {
-      if (existing.status === ParticipantStatus.REMOVED || existing.status === ParticipantStatus.DECLINED) {
-        existing.status = ParticipantStatus.CONFIRMED;
-        existing.source = ParticipantSource.SIGNUP;
-        existing.assignedTeam = AssignedTeam.UNASSIGNED;
-        return this.participantsRepository.save(existing);
+      if (scrim.clanId) {
+        const membership = await manager.findOne(ClanMember, {
+          where: { userId, clanId: scrim.clanId },
+        });
+        if (!membership) throw new BadRequestException('Not a member of this clan');
       }
-      throw new BadRequestException('Already joined this scrim');
-    }
 
-    const participant = this.participantsRepository.create({
-      scrimId,
-      userId,
-      source: ParticipantSource.SIGNUP,
-      status: ParticipantStatus.CONFIRMED,
-      assignedTeam: AssignedTeam.UNASSIGNED,
+      if (scrim.signupDeadline && new Date() > new Date(scrim.signupDeadline)) {
+        throw new BadRequestException('Signup deadline has passed');
+      }
+
+      const existing = await manager.findOne(ScrimParticipant, {
+        where: { scrimId, userId },
+      });
+      if (existing) {
+        if (
+          existing.status === ParticipantStatus.REMOVED ||
+          existing.status === ParticipantStatus.DECLINED ||
+          existing.status === ParticipantStatus.PENDING
+        ) {
+          existing.status = ParticipantStatus.CONFIRMED;
+          existing.source = ParticipantSource.SIGNUP;
+          existing.assignedTeam = AssignedTeam.UNASSIGNED;
+          return manager.save(existing);
+        }
+        throw new BadRequestException('Already joined this scrim');
+      }
+
+      const participant = manager.create(ScrimParticipant, {
+        scrimId,
+        userId,
+        source: ParticipantSource.SIGNUP,
+        status: ParticipantStatus.CONFIRMED,
+        assignedTeam: AssignedTeam.UNASSIGNED,
+      });
+
+      return manager.save(participant);
     });
-
-    return this.participantsRepository.save(participant);
   }
 
-  // Self-leave: user leaves a scrim
+  // Self-leave: user leaves a scrim (only SIGNUP source allowed)
   async leaveScrim(scrimId: string, userId: string) {
     const scrim = await this.scrimsRepository.findOne({
       where: { id: scrimId },
@@ -320,7 +355,12 @@ export class ScrimsService {
     });
     if (!participant) throw new BadRequestException('Not a participant');
 
-    await this.participantsRepository.remove(participant);
+    if (participant.source !== ParticipantSource.SIGNUP) {
+      throw new BadRequestException('Cannot leave a scrim you were assigned to. Contact an admin.');
+    }
+
+    participant.status = ParticipantStatus.REMOVED;
+    await this.participantsRepository.save(participant);
     return { message: 'Left scrim successfully' };
   }
 
