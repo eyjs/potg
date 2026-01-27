@@ -1,174 +1,176 @@
-"use client"
+'use client';
 
-import { useState, useEffect, useCallback } from "react"
-import { Header } from "@/common/layouts/header"
-import { Button } from "@/common/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
-import { Input } from "@/common/components/ui/input"
-import { Label } from "@/common/components/ui/label"
-import { AuthGuard } from "@/common/components/auth-guard"
-import { useAuth } from "@/context/auth-context"
-import api from "@/lib/api"
-import { Check, X, User, Crown, Shield, UserX, ArrowRightLeft, Info, Save, Users } from "lucide-react"
-import { toast } from "sonner"
-import { Badge } from "@/common/components/ui/badge"
+import { useState, useEffect, useCallback } from 'react';
+import { Header } from '@/common/layouts/header';
+import { Button } from '@/common/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select';
+import { Input } from '@/common/components/ui/input';
+import { Label } from '@/common/components/ui/label';
+import { AuthGuard } from '@/common/components/auth-guard';
+import { useAuth } from '@/context/auth-context';
+import api from '@/lib/api';
+import { Check, X, User, Crown, Shield, UserX, ArrowRightLeft, Info, Save, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Badge } from '@/common/components/ui/badge';
 
-type ClanRole = "MASTER" | "MANAGER" | "MEMBER"
+type ClanRole = 'MASTER' | 'MANAGER' | 'MEMBER';
 
 interface ClanMember {
-  id: string
-  userId: string
-  role: ClanRole
-  totalPoints: number
+  id: string;
+  userId: string;
+  role: ClanRole;
+  totalPoints: number;
   user: {
-    id: string
-    battleTag: string
-    mainRole: string
-  }
+    id: string;
+    battleTag: string;
+    mainRole: string;
+  };
 }
 
 interface JoinRequest {
-  id: string
-  message: string
+  id: string;
+  message: string;
   user: {
-    battleTag: string
-  }
+    battleTag: string;
+  };
 }
 
 interface ClanInfo {
-  id: string
-  name: string
-  tag: string
-  description: string
-  members: ClanMember[]
+  id: string;
+  name: string;
+  tag: string;
+  description: string;
+  members: ClanMember[];
 }
 
 export default function ClanManagePage() {
-  const { user } = useAuth()
-  const [requests, setRequests] = useState<JoinRequest[]>([])
-  const [members, setMembers] = useState<ClanMember[]>([])
-  const [myMembership, setMyMembership] = useState<ClanMember | null>(null)
-  const [clanInfo, setClanInfo] = useState<ClanInfo | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("members")
+  const { user } = useAuth();
+  const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [members, setMembers] = useState<ClanMember[]>([]);
+  const [myMembership, setMyMembership] = useState<ClanMember | null>(null);
+  const [clanInfo, setClanInfo] = useState<ClanInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('members');
 
   // 클랜 정보 수정 폼
-  const [editName, setEditName] = useState("")
-  const [editDescription, setEditDescription] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!user?.clanId) return
-    setIsLoading(true)
+    if (!user?.clanId) return;
+    setIsLoading(true);
     try {
       const [requestsRes, membersRes, membershipRes, clanRes] = await Promise.all([
         api.get(`/clans/${user.clanId}/requests`),
         api.get(`/clans/${user.clanId}/members`),
         api.get('/clans/membership/me'),
         api.get(`/clans/${user.clanId}`),
-      ])
-      setRequests(requestsRes.data)
-      setMembers(membersRes.data)
-      setMyMembership(membershipRes.data)
-      setClanInfo(clanRes.data)
-      setEditName(clanRes.data.name || "")
-      setEditDescription(clanRes.data.description || "")
+      ]);
+      setRequests(requestsRes.data);
+      setMembers(membersRes.data);
+      setMyMembership(membershipRes.data);
+      setClanInfo(clanRes.data);
+      setEditName(clanRes.data.name || '');
+      setEditDescription(clanRes.data.description || '');
     } catch (error) {
-      console.error(error)
+      console.error(error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [user?.clanId])
+  }, [user?.clanId]);
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   const handleRequestAction = async (requestId: string, action: 'approve' | 'reject') => {
     try {
-      await api.post(`/clans/requests/${requestId}/${action}`)
-      toast.success(action === 'approve' ? "승인되었습니다." : "거절되었습니다.")
-      fetchData()
+      await api.post(`/clans/requests/${requestId}/${action}`);
+      toast.success(action === 'approve' ? '승인되었습니다.' : '거절되었습니다.');
+      fetchData();
     } catch {
-      toast.error("처리 실패")
+      toast.error('처리 실패');
     }
-  }
+  };
 
   const handleRoleChange = async (userId: string, newRole: ClanRole) => {
-    if (!user?.clanId) return
+    if (!user?.clanId) return;
     try {
-      await api.patch(`/clans/${user.clanId}/members/${userId}/role`, { role: newRole })
-      toast.success("역할이 변경되었습니다.")
-      fetchData()
+      await api.patch(`/clans/${user.clanId}/members/${userId}/role`, { role: newRole });
+      toast.success('역할이 변경되었습니다.');
+      fetchData();
     } catch {
-      toast.error("역할 변경 실패")
+      toast.error('역할 변경 실패');
     }
-  }
+  };
 
   const handleKick = async (userId: string, battleTag: string) => {
-    if (!user?.clanId) return
-    if (!confirm(`정말 ${battleTag}님을 추방하시겠습니까?`)) return
+    if (!user?.clanId) return;
+    if (!confirm(`정말 ${battleTag}님을 추방하시겠습니까?`)) return;
     try {
-      await api.post(`/clans/${user.clanId}/members/${userId}/kick`)
-      toast.success("추방되었습니다.")
-      fetchData()
+      await api.post(`/clans/${user.clanId}/members/${userId}/kick`);
+      toast.success('추방되었습니다.');
+      fetchData();
     } catch {
-      toast.error("추방 실패")
+      toast.error('추방 실패');
     }
-  }
+  };
 
   const handleTransferMaster = async (newMasterId: string, battleTag: string) => {
-    if (!user?.clanId) return
-    if (!confirm(`정말 ${battleTag}님에게 마스터 권한을 양도하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return
+    if (!user?.clanId) return;
+    if (!confirm(`정말 ${battleTag}님에게 마스터 권한을 양도하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     try {
-      await api.post(`/clans/${user.clanId}/transfer-master`, { newMasterId })
-      toast.success("마스터 권한이 양도되었습니다.")
-      fetchData()
+      await api.post(`/clans/${user.clanId}/transfer-master`, { newMasterId });
+      toast.success('마스터 권한이 양도되었습니다.');
+      fetchData();
     } catch {
-      toast.error("권한 양도 실패")
+      toast.error('권한 양도 실패');
     }
-  }
+  };
 
   const handleUpdateClanInfo = async () => {
     if (!user?.clanId || !editName.trim()) {
-      toast.error("클랜명을 입력해주세요.")
-      return
+      toast.error('클랜명을 입력해주세요.');
+      return;
     }
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       await api.patch(`/clans/${user.clanId}`, {
         name: editName.trim(),
         description: editDescription.trim(),
-      })
-      toast.success("클랜 정보가 수정되었습니다.")
-      fetchData()
+      });
+      toast.success('클랜 정보가 수정되었습니다.');
+      fetchData();
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || "수정 실패")
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || '수정 실패');
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const getRoleIcon = (role: ClanRole) => {
     switch (role) {
-      case "MASTER": return <Crown className="w-4 h-4 text-yellow-500" />
-      case "MANAGER": return <Shield className="w-4 h-4 text-blue-500" />
-      default: return <User className="w-4 h-4 text-muted-foreground" />
+      case 'MASTER':
+        return <Crown className="w-4 h-4 text-yellow-500" />;
+      case 'MANAGER':
+        return <Shield className="w-4 h-4 text-blue-500" />;
+      default:
+        return <User className="w-4 h-4 text-muted-foreground" />;
     }
-  }
+  };
 
-  const isAdmin = user?.role === "ADMIN"
-  const canManageMembers = myMembership?.role === "MASTER" || myMembership?.role === "MANAGER" || isAdmin
-  const isMaster = myMembership?.role === "MASTER" || isAdmin
+  const canManageMembers = myMembership?.role === 'MASTER' || myMembership?.role === 'MANAGER';
+  const isMaster = myMembership?.role === 'MASTER';
 
   const groupedMembers = {
-    MASTER: members.filter(m => m.role === "MASTER"),
-    MANAGER: members.filter(m => m.role === "MANAGER"),
-    MEMBER: members.filter(m => m.role === "MEMBER"),
-  }
+    MASTER: members.filter((m) => m.role === 'MASTER'),
+    MANAGER: members.filter((m) => m.role === 'MANAGER'),
+    MEMBER: members.filter((m) => m.role === 'MEMBER'),
+  };
 
   return (
     <AuthGuard>
@@ -237,7 +239,7 @@ export default function ClanManagePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        {groupedMembers.MASTER.map(member => (
+                        {groupedMembers.MASTER.map((member) => (
                           <MemberRow
                             key={member.id}
                             member={member}
@@ -263,7 +265,7 @@ export default function ClanManagePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-0 space-y-2">
-                        {groupedMembers.MANAGER.map(member => (
+                        {groupedMembers.MANAGER.map((member) => (
                           <MemberRow
                             key={member.id}
                             member={member}
@@ -291,7 +293,7 @@ export default function ClanManagePage() {
                       {groupedMembers.MEMBER.length === 0 ? (
                         <p className="text-center py-4 text-muted-foreground text-sm">일반 멤버가 없습니다.</p>
                       ) : (
-                        groupedMembers.MEMBER.map(member => (
+                        groupedMembers.MEMBER.map((member) => (
                           <MemberRow
                             key={member.id}
                             member={member}
@@ -325,14 +327,17 @@ export default function ClanManagePage() {
                   ) : (
                     <div className="space-y-3">
                       {requests.map((req) => (
-                        <div key={req.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                        <div
+                          key={req.id}
+                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border"
+                        >
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
                               <User className="w-5 h-5 text-muted-foreground" />
                             </div>
                             <div>
                               <p className="font-bold text-foreground text-sm">{req.user?.battleTag}</p>
-                              <p className="text-xs text-muted-foreground">{req.message || "인사말 없음"}</p>
+                              <p className="text-xs text-muted-foreground">{req.message || '인사말 없음'}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -372,11 +377,7 @@ export default function ClanManagePage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-muted-foreground">클랜 태그 (변경 불가)</Label>
-                    <Input
-                      value={clanInfo?.tag || ""}
-                      disabled
-                      className="bg-muted/20 border-border/50 opacity-50"
-                    />
+                    <Input value={clanInfo?.tag || ''} disabled className="bg-muted/20 border-border/50 opacity-50" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-primary">클랜명</Label>
@@ -406,7 +407,7 @@ export default function ClanManagePage() {
                         className="bg-primary text-primary-foreground font-bold gap-2"
                       >
                         <Save className="w-4 h-4" />
-                        {isSaving ? "저장 중..." : "변경사항 저장"}
+                        {isSaving ? '저장 중...' : '변경사항 저장'}
                       </Button>
                     </div>
                   )}
@@ -434,15 +435,15 @@ export default function ClanManagePage() {
                   <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
                     <span className="text-sm text-muted-foreground">마스터</span>
                     <span className="font-bold text-yellow-500">
-                      {groupedMembers.MASTER[0]?.user?.battleTag || "미지정"}
+                      {groupedMembers.MASTER[0]?.user?.battleTag || '미지정'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
                     <span className="text-sm text-muted-foreground">운영진</span>
                     <span className="font-bold text-blue-500">
                       {groupedMembers.MANAGER.length > 0
-                        ? groupedMembers.MANAGER.map(m => m.user?.battleTag).join(", ")
-                        : "없음"}
+                        ? groupedMembers.MANAGER.map((m) => m.user?.battleTag).join(', ')
+                        : '없음'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
@@ -454,14 +455,18 @@ export default function ClanManagePage() {
                     <Badge
                       variant="outline"
                       className={
-                        myMembership?.role === "MASTER"
-                          ? "border-yellow-500/50 text-yellow-500"
-                          : myMembership?.role === "MANAGER"
-                            ? "border-blue-500/50 text-blue-500"
-                            : "border-border text-muted-foreground"
+                        myMembership?.role === 'MASTER'
+                          ? 'border-yellow-500/50 text-yellow-500'
+                          : myMembership?.role === 'MANAGER'
+                            ? 'border-blue-500/50 text-blue-500'
+                            : 'border-border text-muted-foreground'
                       }
                     >
-                      {myMembership?.role === "MASTER" ? "마스터" : myMembership?.role === "MANAGER" ? "운영진" : "멤버"}
+                      {myMembership?.role === 'MASTER'
+                        ? '마스터'
+                        : myMembership?.role === 'MANAGER'
+                          ? '운영진'
+                          : '멤버'}
                     </Badge>
                   </div>
                 </CardContent>
@@ -471,48 +476,54 @@ export default function ClanManagePage() {
         </main>
       </div>
     </AuthGuard>
-  )
+  );
 }
 
 interface MemberRowProps {
-  member: ClanMember
-  isMaster: boolean
-  canManage: boolean
-  isMe: boolean
-  onRoleChange: (userId: string, role: ClanRole) => void
-  onKick: (userId: string, battleTag: string) => void
-  onTransferMaster: (userId: string, battleTag: string) => void
-  getRoleIcon: (role: ClanRole) => React.ReactNode
+  member: ClanMember;
+  isMaster: boolean;
+  canManage: boolean;
+  isMe: boolean;
+  onRoleChange: (userId: string, role: ClanRole) => void;
+  onKick: (userId: string, battleTag: string) => void;
+  onTransferMaster: (userId: string, battleTag: string) => void;
+  getRoleIcon: (role: ClanRole) => React.ReactNode;
 }
 
-function MemberRow({ member, isMaster, canManage, isMe, onRoleChange, onKick, onTransferMaster, getRoleIcon }: MemberRowProps) {
+function MemberRow({
+  member,
+  isMaster,
+  canManage,
+  isMe,
+  onRoleChange,
+  onKick,
+  onTransferMaster,
+  getRoleIcon,
+}: MemberRowProps) {
   return (
     <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-          {getRoleIcon(member.role)}
-        </div>
+        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">{getRoleIcon(member.role)}</div>
         <div>
           <div className="flex items-center gap-2">
             <p className="font-medium text-foreground text-sm">{member.user?.battleTag}</p>
             {isMe && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">나</Badge>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">
+                나
+              </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {member.user?.mainRole || "FLEX"} · {member.totalPoints.toLocaleString()}P
+            {member.user?.mainRole || 'FLEX'} · {member.totalPoints.toLocaleString()}P
           </p>
         </div>
       </div>
 
-      {canManage && member.role !== "MASTER" && (
+      {canManage && member.role !== 'MASTER' && (
         <div className="flex items-center gap-2">
           {isMaster && (
             <>
-              <Select
-                value={member.role}
-                onValueChange={(value) => onRoleChange(member.userId, value as ClanRole)}
-              >
+              <Select value={member.role} onValueChange={(value) => onRoleChange(member.userId, value as ClanRole)}>
                 <SelectTrigger className="w-24 h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -546,5 +557,5 @@ function MemberRow({ member, isMaster, canManage, isMe, onRoleChange, onKick, on
         </div>
       )}
     </div>
-  )
+  );
 }
