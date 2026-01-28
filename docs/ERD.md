@@ -155,6 +155,7 @@ erDiagram
     PointRule {
         uuid id PK
         uuid clanId FK
+        string code "시스템 매칭용 (ATTENDANCE_BASE, STREAK_3 등)"
         string name "스크림 참가, VOD 리뷰 작성 등"
         string description "Nullable"
         enum category "ATTENDANCE, ACTIVITY, ACHIEVEMENT, PENALTY"

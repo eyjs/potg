@@ -24,6 +24,7 @@ import { BettingModule } from './modules/betting/betting.module';
 import { BlindDateModule } from './modules/blind-date/blind-date.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     BlindDateModule,
     WalletModule,
     UploadsModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [

@@ -3,7 +3,7 @@
 import { Header } from '@/common/layouts/header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs'
 import { AuthGuard } from '@/common/components/auth-guard'
-import { Users, Check, Info } from 'lucide-react'
+import { Users, Check, Info, Coins, CalendarDays } from 'lucide-react'
 import { useClanManage } from '@/modules/clan/hooks/use-clan-manage'
 import { ClanHeroBanner } from '@/modules/clan/components/clan-hero-banner'
 import { ClanStatsRow } from '@/modules/clan/components/clan-stats-row'
@@ -12,6 +12,10 @@ import { JoinRequestList } from '@/modules/clan/components/join-request-list'
 import { ClanSettingsForm } from '@/modules/clan/components/clan-settings-form'
 import { ClanCharts } from '@/modules/clan/components/clan-charts'
 import { ActivitySidebar } from '@/modules/clan/components/activity-sidebar'
+import { PointRulesPanel } from '@/modules/attendance/components/point-rules-panel'
+import { AttendanceHistoryPanel } from '@/modules/attendance/components/attendance-history-panel'
+import { AttendanceStatsPanel } from '@/modules/attendance/components/attendance-stats-panel'
+import { useAttendance } from '@/modules/attendance/hooks/use-attendance'
 
 export default function ClanManagePage() {
   const {
@@ -39,6 +43,13 @@ export default function ClanManagePage() {
     handleUpdateClanInfo,
   } = useClanManage()
 
+  const {
+    records: attendanceRecords,
+    stats: attendanceStats,
+    isLoading: isAttendanceLoading,
+    isStatsLoading,
+  } = useAttendance(user?.clanId)
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0">
@@ -64,7 +75,7 @@ export default function ClanManagePage() {
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-w-0 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="members" className="gap-1.5">
                     <Users className="w-3.5 h-3.5" />
                     멤버 관리
@@ -76,6 +87,14 @@ export default function ClanManagePage() {
                   <TabsTrigger value="info" className="gap-1.5">
                     <Info className="w-3.5 h-3.5" />
                     클랜 설정
+                  </TabsTrigger>
+                  <TabsTrigger value="point-rules" className="gap-1.5">
+                    <Coins className="w-3.5 h-3.5" />
+                    포인트 규칙
+                  </TabsTrigger>
+                  <TabsTrigger value="attendance" className="gap-1.5">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    출석 관리
                   </TabsTrigger>
                 </TabsList>
 
@@ -115,6 +134,24 @@ export default function ClanManagePage() {
                     groupedMembers={groupedMembers}
                     requests={requests}
                     myRole={myMembership?.role}
+                  />
+                </TabsContent>
+
+                <TabsContent value="point-rules" className="mt-4">
+                  <PointRulesPanel
+                    clanId={user?.clanId}
+                    canManage={canManageMembers}
+                  />
+                </TabsContent>
+
+                <TabsContent value="attendance" className="space-y-6 mt-4">
+                  <AttendanceStatsPanel
+                    stats={attendanceStats}
+                    isLoading={isStatsLoading}
+                  />
+                  <AttendanceHistoryPanel
+                    records={attendanceRecords}
+                    isLoading={isAttendanceLoading}
                   />
                 </TabsContent>
               </Tabs>

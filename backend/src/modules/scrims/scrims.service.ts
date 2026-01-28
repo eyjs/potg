@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between } from 'typeorm';
 import { Scrim, ScrimStatus } from './entities/scrim.entity';
@@ -16,6 +16,7 @@ import {
   AuctionParticipant,
   AuctionRole,
 } from '../auctions/entities/auction-participant.entity';
+import { AttendanceService } from '../attendance/attendance.service';
 
 const SCRIM_WIN_REWARD = 1000;
 
@@ -45,6 +46,8 @@ export class ScrimsService {
     @InjectRepository(ClanMember)
     private clanMemberRepository: Repository<ClanMember>,
     private dataSource: DataSource,
+    @Inject(forwardRef(() => AttendanceService))
+    private attendanceService: AttendanceService,
   ) {}
 
   async create(createScrimDto: CreateScrimDto, userId: string) {
@@ -231,6 +234,11 @@ export class ScrimsService {
             await manager.save(log);
           }
         }
+      }
+
+      // 출석 기록 생성 + 출석 포인트 지급
+      if (scrim.clanId) {
+        await this.attendanceService.generateAttendanceFromScrim(id, manager);
       }
 
       return scrim;
