@@ -12,6 +12,9 @@ import { Swords, Calendar, Users, ChevronRight, AlertCircle } from "lucide-react
 import { Badge } from "@/common/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { CreateScrimModal } from "@/modules/scrim/components/create-scrim-modal"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface Scrim {
   id: string
@@ -24,6 +27,7 @@ interface Scrim {
 
 export default function ScrimListPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [scrims, setScrims] = useState<Scrim[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -43,6 +47,19 @@ export default function ScrimListPage() {
       handleApiError(error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleCreateScrim = async (scrimData: any) => {
+    try {
+      const response = await api.post("/scrims", {
+        ...scrimData,
+        clanId: user?.clanId,
+      })
+      toast.success("내전이 생성되었습니다!")
+      router.push(`/scrim/${response.data.id}`)
+    } catch (error) {
+      handleApiError(error, "내전 생성에 실패했습니다.")
     }
   }
 
@@ -90,16 +107,19 @@ export default function ScrimListPage() {
 
         <main className="container px-4 py-6 space-y-6">
           {/* 타이틀 */}
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary rounded-md flex items-center justify-center shrink-0">
-              <Swords className="text-black w-5 h-5 md:w-6 md:h-6" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-primary rounded-md flex items-center justify-center shrink-0">
+                <Swords className="text-black w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-foreground">
+                  내전 <span className="text-primary">SCRIM</span>
+                </h1>
+                <p className="text-muted-foreground text-xs uppercase tracking-widest font-bold">Team Scrimmages</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-foreground">
-                내전 <span className="text-primary">SCRIM</span>
-              </h1>
-              <p className="text-muted-foreground text-xs uppercase tracking-widest font-bold">Team Scrimmages</p>
-            </div>
+            <CreateScrimModal onCreateScrim={handleCreateScrim} />
           </div>
 
           {/* 내전 목록 */}
