@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/common/layouts/header"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
@@ -19,19 +19,8 @@ import { ToggleSwitch } from "@/common/components/toggle-filter"
 import { handleApiError } from "@/lib/api-error"
 import { useDialog } from "@/common/hooks/use-dialog"
 import Link from "next/link"
-
-interface BettingQuestion {
-  id: string
-  scrimId?: string
-  creatorId: string
-  question: string
-  status: "OPEN" | "CLOSED" | "SETTLED"
-  correctAnswer?: "O" | "X"
-  bettingDeadline?: string
-  minBetAmount: number
-  rewardMultiplier: number
-  createdAt: string
-}
+import { ParticipantPanel } from "@/modules/betting/participant-panel"
+import type { BettingQuestion } from "@/modules/betting/participant-panel"
 
 export default function BettingPage() {
   const { user } = useAuth()
@@ -424,6 +413,9 @@ export default function BettingPage() {
                       </div>
                     )}
 
+                    {/* 참여자 현황 */}
+                    <ParticipantPanel question={q} />
+
                     {q.status === "OPEN" ? (
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-4">
@@ -529,7 +521,7 @@ export default function BettingPage() {
                   </p>
                   {selectedQuestion && Number(betAmount) >= selectedQuestion.minBetAmount && (
                     <p className="text-xs text-primary font-black">
-                      예상 수령: {Math.floor(Number(betAmount) * selectedQuestion.rewardMultiplier)}P
+                      예상 수령: {Math.ceil(Number(betAmount) * selectedQuestion.rewardMultiplier)}P
                     </p>
                   )}
                 </div>

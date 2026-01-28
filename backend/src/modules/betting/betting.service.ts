@@ -199,17 +199,37 @@ export class BettingService {
   }
 
   async findAll(): Promise<BettingQuestion[]> {
-    return this.questionsRepository.find({
+    const questions = await this.questionsRepository.find({
+      relations: ['tickets', 'tickets.user'],
       order: { createdAt: 'DESC' },
     });
+    for (const question of questions) {
+      if (question.tickets) this.sanitizeTicketUsers(question.tickets);
+    }
+    return questions;
   }
 
   async findOne(id: string): Promise<BettingQuestion> {
     const question = await this.questionsRepository.findOne({
       where: { id },
+      relations: ['tickets', 'tickets.user'],
     });
     if (!question) throw new BadRequestException('Question not found');
+    if (question.tickets) this.sanitizeTicketUsers(question.tickets);
     return question;
+  }
+
+  /** 티켓의 user 객체에서 표시용 필드만 남기고 민감 정보(email 등) 제거 */
+  private sanitizeTicketUsers(tickets: BettingTicket[]): void {
+    for (const ticket of tickets) {
+      if (ticket.user) {
+        ticket.user = {
+          id: ticket.user.id,
+          battleTag: ticket.user.battleTag,
+          avatarUrl: ticket.user.avatarUrl,
+        } as BettingTicket['user'];
+      }
+    }
   }
 
   async findMyTickets(userId: string): Promise<BettingTicket[]> {

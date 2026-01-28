@@ -57,11 +57,13 @@ export class BettingController {
     return this.bettingService.settleQuestion(id, result);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get('questions')
   findAll() {
     return this.bettingService.findAll();
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get('questions/:id')
   findOne(@Param('id') id: string) {
     return this.bettingService.findOne(id);
