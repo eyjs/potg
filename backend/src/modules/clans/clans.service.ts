@@ -1,11 +1,14 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { ClanMember, ClanRole } from './entities/clan-member.entity';
 import { ClanJoinRequest, RequestStatus } from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
+import { PointLog } from './entities/point-log.entity';
+import { ActivityType } from './interfaces/activity.interface';
+import type { ActivityEvent } from './interfaces/activity.interface';
 
 @Injectable()
 export class ClansService {
@@ -20,31 +23,41 @@ export class ClansService {
     private announcementsRepository: Repository<Announcement>,
     @InjectRepository(HallOfFame)
     private hallOfFameRepository: Repository<HallOfFame>,
+    @InjectRepository(PointLog)
+    private pointLogRepository: Repository<PointLog>,
+    private dataSource: DataSource,
   ) {}
 
   async create(createClanDto: Partial<Clan>, userId: string) {
-    // ... existing logic
-    // Check if name or tag exists
-    const existing = await this.clansRepository.findOne({
-      where: [{ name: createClanDto.name }, { tag: createClanDto.tag }],
+    return this.dataSource.transaction(async (manager) => {
+      const existing = await manager.findOne(Clan, {
+        where: [{ name: createClanDto.name }, { tag: createClanDto.tag }],
+      });
+      if (existing) {
+        throw new BadRequestException('Clan name or tag already exists');
+      }
+
+      const clan = manager.create(Clan, createClanDto);
+      const savedClan = await manager.save(clan);
+
+      const member = manager.create(ClanMember, {
+        clanId: savedClan.id,
+        userId,
+        role: ClanRole.MASTER,
+        totalPoints: 10000,
+      });
+      await manager.save(member);
+
+      const pointLog = manager.create(PointLog, {
+        userId,
+        clanId: savedClan.id,
+        amount: 10000,
+        reason: `CLAN_CREATE_MASTER:${savedClan.id}`,
+      });
+      await manager.save(pointLog);
+
+      return savedClan;
     });
-    if (existing) {
-      throw new BadRequestException('Clan name or tag already exists');
-    }
-
-    const clan = this.clansRepository.create(createClanDto);
-    const savedClan = await this.clansRepository.save(clan);
-
-    // Add creator as MASTER
-    const member = this.clanMembersRepository.create({
-      clanId: savedClan.id,
-      userId: userId,
-      role: ClanRole.MASTER,
-      totalPoints: 10000,
-    });
-    await this.clanMembersRepository.save(member);
-
-    return savedClan;
   }
 
   async requestJoin(clanId: string, userId: string, message?: string) {
@@ -167,21 +180,32 @@ export class ClansService {
   }
 
   async addMember(clanId: string, userId: string) {
-    // Check if already member
-    const existing = await this.clanMembersRepository.findOne({
-      where: { clanId, userId },
-    });
-    if (existing) {
-      throw new BadRequestException('User already in clan');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const existing = await manager.findOne(ClanMember, {
+        where: { clanId, userId },
+      });
+      if (existing) {
+        throw new BadRequestException('User already in clan');
+      }
 
-    const member = this.clanMembersRepository.create({
-      clanId,
-      userId,
-      role: ClanRole.MEMBER,
-      totalPoints: 5000, // Initial points for new members
+      const member = manager.create(ClanMember, {
+        clanId,
+        userId,
+        role: ClanRole.MEMBER,
+        totalPoints: 5000,
+      });
+      await manager.save(member);
+
+      const pointLog = manager.create(PointLog, {
+        userId,
+        clanId,
+        amount: 5000,
+        reason: `CLAN_JOIN:${clanId}`,
+      });
+      await manager.save(pointLog);
+
+      return member;
     });
-    return this.clanMembersRepository.save(member);
   }
 
   async leaveClan(userId: string) {
@@ -309,6 +333,142 @@ export class ClansService {
       where: { userId },
       relations: ['clan'],
     });
+  }
+
+  // ========== 활동 피드 ==========
+
+  async getActivities(
+    clanId: string,
+    userId: string,
+    limit: number = 20,
+  ): Promise<ActivityEvent[]> {
+    // 멤버십 검증
+    const membership = await this.clanMembersRepository.findOne({
+      where: { clanId, userId },
+    });
+    if (!membership) {
+      throw new ForbiddenException('클랜 멤버만 활동 피드를 조회할 수 있습니다.');
+    }
+
+    // 3개 테이블 병렬 조회
+    const [members, pointLogs, announcements] = await Promise.all([
+      // 최근 가입 멤버
+      this.clanMembersRepository.find({
+        where: { clanId },
+        relations: ['user'],
+        order: { createdAt: 'DESC' },
+        take: limit,
+      }),
+      // 포인트 로그 (CLAN_JOIN, CLAN_CREATE_MASTER는 멤버 가입과 중복되므로 제외)
+      this.pointLogRepository
+        .createQueryBuilder('log')
+        .leftJoinAndSelect('log.user', 'user')
+        .where('log.clanId = :clanId', { clanId })
+        .andWhere('log.reason NOT LIKE :joinPattern', { joinPattern: 'CLAN_JOIN:%' })
+        .andWhere('log.reason NOT LIKE :createPattern', { createPattern: 'CLAN_CREATE_MASTER:%' })
+        .orderBy('log.createdAt', 'DESC')
+        .take(limit)
+        .getMany(),
+      // 공지사항
+      this.announcementsRepository.find({
+        where: { clanId, isActive: true },
+        relations: ['author'],
+        order: { createdAt: 'DESC' },
+        take: limit,
+      }),
+    ]);
+
+    const events: ActivityEvent[] = [];
+
+    // 멤버 가입 이벤트 변환 (createdAt이 가장 오래된 멤버 = 클랜 생성자)
+    const oldestCreatedAt = members.length > 0
+      ? Math.min(...members.map((m) => m.createdAt.getTime()))
+      : 0;
+
+    for (const member of members) {
+      const isCreator = member.createdAt.getTime() === oldestCreatedAt;
+      const type = isCreator
+        ? ActivityType.CLAN_CREATE
+        : ActivityType.MEMBER_JOIN;
+      const tag = member.user?.battleTag ?? '알 수 없음';
+      const message = isCreator
+        ? `${tag}님이 클랜을 생성했습니다.`
+        : `${tag}님이 클랜에 가입했습니다.`;
+
+      events.push({
+        id: member.id,
+        type,
+        userId: member.userId,
+        userBattleTag: member.user?.battleTag ?? '알 수 없음',
+        userAvatarUrl: member.user?.avatarUrl ?? null,
+        message,
+        amount: null,
+        createdAt: member.createdAt,
+      });
+    }
+
+    // 포인트 로그 이벤트 변환
+    for (const log of pointLogs) {
+      const type = this.resolvePointLogActivityType(log.reason, log.amount);
+      events.push({
+        id: log.id,
+        type,
+        userId: log.userId,
+        userBattleTag: log.user?.battleTag ?? '알 수 없음',
+        userAvatarUrl: log.user?.avatarUrl ?? null,
+        message: this.buildPointLogMessage(log),
+        amount: log.amount,
+        createdAt: log.createdAt,
+      });
+    }
+
+    // 공지사항 이벤트 변환
+    for (const ann of announcements) {
+      events.push({
+        id: ann.id,
+        type: ActivityType.ANNOUNCEMENT,
+        userId: ann.authorId,
+        userBattleTag: ann.author?.battleTag ?? '알 수 없음',
+        userAvatarUrl: ann.author?.avatarUrl ?? null,
+        message: `공지: ${ann.title}`,
+        amount: null,
+        createdAt: ann.createdAt,
+      });
+    }
+
+    // createdAt DESC 정렬 후 limit 적용
+    events.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return events.slice(0, limit);
+  }
+
+  private resolvePointLogActivityType(reason: string, amount: number): ActivityType {
+    if (reason.startsWith('SEND_TO:')) return ActivityType.POINT_SENT;
+    if (reason.startsWith('RECEIVE_FROM:')) return ActivityType.POINT_RECEIVED;
+    if (reason.startsWith('BET_WIN:')) return ActivityType.BET_WIN;
+    if (reason.startsWith('BET_LOSS:')) return ActivityType.BET_LOSS;
+    return amount >= 0 ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
+  }
+
+  private buildPointLogMessage(log: PointLog): string {
+    const tag = log.user?.battleTag ?? '알 수 없음';
+    const absAmount = Math.abs(log.amount);
+
+    if (log.reason.startsWith('SEND_TO:')) {
+      return `${tag}님이 ${absAmount}P를 보냈습니다.`;
+    }
+    if (log.reason.startsWith('RECEIVE_FROM:')) {
+      return `${tag}님이 ${absAmount}P를 받았습니다.`;
+    }
+    if (log.reason.startsWith('BET_WIN:')) {
+      return `${tag}님이 베팅에서 ${absAmount}P를 획득했습니다.`;
+    }
+    if (log.reason.startsWith('BET_LOSS:')) {
+      return `${tag}님이 베팅에서 ${absAmount}P를 잃었습니다.`;
+    }
+    if (log.amount >= 0) {
+      return `${tag}님이 ${absAmount}P를 받았습니다.`;
+    }
+    return `${tag}님이 ${absAmount}P를 사용했습니다.`;
   }
 
   // ========== 공지사항 ==========

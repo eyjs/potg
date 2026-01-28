@@ -12,6 +12,7 @@ import {
 import { ClansService } from './clans.service';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateClanDto } from './dto/create-clan.dto';
+import { ActivityQueryDto } from './dto/activity-query.dto';
 import { ClanRole } from './entities/clan-member.entity';
 import { HallOfFameType } from './entities/hall-of-fame.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
@@ -175,6 +176,18 @@ export class ClansController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.clansService.transferMaster(clanId, newMasterId, req.user.userId);
+  }
+
+  // ========== 활동 피드 API ==========
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':clanId/activities')
+  getActivities(
+    @Param('clanId') clanId: string,
+    @Query() query: ActivityQueryDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.clansService.getActivities(clanId, req.user.userId, query.limit);
   }
 
   // ========== 공지사항 API ==========
