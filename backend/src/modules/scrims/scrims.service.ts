@@ -9,7 +9,7 @@ import {
   ParticipantStatus,
 } from './entities/scrim-participant.entity';
 import { ScrimMatch } from './entities/scrim-match.entity';
-import { CreateScrimDto, UpdateScrimDto, UpdateMatchDto } from './dto/scrim.dto';
+import { CreateScrimDto, UpdateScrimDto, UpdateMatchDto, SignupScrimDto } from './dto/scrim.dto';
 import { ClanMember, ClanRole } from '../clans/entities/clan-member.entity';
 import { PointLog } from '../clans/entities/point-log.entity';
 import {
@@ -18,6 +18,20 @@ import {
 } from '../auctions/entities/auction-participant.entity';
 
 const SCRIM_WIN_REWARD = 1000;
+
+function sanitizeParticipantUsers(participants: ScrimParticipant[]): void {
+  for (const p of participants) {
+    if (p.user) {
+      p.user = {
+        id: p.user.id,
+        battleTag: p.user.battleTag,
+        mainRole: p.user.mainRole,
+        rating: p.user.rating,
+        avatarUrl: p.user.avatarUrl,
+      } as ScrimParticipant['user'];
+    }
+  }
+}
 
 @Injectable()
 export class ScrimsService {
@@ -52,7 +66,9 @@ export class ScrimsService {
     return this.scrimsRepository.save(scrim);
   }
 
-  findAll(clanId: string, today = false) {
+  async findAll(clanId: string, today = false) {
+    let scrims: Scrim[];
+
     if (today) {
       // Use KST (UTC+9) for Korean users
       const now = new Date();
@@ -64,28 +80,40 @@ export class ScrimsService {
       const startOfDay = new Date(kstStartOfDay.getTime() - kstOffset);
       const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
-      return this.scrimsRepository.find({
+      scrims = await this.scrimsRepository.find({
         where: {
           clanId,
           scheduledDate: Between(startOfDay, endOfDay),
         },
-        relations: ['participants'],
+        relations: ['participants', 'participants.user'],
+        order: { scheduledDate: 'ASC' },
+      });
+    } else {
+      scrims = await this.scrimsRepository.find({
+        where: { clanId },
+        relations: ['participants', 'participants.user'],
         order: { scheduledDate: 'ASC' },
       });
     }
 
-    return this.scrimsRepository.find({
-      where: { clanId },
-      relations: ['participants'],
-      order: { scheduledDate: 'ASC' },
-    });
+    for (const scrim of scrims) {
+      if (scrim.participants) {
+        sanitizeParticipantUsers(scrim.participants);
+      }
+    }
+
+    return scrims;
   }
 
-  findOne(id: string) {
-    return this.scrimsRepository.findOne({
+  async findOne(id: string) {
+    const scrim = await this.scrimsRepository.findOne({
       where: { id },
-      relations: ['participants'],
+      relations: ['participants', 'participants.user'],
     });
+    if (scrim?.participants) {
+      sanitizeParticipantUsers(scrim.participants);
+    }
+    return scrim;
   }
 
   async update(id: string, updateScrimDto: UpdateScrimDto) {
@@ -95,7 +123,10 @@ export class ScrimsService {
     if (updateScrimDto.status === ScrimStatus.SCHEDULED) {
       return this.confirmTeams(id);
     }
-    await this.scrimsRepository.update(id, updateScrimDto);
+    const scrim = await this.scrimsRepository.findOne({ where: { id } });
+    if (!scrim) throw new BadRequestException('Scrim not found');
+    Object.assign(scrim, updateScrimDto);
+    await this.scrimsRepository.save(scrim);
     return this.findOne(id);
   }
 
@@ -122,7 +153,7 @@ export class ScrimsService {
 
       const teamSnapshot = {
         recruitmentType: scrim.recruitmentType,
-        sourceId: scrim.voteId || scrim.auctionId || null,
+        sourceId: scrim.auctionId || null,
         teamA: {
           players: teamAPlayers.map((p) => ({
             userId: p.userId,
@@ -292,7 +323,7 @@ export class ScrimsService {
   }
 
   // Self-signup: user joins a scrim
-  async joinScrim(scrimId: string, userId: string) {
+  async joinScrim(scrimId: string, userId: string, signupDto?: SignupScrimDto) {
     return this.dataSource.transaction(async (manager) => {
       const scrim = await manager.findOne(Scrim, {
         where: { id: scrimId },
@@ -312,6 +343,17 @@ export class ScrimsService {
         throw new BadRequestException('Signup deadline has passed');
       }
 
+      // 최대 인원 체크
+      const currentCount = await manager.count(ScrimParticipant, {
+        where: {
+          scrimId,
+          status: ParticipantStatus.CONFIRMED,
+        },
+      });
+      if (scrim.maxPlayers && currentCount >= scrim.maxPlayers) {
+        throw new BadRequestException('Scrim is full');
+      }
+
       const existing = await manager.findOne(ScrimParticipant, {
         where: { scrimId, userId },
       });
@@ -324,6 +366,9 @@ export class ScrimsService {
           existing.status = ParticipantStatus.CONFIRMED;
           existing.source = ParticipantSource.SIGNUP;
           existing.assignedTeam = AssignedTeam.UNASSIGNED;
+          if (signupDto?.preferredRoles) existing.preferredRoles = signupDto.preferredRoles;
+          if (signupDto?.note !== undefined) existing.note = signupDto.note;
+          existing.respondedAt = new Date();
           return manager.save(existing);
         }
         throw new BadRequestException('Already joined this scrim');
@@ -335,6 +380,9 @@ export class ScrimsService {
         source: ParticipantSource.SIGNUP,
         status: ParticipantStatus.CONFIRMED,
         assignedTeam: AssignedTeam.UNASSIGNED,
+        preferredRoles: signupDto?.preferredRoles,
+        note: signupDto?.note,
+        respondedAt: new Date(),
       });
 
       return manager.save(participant);
@@ -362,6 +410,47 @@ export class ScrimsService {
     participant.status = ParticipantStatus.REMOVED;
     await this.participantsRepository.save(participant);
     return { message: 'Left scrim successfully' };
+  }
+
+  // Check-in: participant confirms attendance before scrim starts
+  async checkIn(scrimId: string, userId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const scrim = await manager.findOne(Scrim, {
+        where: { id: scrimId },
+      });
+      if (!scrim) throw new NotFoundException('Scrim not found');
+
+      if (scrim.status !== ScrimStatus.SCHEDULED && scrim.status !== ScrimStatus.IN_PROGRESS) {
+        throw new BadRequestException('Check-in is only available for scheduled or in-progress scrims');
+      }
+
+      if (scrim.checkInStart && new Date() < new Date(scrim.checkInStart)) {
+        throw new BadRequestException('Check-in has not started yet');
+      }
+
+      const participant = await manager.findOne(ScrimParticipant, {
+        where: { scrimId, userId },
+      });
+      if (!participant) throw new BadRequestException('Not a participant');
+      if (participant.checkedIn) throw new BadRequestException('Already checked in');
+
+      participant.checkedIn = true;
+      participant.checkedInAt = new Date();
+      return manager.save(participant);
+    });
+  }
+
+  // Get participants with user info for display
+  async getParticipants(scrimId: string): Promise<ScrimParticipant[]> {
+    const participants = await this.participantsRepository.find({
+      where: { scrimId },
+      relations: ['user'],
+      order: { createdAt: 'ASC' },
+    });
+
+    sanitizeParticipantUsers(participants);
+
+    return participants;
   }
 
   // Import participants from linked auction

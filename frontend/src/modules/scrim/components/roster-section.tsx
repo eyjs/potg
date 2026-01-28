@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useDialog } from "@/common/hooks/use-dialog"
-import { ChevronLeft, ChevronRight, X, Shield, Crosshair, Heart, Download, Shuffle, Users } from "lucide-react"
+import { ChevronLeft, ChevronRight, X, Shield, Crosshair, Heart, Download, Shuffle, Users, CheckCircle2 } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
@@ -13,7 +13,10 @@ interface Member {
   id: string
   name: string
   avatar: string
-  role: "tank" | "dps" | "support"
+  role: "tank" | "dps" | "support" | "flex"
+  checkedIn?: boolean
+  preferredRoles?: string[]
+  note?: string
 }
 
 interface RosterSectionProps {
@@ -28,16 +31,30 @@ interface RosterSectionProps {
   onShuffleTeams?: () => void
 }
 
-const roleIcons = {
+const roleIcons: Record<string, typeof Shield> = {
   tank: Shield,
   dps: Crosshair,
   support: Heart,
+  flex: Users,
 }
 
-const roleColors = {
+const roleColors: Record<string, string> = {
   tank: "text-yellow-500",
   dps: "text-red-500",
   support: "text-green-500",
+  flex: "text-muted-foreground",
+}
+
+const preferredRoleIcons: Record<string, typeof Shield> = {
+  TANK: Shield,
+  DPS: Crosshair,
+  SUPPORT: Heart,
+}
+
+const preferredRoleColors: Record<string, string> = {
+  TANK: "text-yellow-500",
+  DPS: "text-red-500",
+  SUPPORT: "text-green-500",
 }
 
 function PoolMemberCard({
@@ -51,7 +68,7 @@ function PoolMemberCard({
   onMoveLeft: () => void
   onMoveRight: () => void
 }) {
-  const RoleIcon = roleIcons[member.role]
+  const RoleIcon = roleIcons[member.role] ?? Shield
 
   return (
     <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-sm border border-border/50 group hover:bg-muted/80 transition-colors">
@@ -66,19 +83,38 @@ function PoolMemberCard({
         </Button>
       )}
 
-      <Avatar className="h-9 w-9 border-2 border-border flex-shrink-0">
-        <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
-        <AvatarFallback className="bg-muted text-foreground font-bold text-xs">
-          {member.name.slice(0, 2)}
-        </AvatarFallback>
-      </Avatar>
+      <div className="relative flex-shrink-0">
+        <Avatar className="h-9 w-9 border-2 border-border">
+          <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
+          <AvatarFallback className="bg-muted text-foreground font-bold text-xs">
+            {member.name.slice(0, 2)}
+          </AvatarFallback>
+        </Avatar>
+        {member.checkedIn && (
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 absolute -bottom-0.5 -right-0.5" />
+        )}
+      </div>
 
       <div className="flex-1 min-w-0 text-center">
         <p className="font-semibold text-sm text-foreground truncate">{member.name}</p>
         <div className="flex items-center justify-center gap-1">
-          <RoleIcon className={cn("w-3 h-3", roleColors[member.role])} />
-          <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
+          {member.preferredRoles && member.preferredRoles.length > 0 ? (
+            member.preferredRoles.map((r) => {
+              const PrefIcon = preferredRoleIcons[r]
+              return PrefIcon ? (
+                <PrefIcon key={r} className={cn("w-3 h-3", preferredRoleColors[r])} />
+              ) : null
+            })
+          ) : (
+            <>
+              <RoleIcon className={cn("w-3 h-3", roleColors[member.role] ?? "text-muted-foreground")} />
+              <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
+            </>
+          )}
         </div>
+        {member.note && (
+          <p className="text-xs text-muted-foreground truncate">{member.note}</p>
+        )}
       </div>
 
       {isAdmin && (
@@ -104,18 +140,23 @@ function TeamMemberCard({
   isAdmin: boolean
   onRemove: () => void
 }) {
-  const RoleIcon = roleIcons[member.role]
+  const RoleIcon = roleIcons[member.role] ?? Shield
 
   return (
     <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-sm border border-border/50 group">
-      <Avatar className="h-10 w-10 border-2 border-border">
-        <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
-        <AvatarFallback className="bg-muted text-foreground font-bold">{member.name.slice(0, 2)}</AvatarFallback>
-      </Avatar>
+      <div className="relative flex-shrink-0">
+        <Avatar className="h-10 w-10 border-2 border-border">
+          <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
+          <AvatarFallback className="bg-muted text-foreground font-bold">{member.name.slice(0, 2)}</AvatarFallback>
+        </Avatar>
+        {member.checkedIn && (
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 absolute -bottom-0.5 -right-0.5" />
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm text-foreground truncate">{member.name}</p>
         <div className="flex items-center gap-1">
-          <RoleIcon className={cn("w-3 h-3", roleColors[member.role])} />
+          <RoleIcon className={cn("w-3 h-3", roleColors[member.role] ?? "text-muted-foreground")} />
           <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
         </div>
       </div>

@@ -12,9 +12,9 @@ export enum ScrimStatus {
 }
 
 export enum RecruitmentType {
-  VOTE = 'VOTE',
   AUCTION = 'AUCTION',
   MANUAL = 'MANUAL',
+  OPEN = 'OPEN',
 }
 
 @Entity('scrims')
@@ -24,9 +24,6 @@ export class Scrim extends BaseEntity {
 
   @Column({ nullable: true })
   auctionId: string;
-
-  @Column({ nullable: true })
-  voteId: string;
 
   @Column()
   title: string;
@@ -50,8 +47,27 @@ export class Scrim extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true })
   signupDeadline: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  checkInStart: Date;
+
+  @Column({ default: 6 })
+  minPlayers: number;
+
+  @Column({ default: 12 })
+  maxPlayers: number;
+
   @Column({ type: 'jsonb', nullable: true })
-  teamSnapshot: any;
+  roleSlots: {
+    tank: { min: number; max: number };
+    dps: { min: number; max: number };
+    support: { min: number; max: number };
+  };
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  teamSnapshot: Record<string, unknown>;
 
   @Column({ default: 0 })
   teamAScore: number;

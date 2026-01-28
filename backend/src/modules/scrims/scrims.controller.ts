@@ -16,6 +16,7 @@ import {
   CreateScrimDto,
   UpdateScrimDto,
   AddParticipantDto,
+  SignupScrimDto,
   UpdateMatchDto,
 } from './dto/scrim.dto';
 import { AssignedTeam } from './entities/scrim-participant.entity';
@@ -85,6 +86,16 @@ export class ScrimsController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Post(':id/signup')
+  signup(
+    @Param('id') scrimId: string,
+    @Body() signupDto: SignupScrimDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.scrimsService.joinScrim(scrimId, req.user.userId, signupDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/join')
   joinScrim(
     @Param('id') scrimId: string,
@@ -100,6 +111,21 @@ export class ScrimsController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.scrimsService.leaveScrim(scrimId, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/check-in')
+  checkIn(
+    @Param('id') scrimId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.scrimsService.checkIn(scrimId, req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id/participants')
+  getParticipants(@Param('id') scrimId: string) {
+    return this.scrimsService.getParticipants(scrimId);
   }
 
   @UseGuards(AuthGuard('jwt'))

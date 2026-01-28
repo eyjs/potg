@@ -5,10 +5,39 @@ import {
   IsDateString,
   IsUUID,
   IsInt,
+  IsArray,
+  IsObject,
   Min,
+  Max,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ScrimStatus, RecruitmentType } from '../entities/scrim.entity';
 import { ParticipantSource } from '../entities/scrim-participant.entity';
+
+class RoleSlotRange {
+  @IsInt()
+  @Min(0)
+  min: number;
+
+  @IsInt()
+  @Min(0)
+  max: number;
+}
+
+class RoleSlotsDto {
+  @ValidateNested()
+  @Type(() => RoleSlotRange)
+  tank: RoleSlotRange;
+
+  @ValidateNested()
+  @Type(() => RoleSlotRange)
+  dps: RoleSlotRange;
+
+  @ValidateNested()
+  @Type(() => RoleSlotRange)
+  support: RoleSlotRange;
+}
 
 export class CreateScrimDto {
   @IsString()
@@ -23,10 +52,6 @@ export class CreateScrimDto {
   auctionId?: string;
 
   @IsOptional()
-  @IsUUID()
-  voteId?: string;
-
-  @IsOptional()
   @IsEnum(RecruitmentType)
   recruitmentType?: RecruitmentType;
 
@@ -37,6 +62,32 @@ export class CreateScrimDto {
   @IsOptional()
   @IsDateString()
   signupDeadline?: string;
+
+  @IsOptional()
+  @IsDateString()
+  checkInStart?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(30)
+  minPlayers?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(30)
+  maxPlayers?: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RoleSlotsDto)
+  roleSlots?: RoleSlotsDto;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
 
 export class UpdateScrimDto {
@@ -57,7 +108,33 @@ export class UpdateScrimDto {
   signupDeadline?: string;
 
   @IsOptional()
-  teamSnapshot?: any;
+  @IsDateString()
+  checkInStart?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(30)
+  minPlayers?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(30)
+  maxPlayers?: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RoleSlotsDto)
+  roleSlots?: RoleSlotsDto;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  teamSnapshot?: Record<string, unknown>;
 
   @IsOptional()
   teamAScore?: number;
@@ -73,6 +150,17 @@ export class AddParticipantDto {
   @IsOptional()
   @IsEnum(ParticipantSource)
   source?: ParticipantSource;
+}
+
+export class SignupScrimDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  preferredRoles?: string[];
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 export class UpdateMatchDto {

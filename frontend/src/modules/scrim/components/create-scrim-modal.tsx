@@ -9,9 +9,21 @@ import { Button } from "@/common/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/common/components/ui/dialog"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
+import { cn } from "@/lib/utils"
+
+interface CreateScrimData {
+  title: string
+  scheduledDate: string
+  signupDeadline?: string
+  checkInStart?: string
+  minPlayers?: number
+  maxPlayers?: number
+  description?: string
+  recruitmentType?: string
+}
 
 interface CreateScrimModalProps {
-  onCreateScrim: (scrim: { title: string; scheduledDate: string; signupDeadline?: string }) => void
+  onCreateScrim: (scrim: CreateScrimData) => void
 }
 
 export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
@@ -19,6 +31,11 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
   const [title, setTitle] = useState("")
   const [scheduledDate, setScheduledDate] = useState("")
   const [signupDeadline, setSignupDeadline] = useState("")
+  const [checkInStart, setCheckInStart] = useState("")
+  const [minPlayers, setMinPlayers] = useState(6)
+  const [maxPlayers, setMaxPlayers] = useState(12)
+  const [description, setDescription] = useState("")
+  const [recruitmentType, setRecruitmentType] = useState("OPEN")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,11 +43,21 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
       onCreateScrim({
         title,
         scheduledDate,
+        recruitmentType,
+        minPlayers,
+        maxPlayers,
         ...(signupDeadline ? { signupDeadline } : {}),
+        ...(checkInStart ? { checkInStart } : {}),
+        ...(description ? { description } : {}),
       })
       setTitle("")
       setScheduledDate("")
       setSignupDeadline("")
+      setCheckInStart("")
+      setMinPlayers(6)
+      setMaxPlayers(12)
+      setDescription("")
+      setRecruitmentType("OPEN")
       dialog.close()
     }
   }
@@ -44,10 +71,10 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-card border-border">
+      <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-bold italic uppercase tracking-wide text-foreground flex items-center justify-between">
-            새 내전 생성 (수동)
+            새 내전 생성
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -64,6 +91,31 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
               required
             />
           </div>
+
+          <div className="space-y-2">
+            <Label className="text-foreground font-semibold">모집 방식</Label>
+            <div className="flex gap-2">
+              {[
+                { value: "OPEN", label: "자유 참가" },
+                { value: "MANUAL", label: "수동 배정" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRecruitmentType(opt.value)}
+                  className={cn(
+                    "flex-1 px-3 py-2 rounded-sm border text-sm font-bold transition-all",
+                    recruitmentType === opt.value
+                      ? "border-primary bg-primary/20 text-primary"
+                      : "border-border/50 text-muted-foreground bg-muted/30"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="scrim-date" className="text-foreground font-semibold">
               일시
@@ -77,18 +129,78 @@ export function CreateScrimModal({ onCreateScrim }: CreateScrimModalProps) {
               required
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="scrim-deadline" className="text-foreground font-semibold">
+                신청 마감 (선택)
+              </Label>
+              <Input
+                id="scrim-deadline"
+                type="datetime-local"
+                value={signupDeadline}
+                onChange={(e) => setSignupDeadline(e.target.value)}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scrim-checkin" className="text-foreground font-semibold">
+                체크인 시작 (선택)
+              </Label>
+              <Input
+                id="scrim-checkin"
+                type="datetime-local"
+                value={checkInStart}
+                onChange={(e) => setCheckInStart(e.target.value)}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="scrim-min" className="text-foreground font-semibold">
+                최소 인원
+              </Label>
+              <Input
+                id="scrim-min"
+                type="number"
+                min={2}
+                max={30}
+                value={minPlayers}
+                onChange={(e) => setMinPlayers(Number(e.target.value))}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scrim-max" className="text-foreground font-semibold">
+                최대 인원
+              </Label>
+              <Input
+                id="scrim-max"
+                type="number"
+                min={2}
+                max={30}
+                value={maxPlayers}
+                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="scrim-deadline" className="text-foreground font-semibold">
-              신청 마감시간 (선택)
+            <Label htmlFor="scrim-desc" className="text-foreground font-semibold">
+              설명 (선택)
             </Label>
             <Input
-              id="scrim-deadline"
-              type="datetime-local"
-              value={signupDeadline}
-              onChange={(e) => setSignupDeadline(e.target.value)}
+              id="scrim-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="예: 실력 향상을 위한 정기 내전입니다"
               className="bg-input border-border text-foreground"
             />
           </div>
+
           <div className="flex gap-2 justify-end pt-2">
             <Button
               type="button"

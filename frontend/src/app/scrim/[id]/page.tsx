@@ -68,36 +68,45 @@ export default function ScrimDetailPage() {
         endTime: "",
         auctionId: data.auctionId,
         signupDeadline: data.signupDeadline || null,
+        checkInStart: data.checkInStart || null,
+        maxPlayers: data.maxPlayers || 12,
+        description: data.description || null,
       })
 
       const participants = data.participants || []
-      const activeParticipants = participants.filter((p: any) => p.status !== 'REMOVED' && p.status !== 'DECLINED')
-      setParticipantUserIds(activeParticipants.map((p: any) => p.userId))
-      setPool(participants.filter((p: any) => p.assignedTeam === 'UNASSIGNED').map((p: any) => ({
-        id: p.userId,
-        name: p.user?.battleTag?.split('#')[0] || "선수",
-        role: p.user?.mainRole?.toLowerCase() || 'flex',
-      })))
-      setTeamA(participants.filter((p: any) => p.assignedTeam === 'TEAM_A').map((p: any) => ({
-        id: p.userId,
-        name: p.user?.battleTag?.split('#')[0] || "선수",
-        role: p.user?.mainRole?.toLowerCase() || 'flex',
-      })))
-      setTeamB(participants.filter((p: any) => p.assignedTeam === 'TEAM_B').map((p: any) => ({
-        id: p.userId,
-        name: p.user?.battleTag?.split('#')[0] || "선수",
-        role: p.user?.mainRole?.toLowerCase() || 'flex',
-      })))
+      const activeParticipants = participants.filter((p: Record<string, unknown>) => p.status !== 'REMOVED' && p.status !== 'DECLINED')
+      setParticipantUserIds(activeParticipants.map((p: Record<string, unknown>) => p.userId as string))
 
-      setMatches(data.matches?.map((m: any, index: number) => ({
-        id: m.id,
-        gameNumber: index + 1,
-        map: m.mapName ? { name: m.mapName, image: "/placeholder.svg" } : null,
-        result: m.teamAScore > m.teamBScore ? 'teamA' :
-                m.teamBScore > m.teamAScore ? 'teamB' :
-                (m.teamAScore === 0 && m.teamBScore === 0 && !m.mapName) ? null : 'draw',
-        screenshot: m.screenshotUrl,
-      })) || [])
+      const mapParticipant = (p: Record<string, unknown>) => {
+        const userObj = p.user as Record<string, unknown> | undefined
+        return {
+          id: p.userId as string,
+          name: (userObj?.battleTag as string)?.split('#')[0] || "선수",
+          role: ((userObj?.mainRole as string)?.toLowerCase() || 'flex') as "tank" | "dps" | "support" | "flex",
+          avatar: (userObj?.avatarUrl as string) || "",
+          checkedIn: p.checkedIn as boolean,
+          preferredRoles: p.preferredRoles as string[] | undefined,
+          note: p.note as string | undefined,
+        }
+      }
+
+      setPool(participants.filter((p: Record<string, unknown>) => p.assignedTeam === 'UNASSIGNED' && p.status !== 'REMOVED' && p.status !== 'DECLINED').map(mapParticipant))
+      setTeamA(participants.filter((p: Record<string, unknown>) => p.assignedTeam === 'TEAM_A').map(mapParticipant))
+      setTeamB(participants.filter((p: Record<string, unknown>) => p.assignedTeam === 'TEAM_B').map(mapParticipant))
+
+      setMatches(data.matches?.map((m: Record<string, unknown>, index: number) => {
+        const teamAScore = (m.teamAScore as number) ?? 0
+        const teamBScore = (m.teamBScore as number) ?? 0
+        return {
+          id: m.id as string,
+          gameNumber: index + 1,
+          map: m.mapName ? { name: m.mapName as string, image: "/placeholder.svg" } : null,
+          result: teamAScore > teamBScore ? 'teamA' as const :
+                  teamBScore > teamAScore ? 'teamB' as const :
+                  (teamAScore === 0 && teamBScore === 0 && !m.mapName) ? null : 'draw' as const,
+          screenshot: (m.screenshotUrl as string) ?? null,
+        }
+      }) || [])
     } catch (error) {
       handleApiError(error)
     } finally {
@@ -111,9 +120,14 @@ export default function ScrimDetailPage() {
 
   const isJoined = user ? participantUserIds.includes(user.id) : false
 
-  const handleJoinScrim = async () => {
+  const myParticipant = scrim && user
+    ? [...pool, ...teamA, ...teamB].find((p) => p.id === user.id)
+    : null
+  const isCheckedIn = myParticipant?.checkedIn ?? false
+
+  const handleSignup = async (preferredRoles: string[], note: string) => {
     try {
-      await api.post(`/scrims/${scrimId}/join`)
+      await api.post(`/scrims/${scrimId}/signup`, { preferredRoles, note })
       fetchScrimData()
     } catch (error) {
       handleApiError(error, "참가 신청에 실패했습니다.")
@@ -126,6 +140,16 @@ export default function ScrimDetailPage() {
       fetchScrimData()
     } catch (error) {
       handleApiError(error, "참가 취소에 실패했습니다.")
+    }
+  }
+
+  const handleCheckIn = async () => {
+    try {
+      await api.post(`/scrims/${scrimId}/check-in`)
+      toast.success("체크인 완료!")
+      fetchScrimData()
+    } catch (error) {
+      handleApiError(error, "체크인에 실패했습니다.")
     }
   }
 
@@ -252,13 +276,24 @@ export default function ScrimDetailPage() {
         <main className="container px-4 py-6 space-y-6">
           <ScrimHeader scrim={scrim} isAdmin={isAdmin} onUpdateSchedule={handleUpdateSchedule} />
 
-          {scrim?.status === "draft" && scrim?.signupDeadline && (
+          {scrim?.description && (
+            <div className="text-sm text-muted-foreground bg-muted/30 rounded-sm p-3 border border-border/50">
+              {scrim.description}
+            </div>
+          )}
+
+          {scrim?.signupDeadline && (
             <SignupCountdown
               deadline={scrim.signupDeadline}
               participantCount={participantUserIds.length}
+              maxPlayers={scrim.maxPlayers || 12}
               isJoined={isJoined}
-              onJoin={handleJoinScrim}
+              isCheckedIn={isCheckedIn}
+              checkInStart={scrim.checkInStart}
+              scrimStatus={scrim.status}
+              onSignup={handleSignup}
               onLeave={handleLeaveScrim}
+              onCheckIn={handleCheckIn}
             />
           )}
 

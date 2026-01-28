@@ -5,9 +5,6 @@ import { Vote, VoteStatus } from './entities/vote.entity';
 import { VoteOption } from './entities/vote-option.entity';
 import { VoteRecord } from './entities/vote-record.entity';
 import { CreateVoteDto } from './dto/vote.dto';
-import { ScrimsService } from '../scrims/scrims.service';
-import { RecruitmentType } from '../scrims/entities/scrim.entity';
-import { ParticipantSource } from '../scrims/entities/scrim-participant.entity';
 
 @Injectable()
 export class VotesService {
@@ -18,7 +15,6 @@ export class VotesService {
     private voteOptionsRepository: Repository<VoteOption>,
     @InjectRepository(VoteRecord)
     private voteRecordsRepository: Repository<VoteRecord>,
-    private scrimsService: ScrimsService,
   ) {}
 
   async create(createVoteDto: CreateVoteDto, userId: string) {
@@ -136,42 +132,7 @@ export class VotesService {
     }
     
     vote.status = VoteStatus.CLOSED;
-    const savedVote = await this.votesRepository.save(vote);
-
-    // If it's a scrim vote, check if we have enough people (docs/vote/PROCESS.md:52-57)
-    if (vote.scrimType === 'NORMAL') {
-      const attendOption = vote.options.find(opt => opt.label === '참석');
-      if (attendOption && attendOption.count >= 10) {
-        // Create Scrim
-        const scrim = await this.scrimsService.create({
-          clanId: vote.clanId,
-          title: `[내전] ${vote.title}`,
-          scheduledDate: vote.deadline.toISOString(), // Use vote deadline as scheduled time
-          recruitmentType: RecruitmentType.VOTE,
-          voteId: vote.id,
-        }, vote.creatorId);
-
-        // Add participants from vote records
-        const records = await this.voteRecordsRepository.find({
-          where: { voteId: vote.id, optionId: attendOption.id }
-        });
-
-        for (const record of records) {
-          await this.scrimsService.addParticipant(
-            scrim.id, 
-            record.userId, 
-            ParticipantSource.VOTE
-          );
-        }
-        
-        return {
-          ...savedVote,
-          generatedScrimId: scrim.id
-        };
-      }
-    }
-
-    return savedVote;
+    return this.votesRepository.save(vote);
   }
 
   async remove(id: string, userId: string) {

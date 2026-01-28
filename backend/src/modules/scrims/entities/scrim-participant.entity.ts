@@ -1,10 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Scrim } from './scrim.entity';
-import { User } from '../../users/entities/user.entity';
+import { User, MainRole } from '../../users/entities/user.entity';
 
 export enum ParticipantSource {
-  VOTE = 'VOTE',
   AUCTION = 'AUCTION',
   MANUAL = 'MANUAL',
   SIGNUP = 'SIGNUP',
@@ -63,4 +62,22 @@ export class ScrimParticipant extends BaseEntity {
     default: AssignedTeam.UNASSIGNED,
   })
   assignedTeam: AssignedTeam;
+
+  @Column({ type: 'jsonb', nullable: true })
+  preferredRoles: string[];
+
+  @Column({ type: 'enum', enum: MainRole, nullable: true })
+  assignedRole: MainRole;
+
+  @Column({ type: 'text', nullable: true })
+  note: string;
+
+  @Column({ default: false })
+  checkedIn: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  checkedInAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  respondedAt: Date;
 }

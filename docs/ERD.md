@@ -4,7 +4,9 @@
 
 ```mermaid
 erDiagram
+    %% ==========================================
     %% Clan Domain
+    %% ==========================================
     Clan {
         uuid id PK
         string name UK
@@ -49,7 +51,9 @@ erDiagram
         timestamp created_at
     }
 
+    %% ==========================================
     %% Auction Domain
+    %% ==========================================
     Auction {
         uuid id PK
         string title
@@ -93,18 +97,24 @@ erDiagram
         timestamp created_at
     }
 
-    %% Scrim Domain
+    %% ==========================================
+    %% Scrim Domain (확장)
+    %% ==========================================
     Scrim {
         uuid id PK
         uuid clanId FK "Nullable"
-        uuid voteId FK "Nullable"
         uuid auctionId FK "Nullable"
         string title
         enum status "DRAFT, SCHEDULED, IN_PROGRESS, FINISHED, CANCELLED"
-        enum recruitmentType "VOTE, AUCTION, MANUAL"
+        enum recruitmentType "AUCTION, MANUAL, OPEN"
         uuid hostId FK
         timestamp scheduledDate "Nullable"
         timestamp signupDeadline "Nullable - 참가 신청 마감시간"
+        timestamp checkInStart "Nullable - 체크인 시작 시간"
+        int minPlayers "default: 6"
+        int maxPlayers "default: 12"
+        jsonb roleSlots "Nullable - 역할별 슬롯 {tank, dps, support}"
+        text description "Nullable"
         jsonb teamSnapshot "Nullable"
         int teamAScore "default: 0"
         int teamBScore "default: 0"
@@ -116,9 +126,15 @@ erDiagram
         uuid id PK
         uuid scrimId FK
         uuid userId FK
-        enum source "VOTE, AUCTION, MANUAL, SIGNUP"
+        enum source "AUCTION, MANUAL, SIGNUP"
         enum status "PENDING, CONFIRMED, BENCH, DECLINED, REMOVED"
         enum assignedTeam "TEAM_A, TEAM_B, BENCH, UNASSIGNED"
+        jsonb preferredRoles "Nullable - 선호 역할"
+        enum assignedRole "TANK, DPS, SUPPORT - Nullable"
+        text note "Nullable - 참가 메모"
+        boolean checkedIn "default: false"
+        timestamp checkedInAt "Nullable"
+        timestamp respondedAt "Nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -133,35 +149,156 @@ erDiagram
         timestamp created_at
     }
 
-    %% Vote Domain
-    Vote {
+    %% ==========================================
+    %% Attendance & Point Rules
+    %% ==========================================
+    PointRule {
         uuid id PK
         uuid clanId FK
-        uuid creatorId FK
-        string title
-        timestamp deadline
-        enum status "OPEN, CLOSED"
-        enum scrimType "NORMAL, AUCTION"
+        string name "스크림 참가, VOD 리뷰 작성 등"
+        string description "Nullable"
+        enum category "ATTENDANCE, ACTIVITY, ACHIEVEMENT, PENALTY"
+        int points "획득/차감 포인트"
+        boolean isActive "default: true"
         timestamp created_at
         timestamp updated_at
     }
 
-    VoteOption {
+    AttendanceRecord {
         uuid id PK
-        uuid voteId FK
-        string label
-        int count
-    }
-
-    VoteRecord {
-        uuid id PK
-        uuid voteId FK
-        uuid userId FK
-        uuid optionId FK
+        uuid memberId FK "ClanMember"
+        uuid scrimId FK
+        enum status "PRESENT, LATE, ABSENT, EXCUSED"
+        int pointsEarned
+        int bonusPoints "연속 출석 보너스 등"
+        string bonusReason "Nullable"
+        timestamp checkedInAt "Nullable"
         timestamp created_at
     }
 
+    %% ==========================================
+    %% Achievement & Badge System
+    %% ==========================================
+    Achievement {
+        uuid id PK
+        uuid clanId FK "Nullable - null이면 글로벌"
+        string code UK "FOUNDING_MEMBER, WIN_STREAK_10 등"
+        string name "창립 멤버"
+        string description "클랜 창립 시 가입한 멤버"
+        string icon "이모지 or 아이콘 URL"
+        enum category "ATTENDANCE, SCRIM, SOCIAL, SPECIAL"
+        int points "업적 달성 시 보상 포인트"
+        boolean isActive "default: true"
+        timestamp created_at
+    }
+
+    MemberAchievement {
+        uuid id PK
+        uuid memberId FK "ClanMember"
+        uuid achievementId FK
+        timestamp earnedAt
+        string note "Nullable - 5연승 달성!"
+    }
+
+    AchievementProgress {
+        uuid id PK
+        uuid memberId FK "ClanMember"
+        uuid achievementId FK
+        int currentValue "현재 진행률"
+        int targetValue "목표값"
+        timestamp lastUpdatedAt
+    }
+
+    %% ==========================================
+    %% Mentoring System
+    %% ==========================================
+    Mentor {
+        uuid id PK
+        uuid memberId FK "ClanMember - 1인 1멘토"
+        jsonb specialties "전문 영웅/역할"
+        string introduction "멘토 소개글"
+        int maxMentees "default: 3"
+        enum availability "AVAILABLE, BUSY, UNAVAILABLE"
+        string scheduleNote "Nullable - 주 3회 가능 등"
+        float rating "평균 평점 (0~5)"
+        int reviewCount "default: 0"
+        boolean isActive "default: true"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    Mentorship {
+        uuid id PK
+        uuid mentorId FK
+        uuid menteeId FK "ClanMember"
+        enum status "REQUESTED, ACTIVE, COMPLETED, CANCELLED"
+        string goal "아나 숙련도 향상"
+        int totalSessions "default: 0"
+        int completedSessions "default: 0"
+        timestamp startedAt "Nullable"
+        timestamp completedAt "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    MentorSession {
+        uuid id PK
+        uuid mentorshipId FK
+        timestamp scheduledAt
+        int durationMinutes
+        enum status "SCHEDULED, COMPLETED, CANCELLED, NO_SHOW"
+        string topic "VOD 리뷰, 듀오 코칭 등"
+        text mentorNote "Nullable - 멘토 피드백"
+        text menteeNote "Nullable - 멘티 메모"
+        timestamp completedAt "Nullable"
+        timestamp created_at
+    }
+
+    MentorReview {
+        uuid id PK
+        uuid mentorshipId FK
+        uuid reviewerId FK "ClanMember (멘티)"
+        int rating "1~5"
+        text comment "Nullable"
+        timestamp created_at
+    }
+
+    %% ==========================================
+    %% Bingo Challenge System
+    %% ==========================================
+    BingoTemplate {
+        uuid id PK
+        uuid clanId FK
+        string name "1월 4주차 빙고"
+        jsonb cells "5x5 빙고 셀 배열"
+        int bingoReward "1빙고당 보너스 포인트"
+        boolean isActive "default: true"
+        timestamp created_at
+    }
+
+    BingoInstance {
+        uuid id PK
+        uuid templateId FK
+        timestamp startDate "주간 시작일"
+        timestamp endDate "주간 종료일"
+        enum status "ACTIVE, COMPLETED"
+        timestamp created_at
+    }
+
+    MemberBingo {
+        uuid id PK
+        uuid instanceId FK
+        uuid memberId FK "ClanMember"
+        jsonb completedCells "완료한 셀 인덱스 배열"
+        int bingoCount "달성한 빙고 줄 수"
+        int totalPoints "획득 포인트"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ==========================================
     %% Blind Date Domain
+    %% ==========================================
     BlindDateListing {
         uuid id PK
         uuid clanId FK
@@ -222,7 +359,9 @@ erDiagram
         timestamp updated_at
     }
 
+    %% ==========================================
     %% Shop Domain
+    %% ==========================================
     ShopProduct {
         uuid id PK
         uuid clanId FK
@@ -251,7 +390,9 @@ erDiagram
         timestamp updated_at
     }
 
+    %% ==========================================
     %% Betting System
+    %% ==========================================
     BettingQuestion {
         uuid id PK
         uuid scrimId FK
@@ -277,25 +418,27 @@ erDiagram
         timestamp updated_at
     }
 
+    %% ==========================================
     %% Relationships
+    %% ==========================================
 
-    %% Clan Relationships
+    %% Clan Core
     Clan ||--o{ ClanMember : "has_members"
     Clan ||--o{ Auction : "hosts"
     Clan ||--o{ Scrim : "organizes"
-    Clan ||--o{ Vote : "conducts"
     Clan ||--o{ BlindDateListing : "contains"
     Clan ||--o{ ShopProduct : "sells"
+    Clan ||--o{ PointRule : "defines"
+    Clan ||--o{ Achievement : "has"
+    Clan ||--o{ BingoTemplate : "creates"
 
-    %% User Relationships
+    %% User Core
     User ||--o{ ClanMember : "belongs_to_clans"
     User ||--o{ Auction : "creates"
     User ||--o{ Scrim : "hosts"
     User ||--o{ AuctionParticipant : "participates_in"
-    User ||--o{ AuctionBid : "makes_bid (as Captain)"
-    User ||--o{ AuctionBid : "is_target_of (as Player)"
-    User ||--o{ Vote : "creates"
-    User ||--o{ VoteRecord : "casts_vote"
+    User ||--o{ AuctionBid : "makes_bid"
+    User ||--o{ AuctionBid : "is_target_of"
     User ||--o{ ScrimParticipant : "joins_scrim_as"
     User ||--o{ BlindDateListing : "registers"
     User ||--o{ BlindDateRequest : "makes_request"
@@ -304,30 +447,47 @@ erDiagram
     User ||--o{ BettingTicket : "places_bets"
     User ||--o{ PointLog : "has_history"
 
-    %% Auction Relationships
+    %% Auction
     Auction ||--|{ AuctionParticipant : "has"
     Auction ||--o{ AuctionBid : "records"
 
-    %% Scrim Relationships
+    %% Scrim
     Scrim ||--o{ ScrimMatch : "consists_of"
     Scrim ||--o{ ScrimParticipant : "has_participants"
     Scrim ||--o{ BettingQuestion : "has_questions"
+    Scrim ||--o{ AttendanceRecord : "records"
 
-    %% Vote Relationships
-    Vote ||--|{ VoteOption : "has_options"
-    Vote ||--o{ VoteRecord : "tracks_votes"
-    Vote ||--o| Scrim : "may_result_in"
+    %% Attendance & Points
+    ClanMember ||--o{ AttendanceRecord : "has"
 
-    %% Betting Relationships
+    %% Achievement
+    ClanMember ||--o{ MemberAchievement : "earns"
+    Achievement ||--o{ MemberAchievement : "awarded_to"
+    ClanMember ||--o{ AchievementProgress : "tracks"
+    Achievement ||--o{ AchievementProgress : "tracked_by"
+
+    %% Mentoring
+    ClanMember ||--o| Mentor : "can_be"
+    Mentor ||--o{ Mentorship : "mentors"
+    ClanMember ||--o{ Mentorship : "mentee_in"
+    Mentorship ||--o{ MentorSession : "has"
+    Mentorship ||--o| MentorReview : "reviewed_by"
+
+    %% Bingo
+    BingoTemplate ||--o{ BingoInstance : "instantiated_as"
+    BingoInstance ||--o{ MemberBingo : "participated_by"
+    ClanMember ||--o{ MemberBingo : "plays"
+
+    %% Betting
     BettingQuestion ||--o{ BettingTicket : "has_bets"
 
-    %% Blind Date Relationships
+    %% Blind Date
     BlindDateListing ||--o{ BlindDateRequest : "receives_requests"
     BlindDateListing ||--o| BlindDateMatch : "results_in"
     BlindDateListing ||--o| BlindDatePreference : "has_preference"
     BlindDateRequest ||--o| BlindDateMatch : "results_in"
 
-    %% Shop Relationships
+    %% Shop
     ShopProduct ||--o{ ShopPurchase : "has_purchases"
 
 ```
