@@ -165,8 +165,8 @@ function getRoleSkillTier(ranking: ClanRanking, role: RoleType): number {
   const pcRank = ranking.competitive?.pc
   if (!pcRank) return 0
 
-  const roleRank = pcRank[role as keyof typeof pcRank]
-  if (!roleRank) return 0
+  const roleRank = pcRank[role as 'tank' | 'damage' | 'support']
+  if (!roleRank || typeof roleRank === 'number') return 0
 
   // Convert division + tier to numeric value for sorting
   const divisionOrder = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Champion']

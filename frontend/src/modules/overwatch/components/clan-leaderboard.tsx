@@ -96,7 +96,7 @@ function LeaderboardRow({ member, rank }: LeaderboardRowProps) {
         <p className="font-medium text-sm text-foreground truncate">{member.battleTag}</p>
         {highestRank && (
           <p className={cn('text-xs', getDivisionColor(highestRank.division))}>
-            {formatRank(highestRank)}
+            {highestRank.division} {highestRank.tier}
           </p>
         )}
       </div>

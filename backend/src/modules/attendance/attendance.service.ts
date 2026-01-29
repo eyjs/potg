@@ -294,7 +294,7 @@ export class AttendanceService {
   }
 }
 
-interface AttendanceStatsResult {
+export interface AttendanceStatsResult {
   memberId: string;
   userId: string;
   battleTag: string;

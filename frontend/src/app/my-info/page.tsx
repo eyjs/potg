@@ -15,10 +15,11 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useConfirm } from "@/common/components/confirm-dialog"
 import { handleApiError } from "@/lib/api-error"
-import { User, Shield, Lock, LogOut, Save, Wallet, ChevronRight } from "lucide-react"
+import { User, Shield, Lock, LogOut, Save, Wallet, ChevronRight, Gamepad2 } from "lucide-react"
 import Link from "next/link"
 import { ImageUploader } from "@/components/image-uploader"
 import { getImageUrl } from "@/lib/upload"
+import { OWProfileCard, CompetitiveRankCard, OverwatchProfile } from "@/modules/overwatch"
 
 export default function MyInfoPage() {
   const { user } = useAuth()
@@ -33,6 +34,8 @@ export default function MyInfoPage() {
   })
   const [clanDetails, setClanDetails] = useState<Record<string, unknown> | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [owProfile, setOwProfile] = useState<OverwatchProfile | null>(null)
+  const [owLoading, setOwLoading] = useState(true)
 
   useEffect(() => {
     if (user) {
@@ -44,8 +47,23 @@ export default function MyInfoPage() {
       if (user.clanId) {
         fetchClanDetails(user.clanId)
       }
+      fetchOwProfile()
     }
   }, [user])
+
+  const fetchOwProfile = async () => {
+    setOwLoading(true)
+    try {
+      const response = await api.get("/overwatch/profile/me")
+      setOwProfile(response.data)
+    } catch (error) {
+      // 프로필이 없을 수 있음 (404)
+      console.log("OW 프로필 없음 또는 에러:", error)
+      setOwProfile(null)
+    } finally {
+      setOwLoading(false)
+    }
+  }
 
   const fetchClanDetails = async (clanId: string) => {
     try {
@@ -166,6 +184,18 @@ export default function MyInfoPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Overwatch Profile Section */}
+              <OWProfileCard 
+                profile={owProfile} 
+                onSync={fetchOwProfile}
+                isLoading={owLoading}
+              />
+
+              {/* Competitive Rank */}
+              {owProfile && (
+                <CompetitiveRankCard competitive={owProfile.competitiveRank} />
+              )}
 
               {/* Point Management Section */}
               <Card className="bg-card border-border border-l-4 border-l-yellow-500">
