@@ -828,8 +828,8 @@ export class AuctionsService {
         user: p.user
           ? {
               id: p.user.id,
-              battleTag: p.user.battleTag,
-              mainRole: p.user.mainRole,
+              battleTag: p.user.battleTag ?? null,
+              mainRole: p.user.mainRole ?? null,
             }
           : null,
       })),

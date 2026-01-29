@@ -5,5 +5,6 @@ export interface AuthenticatedRequest extends Request {
     userId: string;
     username: string;
     role: string;
+    clanId?: string;
   };
 }
