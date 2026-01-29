@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { MemberProfile } from './entities/member-profile.entity';
@@ -7,6 +7,7 @@ import { Guestbook } from './entities/guestbook.entity';
 import { ProfileVisit } from './entities/profile-visit.entity';
 import { UpdateProfileDto, EquipItemsDto, CreateGuestbookDto } from './dto/profile.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
+import { MemberItem } from '../shop/entities/member-item.entity';
 
 @Injectable()
 export class ProfilesService {
@@ -21,6 +22,8 @@ export class ProfilesService {
     private visitRepo: Repository<ProfileVisit>,
     @InjectRepository(ClanMember)
     private memberRepo: Repository<ClanMember>,
+    @InjectRepository(MemberItem)
+    private memberItemRepo: Repository<MemberItem>,
     private dataSource: DataSource,
   ) {}
 
@@ -80,7 +83,31 @@ export class ProfilesService {
 
   async equipItems(memberId: string, dto: EquipItemsDto): Promise<MemberProfile> {
     const profile = await this.getProfile(memberId);
-    
+
+    // 아이템 보유 검증 (default는 무조건 허용)
+    const itemsToCheck: { field: keyof EquipItemsDto; value?: string }[] = [
+      { field: 'themeId', value: dto.themeId },
+      { field: 'frameId', value: dto.frameId },
+      { field: 'petId', value: dto.petId },
+    ];
+
+    for (const { field, value } of itemsToCheck) {
+      if (value !== undefined && value !== 'default') {
+        // MemberItem 테이블에서 해당 아이템 코드 보유 확인
+        const hasItem = await this.memberItemRepo
+          .createQueryBuilder('mi')
+          .innerJoin('mi.item', 'item')
+          .where('mi.memberId = :memberId', { memberId })
+          .andWhere('item.code = :code', { code: value })
+          .getCount();
+
+        if (hasItem === 0) {
+          throw new BadRequestException(`보유하지 않은 아이템입니다: ${value}`);
+        }
+      }
+    }
+
+    // 아이템 적용
     if (dto.themeId !== undefined) profile.themeId = dto.themeId;
     if (dto.frameId !== undefined) profile.frameId = dto.frameId;
     if (dto.petId !== undefined) profile.petId = dto.petId;

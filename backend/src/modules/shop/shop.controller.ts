@@ -8,18 +8,21 @@ import {
   UseGuards,
   Request,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { ShopService } from './shop.service';
 import { AuthGuard } from '@nestjs/passport';
-import { CreateProductDto, PurchaseDto } from './dto/shop.dto';
+import { CreateProductDto, PurchaseDto, PurchaseProfileItemDto } from './dto/shop.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 import { ClanRoles } from '../../common/decorators/clan-roles.decorator';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
+import { ProfileItemCategory } from './entities/profile-item.entity';
 
 import { UserRole } from '../users/entities/user.entity';
 import { ClanRole } from '../clans/entities/clan-member.entity';
+import { ClanMember } from '../clans/entities/clan-member.entity';
 
 @Controller('shop')
 export class ShopController {
@@ -77,5 +80,48 @@ export class ShopController {
   @Get('my-coupons')
   getMyCoupons(@Request() req: AuthenticatedRequest) {
     return this.shopService.getMyCoupons(req.user.userId);
+  }
+
+  // ==================== 프로필 아이템 ====================
+
+  @Get('profile-items')
+  getProfileItems(@Query('category') category?: ProfileItemCategory) {
+    return this.shopService.getProfileItems(category);
+  }
+
+  @Get('profile-items/:id')
+  getProfileItem(@Param('id') id: string) {
+    return this.shopService.getProfileItem(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my-items')
+  async getMyItems(
+    @Request() req: AuthenticatedRequest,
+    @Query('clanId') clanId: string,
+  ) {
+    const member = await this.getMemberByUserId(req.user.userId, clanId);
+    if (!member) throw new BadRequestException('클랜 멤버가 아닙니다.');
+    return this.shopService.getMemberItems(member.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('profile-items/purchase')
+  async purchaseProfileItem(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: PurchaseProfileItemDto,
+  ) {
+    const member = await this.getMemberByUserId(req.user.userId, dto.clanId);
+    if (!member) throw new BadRequestException('클랜 멤버가 아닙니다.');
+    return this.shopService.purchaseProfileItem(member.id, dto.clanId, dto.itemId);
+  }
+
+  // 헬퍼: userId로 ClanMember 조회
+  private async getMemberByUserId(userId: string, clanId: string): Promise<ClanMember | null> {
+    // ShopService에 DataSource가 있으므로 직접 쿼리
+    const result = await this.shopService['dataSource'].manager.findOne(ClanMember, {
+      where: { userId, clanId },
+    });
+    return result;
   }
 }

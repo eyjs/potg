@@ -58,3 +58,11 @@ export class PurchaseDto {
   @IsPositive()
   quantity?: number;
 }
+
+export class PurchaseProfileItemDto {
+  @IsUUID()
+  clanId: string;
+
+  @IsUUID()
+  itemId: string;
+}
