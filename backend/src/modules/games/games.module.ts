@@ -10,6 +10,7 @@ import { QuizQuestion } from './entities/quiz-question.entity';
 import { QuizMatch } from './entities/quiz-match.entity';
 import { WordChainDict } from './entities/word-chain-dict.entity';
 import { LiarTopic } from './entities/liar-topic.entity';
+import { ClanMember } from '../clans/entities/clan-member.entity';
 import { ProfilesModule } from '../profiles/profiles.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { ProfilesModule } from '../profiles/profiles.module';
       QuizMatch,
       WordChainDict,
       LiarTopic,
+      ClanMember,
     ]),
     forwardRef(() => ProfilesModule),
   ],

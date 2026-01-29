@@ -142,7 +142,18 @@ export class GamesController {
   ) {
     const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
-    await this.gamesService.setPlayerReady(memberId, roomId, ready === 'true');
-    return { success: true };
+    const result = await this.gamesService.setPlayerReady(memberId, roomId, ready === 'true');
+    return { success: true, ...result };
+  }
+
+  @Post('rooms/:roomId/start')
+  async startGame(
+    @Param('roomId') roomId: string,
+    @Request() req: AuthenticatedRequest,
+    @Query('clanId') clanId: string,
+  ) {
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
+    return this.gamesService.startGame(roomId, memberId);
   }
 }
