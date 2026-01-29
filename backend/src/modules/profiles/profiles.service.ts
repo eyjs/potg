@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+// import { Cron, CronExpression } from '@nestjs/schedule'; // TODO: ScheduleModule 설치 후 활성화
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { MemberProfile } from './entities/member-profile.entity';
@@ -238,12 +239,17 @@ export class ProfilesService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const existing = await this.visitRepo.findOne({
-      where: { profileId, visitorId, visitDate: today },
-    });
+    // UPSERT로 race condition 방지
+    const result = await this.dataSource.query(
+      `INSERT INTO profile_visits ("profileId", "visitorId", "visitDate")
+       VALUES ($1, $2, $3)
+       ON CONFLICT ("profileId", "visitorId", "visitDate") DO NOTHING
+       RETURNING id`,
+      [profileId, visitorId, today],
+    );
 
-    if (!existing) {
-      await this.visitRepo.save({ profileId, visitorId, visitDate: today });
+    // 새로 삽입된 경우에만 카운터 증가
+    if (result.length > 0) {
       await this.profileRepo.increment({ id: profileId }, 'todayVisitors', 1);
       await this.profileRepo.increment({ id: profileId }, 'totalVisitors', 1);
     }
@@ -259,8 +265,16 @@ export class ProfilesService {
     return { data, total };
   }
 
-  // 매일 자정에 todayVisitors 초기화 (Cron Job)
+  // 매일 자정에 todayVisitors 초기화
+  // TODO: @nestjs/schedule 설치 후 Cron 데코레이터 활성화
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Asia/Seoul' })
   async resetTodayVisitors(): Promise<void> {
-    await this.profileRepo.update({}, { todayVisitors: 0 });
+    const logger = new Logger('ProfilesService');
+    try {
+      await this.profileRepo.update({}, { todayVisitors: 0 });
+      logger.log('Daily visitor count reset completed');
+    } catch (error) {
+      logger.error('Failed to reset daily visitor count', error);
+    }
   }
 }

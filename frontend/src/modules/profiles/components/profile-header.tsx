@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Settings, Music, Users, Eye } from 'lucide-react';
+import { Edit, Settings, Music, Users, Eye, Pause, Play } from 'lucide-react';
 import type { MemberProfile } from '../types';
 
 interface ProfileHeaderProps {
@@ -45,9 +45,44 @@ export function ProfileHeader({
   onEdit,
 }: ProfileHeaderProps) {
   const [bgmPlaying, setBgmPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const frameStyle = FRAME_STYLES[profile.frameId] || FRAME_STYLES.default;
-  const petEmoji = profile.petId ? PET_EMOJI[profile.petId] || '🐾' : '';
+  // frameId를 소문자로 변환하여 매핑 (FRAME_GOLD -> gold)
+  const normalizedFrameId = profile.frameId?.toLowerCase().replace('frame_', '') || 'default';
+  const frameStyle = FRAME_STYLES[normalizedFrameId] || FRAME_STYLES.default;
+  
+  // petId를 소문자로 변환하여 매핑 (PET_HAMSTER -> hamster)
+  const normalizedPetId = profile.petId?.toLowerCase().replace('pet_', '') || '';
+  const petEmoji = normalizedPetId ? PET_EMOJI[normalizedPetId] || '🐾' : '';
+
+  // BGM 재생/정지
+  useEffect(() => {
+    if (profile.bgmUrl && !audioRef.current) {
+      audioRef.current = new Audio(profile.bgmUrl);
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3;
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [profile.bgmUrl]);
+
+  const toggleBgm = () => {
+    if (!audioRef.current) return;
+
+    if (bgmPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(() => {
+        // 자동 재생 정책으로 실패할 수 있음
+      });
+    }
+    setBgmPlaying(!bgmPlaying);
+  };
 
   return (
     <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-6">
@@ -170,9 +205,13 @@ export function ProfileHeader({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => setBgmPlaying(!bgmPlaying)}
+              onClick={toggleBgm}
             >
-              <Music className={`w-4 h-4 ${bgmPlaying ? 'text-orange-500' : ''}`} />
+              {bgmPlaying ? (
+                <Pause className="w-4 h-4 text-orange-500" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
             </Button>
             <div className="text-xs">
               <div className="text-zinc-400">🎵 BGM</div>

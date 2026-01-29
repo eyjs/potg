@@ -15,7 +15,7 @@ describe('ProfilesService - equipItems', () => {
   let profileRepo: jest.Mocked<Repository<MemberProfile>>;
   let memberItemRepo: jest.Mocked<Repository<MemberItem>>;
 
-  const mockProfile: MemberProfile = {
+  const mockProfile = {
     id: 'profile-1',
     memberId: 'member-1',
     displayName: '테스터',
@@ -33,9 +33,9 @@ describe('ProfilesService - equipItems', () => {
     followerCount: 0,
     followingCount: 0,
     isPublic: true,
-  } as MemberProfile;
+  };
 
-  const mockMember: ClanMember = {
+  const mockMember = {
     id: 'member-1',
     userId: 'user-1',
     clanId: 'clan-1',
@@ -43,15 +43,22 @@ describe('ProfilesService - equipItems', () => {
       battleTag: 'Tester#1234',
       username: 'tester',
     },
-  } as ClanMember;
+  };
+
+  let mockQueryBuilder: {
+    innerJoin: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    getCount: jest.Mock;
+  };
 
   beforeEach(async () => {
-    const mockQueryBuilder = {
+    mockQueryBuilder = {
       innerJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       getCount: jest.fn(),
-    } as unknown as SelectQueryBuilder<MemberItem>;
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -92,6 +99,7 @@ describe('ProfilesService - equipItems', () => {
           provide: DataSource,
           useValue: {
             transaction: jest.fn(),
+            query: jest.fn(),
           },
         },
       ],
@@ -104,7 +112,7 @@ describe('ProfilesService - equipItems', () => {
 
   describe('equipItems', () => {
     beforeEach(() => {
-      profileRepo.findOne.mockResolvedValue(mockProfile);
+      profileRepo.findOne.mockResolvedValue(mockProfile as MemberProfile);
       profileRepo.save.mockImplementation(async (profile) => profile as MemberProfile);
     });
 
@@ -119,8 +127,7 @@ describe('ProfilesService - equipItems', () => {
     });
 
     it('보유한 아이템은 적용되어야 함', async () => {
-      const mockQb = memberItemRepo.createQueryBuilder();
-      (mockQb.getCount as jest.Mock).mockResolvedValue(1);
+      mockQueryBuilder.getCount.mockResolvedValue(1);
 
       const result = await service.equipItems('member-1', {
         frameId: 'FRAME_GOLD',
@@ -130,8 +137,7 @@ describe('ProfilesService - equipItems', () => {
     });
 
     it('보유하지 않은 아이템은 BadRequestException을 던져야 함', async () => {
-      const mockQb = memberItemRepo.createQueryBuilder();
-      (mockQb.getCount as jest.Mock).mockResolvedValue(0);
+      mockQueryBuilder.getCount.mockResolvedValue(0);
 
       await expect(
         service.equipItems('member-1', { frameId: 'FRAME_DIAMOND' }),
@@ -139,8 +145,7 @@ describe('ProfilesService - equipItems', () => {
     });
 
     it('여러 아이템 중 하나라도 미보유면 실패해야 함', async () => {
-      const mockQb = memberItemRepo.createQueryBuilder();
-      (mockQb.getCount as jest.Mock)
+      mockQueryBuilder.getCount
         .mockResolvedValueOnce(1)  // themeId 보유
         .mockResolvedValueOnce(0); // frameId 미보유
 
@@ -162,7 +167,7 @@ describe('ProfilesService - equipItems', () => {
       expect(result.bgmTitle).toBe('My BGM');
     });
 
-    it('null로 아이템을 해제할 수 있어야 함', async () => {
+    it('default로 아이템을 해제할 수 있어야 함', async () => {
       const profileWithItem = { ...mockProfile, petId: 'PET_HAMSTER' };
       profileRepo.findOne.mockResolvedValue(profileWithItem as MemberProfile);
 

@@ -14,9 +14,9 @@ describe('ShopService - Profile Items', () => {
   let service: ShopService;
   let profileItemRepo: jest.Mocked<Repository<ProfileItem>>;
   let memberItemRepo: jest.Mocked<Repository<MemberItem>>;
-  let dataSource: jest.Mocked<DataSource>;
+  let mockTransaction: jest.Mock;
 
-  const mockProfileItem: ProfileItem = {
+  const mockProfileItem = {
     id: 'item-1',
     code: 'FRAME_GOLD',
     name: '골드 프레임',
@@ -31,30 +31,26 @@ describe('ShopService - Profile Items', () => {
     sortOrder: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as ProfileItem;
+  };
 
-  const mockClanMember: ClanMember = {
+  const mockClanMember = {
     id: 'member-1',
     userId: 'user-1',
     clanId: 'clan-1',
     totalPoints: 1000,
     lockedPoints: 0,
-  } as ClanMember;
+  };
 
-  const mockMemberItem: MemberItem = {
+  const mockMemberItem = {
     id: 'mi-1',
     memberId: 'member-1',
     itemId: 'item-1',
     purchasedAt: new Date(),
     expiresAt: null,
-  } as MemberItem;
+  };
 
   beforeEach(async () => {
-    const mockTransactionManager = {
-      findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
-    };
+    mockTransaction = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,7 +91,7 @@ describe('ShopService - Profile Items', () => {
         {
           provide: DataSource,
           useValue: {
-            transaction: jest.fn((callback) => callback(mockTransactionManager)),
+            transaction: mockTransaction,
           },
         },
       ],
@@ -104,13 +100,12 @@ describe('ShopService - Profile Items', () => {
     service = module.get<ShopService>(ShopService);
     profileItemRepo = module.get(getRepositoryToken(ProfileItem));
     memberItemRepo = module.get(getRepositoryToken(MemberItem));
-    dataSource = module.get(DataSource);
   });
 
   describe('getProfileItems', () => {
     it('활성화된 모든 프로필 아이템을 반환해야 함', async () => {
       const items = [mockProfileItem];
-      profileItemRepo.find.mockResolvedValue(items);
+      profileItemRepo.find.mockResolvedValue(items as ProfileItem[]);
 
       const result = await service.getProfileItems();
 
@@ -123,7 +118,7 @@ describe('ShopService - Profile Items', () => {
 
     it('카테고리로 필터링해야 함', async () => {
       const items = [mockProfileItem];
-      profileItemRepo.find.mockResolvedValue(items);
+      profileItemRepo.find.mockResolvedValue(items as ProfileItem[]);
 
       await service.getProfileItems(ProfileItemCategory.FRAME);
 
@@ -136,7 +131,7 @@ describe('ShopService - Profile Items', () => {
 
   describe('getProfileItem', () => {
     it('아이템이 존재하면 반환해야 함', async () => {
-      profileItemRepo.findOne.mockResolvedValue(mockProfileItem);
+      profileItemRepo.findOne.mockResolvedValue(mockProfileItem as ProfileItem);
 
       const result = await service.getProfileItem('item-1');
 
@@ -180,19 +175,19 @@ describe('ShopService - Profile Items', () => {
         create: jest.fn().mockReturnValue(mockMemberItem),
         save: jest.fn().mockResolvedValue(undefined),
       };
-      dataSource.transaction.mockImplementation((callback) => callback(mockManager));
+      mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       const result = await service.purchaseProfileItem('member-1', 'clan-1', 'item-1');
 
       expect(result).toEqual(mockMemberItem);
-      expect(mockManager.save).toHaveBeenCalledTimes(2); // 포인트 차감 + 아이템 지급
+      expect(mockManager.save).toHaveBeenCalledTimes(2);
     });
 
     it('아이템이 없으면 NotFoundException을 던져야 함', async () => {
       const mockManager = {
         findOne: jest.fn().mockResolvedValue(null),
       };
-      dataSource.transaction.mockImplementation((callback) => callback(mockManager));
+      mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       await expect(
         service.purchaseProfileItem('member-1', 'clan-1', 'not-exist'),
@@ -203,9 +198,9 @@ describe('ShopService - Profile Items', () => {
       const mockManager = {
         findOne: jest.fn()
           .mockResolvedValueOnce(mockProfileItem)
-          .mockResolvedValueOnce(mockMemberItem), // 이미 보유
+          .mockResolvedValueOnce(mockMemberItem),
       };
-      dataSource.transaction.mockImplementation((callback) => callback(mockManager));
+      mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       await expect(
         service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
@@ -217,9 +212,9 @@ describe('ShopService - Profile Items', () => {
         findOne: jest.fn()
           .mockResolvedValueOnce(mockProfileItem)
           .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce({ ...mockClanMember, totalPoints: 100 }), // 포인트 부족
+          .mockResolvedValueOnce({ ...mockClanMember, totalPoints: 100 }),
       };
-      dataSource.transaction.mockImplementation((callback) => callback(mockManager));
+      mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       await expect(
         service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
@@ -231,9 +226,9 @@ describe('ShopService - Profile Items', () => {
         findOne: jest.fn()
           .mockResolvedValueOnce(mockProfileItem)
           .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(null), // 멤버 없음
+          .mockResolvedValueOnce(null),
       };
-      dataSource.transaction.mockImplementation((callback) => callback(mockManager));
+      mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       await expect(
         service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
