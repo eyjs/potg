@@ -1,296 +1,318 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-27
+마지막 업데이트: 2026-01-29
 
-## 0. 완료된 작업 (2026-01-27 세션)
+---
 
-### [WBS-012] 경매 포인트 차감 버그 수정 및 자동 낙찰 로직 추가
+## 최근 완료 작업
 
-> 로컬과 origin이 diverge된 상태에서 origin/master로 리셋 후, 로컬 커밋의 버그 수정 패치를 재적용하여 커밋/푸시 완료.
+### 2026-01-29 세션 (Phase 1 & 2)
 
-#### 수정 내용
+#### [491c0a4] feat: 오버워치 Phase 1 & 2 구현 + 보안 수정
+
+#### 코드 리뷰 1차 수정 사항 (CRITICAL/HIGH)
+
+1. **`any` 타입 제거** - `unknown` + 타입가드로 변경
+   - `overwatch-api.service.ts`: error handling
+   - `overwatch.service.ts`: API 응답 타입 캐스팅
+
+2. **Entity 관계 오류 수정**
+   - `OverwatchStatsSnapshot.profile`: `@OneToMany` → `@ManyToOne`
+
+3. **battleTag nullable 수정**
+   - `User.battleTag`: `nullable: true` 추가 (마이그레이션 필요!)
+
+4. **Rate Limiting 추가**
+   - `POST /overwatch/profile/me/sync`: 1분에 3회 제한
+   - `limit` 파라미터 DTO 검증 추가
+
+5. **ConfigService 적용**
+   - OverFast API URL, timeout 환경변수로 이동
+
+#### 코드 리뷰 2차 수정 사항 (보안)
+
+1. **CRITICAL: 클랜 접근 권한 검증 추가**
+   - `replay.controller.ts`: `findByClan`, `getClanStats`에 ForbiddenException
+   - `overwatch.controller.ts`: `getClanRankings`에 ForbiddenException
+
+2. **HIGH: Rate Limiting 추가**
+   - `POST /replays/:id/like`: 1분에 10회 제한 (@Throttle)
+
+3. **MEDIUM: SQL Wildcard Injection 방지**
+   - `replay.service.ts`: Like 쿼리에서 `%`, `_` 문자 이스케이프
+
+4. **MEDIUM: Race Condition 수정**
+   - `replay.service.ts`: toggleLike에 Transaction + Pessimistic Lock 적용
+
+#### Phase 1: 클랜원 프로필 카드 + 리더보드
+
+##### 백엔드 수정
+- `/overwatch/profile/me` - 내 프로필 조회
+- `/overwatch/rankings/:clanId` - 클랜 리더보드
+- Rate Limiting, Query Parameter 검증
+
+##### 프론트엔드 추가
+```
+frontend/src/modules/overwatch/
+├── types.ts                           # 타입 정의
+├── hooks/
+│   └── use-overwatch-profile.ts       # API 훅
+└── components/
+    ├── profile-header.tsx             # 프로필 헤더
+    ├── rank-card.tsx                  # 역할별 랭크
+    ├── hero-stats-card.tsx            # 주력 영웅
+    ├── career-stats-card.tsx          # 커리어 통계
+    └── clan-leaderboard.tsx           # 클랜 리더보드
+
+frontend/src/app/overwatch/
+├── profile/page.tsx                   # 프로필 페이지
+└── leaderboard/page.tsx               # 리더보드 페이지
+
+frontend/src/common/components/ui/
+└── skeleton.tsx                       # NEW - 스켈레톤 컴포넌트
+```
+
+#### Phase 2: 영웅/맵 DB + 리플레이 공유
+
+##### 백엔드 추가
+- **게임 데이터 API** (Public)
+  - `GET /overwatch/heroes` - 영웅 목록
+  - `GET /overwatch/heroes/:heroKey` - 영웅 상세
+  - `GET /overwatch/maps` - 맵 목록
+  - `GET /overwatch/gamemodes` - 게임모드 목록
+  - `GET /overwatch/roles` - 역할 목록
+
+- **Replay Entity** (NEW - 마이그레이션 필요!)
+  ```typescript
+  {
+    id: string
+    code: string (5-6자 영문숫자)
+    userId: string
+    clanId: string
+    mapName: string
+    gamemode?: string
+    heroes: string[]
+    result: 'WIN' | 'LOSS' | 'DRAW'
+    videoUrl?: string
+    notes?: string
+    tags?: string[]
+    likes: number
+    views: number
+  }
+  ```
+
+- **Replay API**
+  - `POST /replays` - 리플레이 등록
+  - `GET /replays/clan/:clanId` - 클랜 리플레이 목록
+  - `GET /replays/mine` - 내 리플레이
+  - `GET /replays/stats/:clanId` - 클랜 통계
+  - `GET /replays/:id` - 상세 조회
+  - `PATCH /replays/:id` - 수정
+  - `DELETE /replays/:id` - 삭제
+  - `POST /replays/:id/like` - 좋아요
+
+##### 프론트엔드 추가
+```
+frontend/src/modules/overwatch/
+├── hooks/
+│   ├── use-game-data.ts               # 영웅/맵/게임모드 훅
+│   └── use-replays.ts                 # 리플레이 훅
+└── components/
+    ├── hero-card.tsx                  # 영웅 카드
+    ├── hero-detail-modal.tsx          # 영웅 상세 모달
+    ├── map-card.tsx                   # 맵 카드
+    ├── replay-card.tsx                # 리플레이 카드
+    └── create-replay-modal.tsx        # 리플레이 등록 모달
+
+frontend/src/app/overwatch/
+├── database/page.tsx                  # 영웅/맵 DB 페이지
+└── replays/page.tsx                   # 리플레이 페이지
+```
+
+##### Header 업데이트
+- 오버워치 프로필, 영웅/맵 DB, 리플레이 코드 메뉴 추가
+
+---
+
+#### [c888dc1] OverFastAPI 연동 - 오버워치 프로필 모듈 구현
+
+##### 백엔드 추가
+- **OverwatchProfile 엔티티** - 오버워치 플레이어 프로필 저장
+- **OverwatchStatsSnapshot 엔티티** - 통계 히스토리 스냅샷
+- **OverFastAPI 클라이언트 서비스** - 외부 API 연동
+  - 플레이어 요약 조회
+  - 통계 조회
+  - 영웅 목록 조회
+- **프로필 API**
+  - `GET /overwatch/profile/:battleTag` - 프로필 조회
+  - `POST /overwatch/profile/:battleTag/sync` - 동기화
+  - `GET /overwatch/profile/:battleTag/heroes` - 영웅 통계
+  - `GET /overwatch/profile/:battleTag/competitive` - 경쟁전 정보
+  - `GET /clans/:clanId/ranking` - 클랜 내 랭킹
+
+##### 수정된 파일
+```
+backend/src/modules/overwatch/           # NEW - 전체 모듈
+├── overwatch.module.ts
+├── overwatch.controller.ts
+├── overwatch.service.ts
+├── overfast-api.service.ts              # 외부 API 클라이언트
+└── entities/
+    ├── overwatch-profile.entity.ts
+    └── overwatch-stats-snapshot.entity.ts
+docs/erd.md                              # 업데이트
+```
+
+#### [a8b4f56] 내전 목록 페이지에 생성 버튼 추가
+
+- 스크림 목록 페이지에 생성 버튼 추가
+- CreateScrimModal 연동
+- 생성 후 상세 페이지로 자동 이동
+- toast 알림 추가
+
+##### 수정된 파일
+```
+frontend/src/app/scrims/page.tsx
+```
+
+#### [f62d0f9] CI/CD 브랜치 수정
+
+- GitHub Actions 워크플로우의 브랜치를 `main`에서 `master`로 변경
+
+---
+
+### 2026-01-28 세션
+
+#### [WBS-020] Phase 2: 출석 & 포인트 규칙 시스템
+
+##### 백엔드 추가
+- **PointRule 엔티티** - 포인트 규칙 정의
+  - 기본 규칙 시드: 출석, 연속보너스(3/5/10일), 승리
+- **AttendanceRecord 엔티티** - 출석 기록
+  - 내전 종료 시 자동 출석 생성
+  - 연속 출석 보너스 계산 (최고 티어만 적용)
+
+##### 프론트엔드 추가
+- 클랜 관리 페이지에 포인트 규칙/출석 관리 탭 추가
+
+##### 수정된 파일
+```
+backend/src/modules/point-rules/         # NEW
+├── point-rules.module.ts
+├── point-rules.controller.ts
+├── point-rules.service.ts
+└── entities/point-rule.entity.ts
+backend/src/modules/attendance/          # NEW
+├── attendance.module.ts
+├── attendance.service.ts
+└── entities/attendance-record.entity.ts
+frontend/src/app/clans/[id]/manage/page.tsx
+docs/erd.md                              # PointRule.code 컬럼 반영
+```
+
+#### [WBS-020] Phase 1: 스크림 스케줄러 고도화 + Vote 디커플링
+
+##### 백엔드 변경
+- **Scrim Entity 확장**
+  - `checkInStart`, `minPlayers`, `maxPlayers`, `roleSlots`, `description`
+- **ScrimParticipant 확장**
+  - `preferredRoles`, `assignedRole`, `note`, `checkedIn`, `checkedInAt`, `respondedAt`
+- **Vote-Scrim 디커플링**
+  - VotesService에서 ScrimsService 의존성 제거
+  - RecruitmentType/ParticipantSource에서 VOTE 제거, OPEN 추가
+- **체크인 기능**
+  - 시간 윈도우 기반 체크인 API
+
+##### 프론트엔드 변경
+- 참가 신청 다이얼로그: 선호 역할 + 메모 입력
+- 체크인 기능 UI
+- 내전 생성 폼: 모집방식, 체크인시간, 인원제한, 설명 필드 추가
+
+##### 코드 품질 개선
+- `any` 타입 전면 제거: `Record<string, unknown>` + 명시적 캐스팅
+- 유저 데이터 sanitization 헬퍼 추출
+
+##### 수정된 파일
+```
+backend/src/modules/scrims/
+├── scrims.service.ts
+├── scrims.controller.ts
+└── entities/
+    ├── scrim.entity.ts
+    └── scrim-participant.entity.ts
+backend/src/modules/votes/votes.service.ts
+frontend/src/app/scrims/[id]/page.tsx
+frontend/src/modules/scrim/components/
+docs/erd.md                              # Attendance, Achievement, Mentoring, Bingo 도메인 추가
+```
+
+---
+
+### 2026-01-27 세션
+
+#### [WBS-012] 경매 포인트 차감 버그 수정 및 자동 낙찰 로직
 
 1. **confirmCurrentBid 포인트 차감 누락 수정** (치명적 버그)
-   - **파일**: `backend/src/modules/auctions/auctions.service.ts`
-   - **문제**: 낙찰 확정 시 `captain.currentPoints -= amount` 없이 비드만 비활성화 → 팀장 포인트가 차감되지 않음
-   - **수정**: 낙찰 확정 시 포인트 차감 로직 추가
+   - 낙찰 확정 시 `captain.currentPoints -= amount` 추가
 
 2. **autoConfirmOnTimeout 포인트 차감 누락 수정** (치명적 버그)
-   - **파일**: `backend/src/modules/auctions/auctions.service.ts`
-   - **문제**: 타임아웃 자동 낙찰 시에도 포인트 미차감
-   - **수정**: 동일하게 포인트 차감 로직 추가
+   - 타임아웃 자동 낙찰 시에도 포인트 차감 로직 추가
 
 3. **checkAutoConfirm() 자동 낙찰 로직 추가**
-   - **파일**: `backend/src/modules/auctions/auctions.service.ts`, `backend/src/modules/auctions/auction.gateway.ts`
    - 입찰 후 모든 경쟁 팀장의 잔여 포인트가 최소 다음 입찰가 미만이면 자동 낙찰
-   - 경쟁자 없는 경우에도 자동 낙찰
 
 4. **window.location.reload() → socket requestRoomState 대체**
-   - **파일**: `frontend/src/app/auction/[id]/page.tsx`, `frontend/src/modules/auction/hooks/use-auction-socket.ts`
-   - 새로고침 대신 소켓으로 방 상태 재요청
 
 5. **선수 풀 상태 배지 UI 추가**
-   - **파일**: `frontend/src/app/auction/[id]/page.tsx`
-   - 현재 경매 중인 선수: "경매중" 배지 (파란색 하이라이트)
+   - 현재 경매 중인 선수: "경매중" 배지 (파란색)
    - 나머지 선수: "대기" 배지
 
-#### 수정된 파일
+##### 수정된 파일
 ```
-backend/src/modules/auctions/auction.gateway.ts      # requestRoomState 핸들러, 자동 낙찰 로직
-backend/src/modules/auctions/auctions.service.ts     # 포인트 차감 수정, checkAutoConfirm() 추가
-frontend/src/app/auction/[id]/page.tsx               # 상태 배지 UI, requestRoomState 연동
-frontend/src/modules/auction/hooks/use-auction-socket.ts  # requestRoomState 함수 추가
-```
-
-#### Git 작업
-- origin/master로 강제 리셋 (`git reset --hard origin/master`)
-- 로컬 패치 재적용 후 커밋: `d53b1ad [WBS-012]`
-- push 완료
-
----
-
-## 0-1. 완료된 작업 (2026-01-26 세션)
-
-### 프론트엔드 버그 수정 및 기능 개선 (6건)
-
-#### 1. 명예의전당 CRUD 500 에러 수정
-- **파일**: `frontend/src/components/dashboard/hall-of-fame.tsx`
-- **문제**: `handleCreate`에서 POST 요청 시 `title` 필드 누락 → 백엔드 필수 필드 검증 실패 500 에러
-- **수정**: `clanMembers`에서 `selectedMemberId`로 battleTag를 찾아 자동 title 생성
-  - DONOR: `"[battleTag] 기부"`, WANTED: `"[battleTag] 수배"`
-
-#### 2. WebSocket URL 운영환경 수정
-- **파일**: `frontend/src/modules/auction/hooks/use-auction-socket.ts`
-- **문제**: fallback URL이 `http://localhost:8100`으로 하드코딩
-- **수정**: `https://potg.joonbi.co.kr`로 변경 (api.ts와 동일)
-
-#### 3. 베팅 카운트다운 및 관리자 기능
-- **파일**: `frontend/src/app/betting/page.tsx`
-- **추가 기능**:
-  - `bettingDeadline`이 있는 OPEN 문항에 실시간 카운트다운 표시 (일/시/분/초)
-  - 마감 시 "베팅 시간 마감됨" 표시
-  - ADMIN 사용자에게 "마감하기" 버튼 (PATCH로 status CLOSED 변경)
-  - ADMIN 사용자에게 "수정하기" 버튼 (제목, 배율, 마감시간 수정 다이얼로그)
-
-#### 4. 상점 카테고리 제거 및 UX 개선
-- **파일들**: `frontend/src/app/shop/page.tsx`, `frontend/src/modules/shop/components/product-card.tsx`
-- **수정 내용**:
-  - 카테고리 탭 (`TabsList`) 제거 → 전체 상품 직접 표시
-  - 상품 등록 다이얼로그에서 카테고리 Select 필드 제거
-  - 상품 등록 시 기본 카테고리 `"ETC"` 자동 전송 (백엔드 호환)
-  - `ProductCard`에서 카테고리 Badge 제거
-  - `alert()`/`confirm()` → `toast()` 변경 (UX 통일)
-
-#### 5. 소개팅 필터링 개선
-- **파일**: `frontend/src/app/gallery/page.tsx`
-- **수정 내용**:
-  - 기존 상태 필터 (만남가능/소개팅중/매칭완료) 제거
-  - 새 필터 추가: 성별, 나이 범위(최소~최대), MBTI(16종 드롭다운), 지역(텍스트), 흡연여부
-  - 접기/펼치기 UI로 모바일 공간 절약
-  - "전체 매물" / "내 등록 매물" 뷰 모드 유지
-  - 필터 초기화 버튼 추가
-
-#### 6. React #418 Hydration 에러 수정
-- **파일**: `frontend/src/common/layouts/bottom-nav.tsx`
-- **문제**: 서버에서는 `user=null`로 `null` 반환, 클라이언트에서는 localStorage 기반으로 렌더링 → hydration 불일치
-- **수정**: `mounted` 상태 추가, `useEffect`로 클라이언트 마운트 후에만 렌더링
-
-#### 수정된 파일 목록
-```
-frontend/src/components/dashboard/hall-of-fame.tsx    # title 필드 추가
-frontend/src/modules/auction/hooks/use-auction-socket.ts  # fallback URL 수정
-frontend/src/app/betting/page.tsx                     # 카운트다운 + 관리자 기능
-frontend/src/app/shop/page.tsx                        # 카테고리 제거, toast 전환
-frontend/src/modules/shop/components/product-card.tsx  # 카테고리 Badge 제거
-frontend/src/app/gallery/page.tsx                     # 필터링 개선
-frontend/src/common/layouts/bottom-nav.tsx            # hydration 수정
-docs/handoff.md                                       # 최신화
+backend/src/modules/auctions/auction.gateway.ts
+backend/src/modules/auctions/auctions.service.ts
+frontend/src/app/auction/[id]/page.tsx
+frontend/src/modules/auction/hooks/use-auction-socket.ts
 ```
 
-#### 빌드 검증
-- `next build` 성공 (TypeScript 에러 없음)
-- ESLint는 기존 설정 문제(circular reference)로 실행 불가 (이번 변경과 무관)
+---
+
+### 2026-01-26 세션
+
+#### 프론트엔드 버그 수정 (6건)
+
+1. **명예의전당 CRUD 500 에러** - `title` 필드 누락 수정
+2. **WebSocket URL** - fallback URL을 운영 서버로 변경
+3. **베팅 카운트다운** - 실시간 카운트다운 + 관리자 마감/수정 기능
+4. **상점 카테고리 제거** - 탭/Badge 제거, toast 전환
+5. **소개팅 필터링 개선** - 성별/나이/MBTI/지역/흡연 필터
+6. **React #418 Hydration 에러** - mounted 상태 추가
 
 ---
 
-## 1. 완료된 작업 (이전 세션 2026-01-24)
-
-### 경매 비딩 버그 수정 및 테스트
-
-#### 발견된 버그
-- **BidDto 클래스-밸리데이터 데코레이터 누락**
-  - 파일: `/backend/src/modules/auctions/dto/create-auction.dto.ts`
-  - 증상: REST API 비딩 요청 시 `property targetPlayerId should not exist` 에러 발생
-  - 원인: NestJS 전역 ValidationPipe가 `forbidNonWhitelisted: true`로 설정됨
-  - 데코레이터가 없는 프로퍼티는 화이트리스트에 포함되지 않아 거부됨
-
-#### 수정 내용
-```typescript
-// 수정 전
-export class BidDto {
-  targetPlayerId: string;
-  amount: number;
-}
-
-// 수정 후
-export class BidDto {
-  @IsString()
-  targetPlayerId: string;
-
-  @IsNumber()
-  @Min(0)
-  amount: number;
-}
-```
-
-#### 테스트 계정 생성
-- **tcaptain1** / test1234 (TCaptain1#1111, 탱커, 마스터)
-- **tcaptain2** / test1234 (TCaptain2#2222, DPS, 마스터)
-- 두 계정 모두 POTG 클랜 가입 승인 완료
-
-#### 테스트 경매 설정
-- 경매명: "캡틴 비딩 테스트"
-- 경매 ID: `54079df7-f010-4923-a8e0-addbf8058622`
-- 팀장: TCaptain1, TCaptain2 (각 10,000P)
-- 매물: Player1, Player2
-
-#### 수정된 파일
-- `backend/src/modules/auctions/dto/create-auction.dto.ts` - BidDto에 데코레이터 추가
-
-#### 로컬 테스트 완료
-- 백엔드 컨테이너 재빌드 후 비딩 API 정상 동작 확인
-- 테스트 결과: `POST /auctions/:id/bid` 성공
-
----
-
-### 메뉴 구조 재설계 (이전)
-
-#### 변경 사항
-- **데스크톱 헤더 메뉴** 정리
-  - "대시보드" → "로비" 명칭 변경
-  - "통계" 메뉴 삭제 (대시보드에서 진입)
-  - "지갑" 메뉴 삭제 (내정보 > 포인트관리로 이동)
-
-- **모바일 하단 네비게이션** 정리
-  - 메인 아이콘: 로비, 경매 (2개로 축소)
-  - "통계", "지갑" 메인에서 삭제
-  - "베팅"은 기존대로 햄버거 메뉴에 유지
-
-- **대시보드 페이지**
-  - "빠른 실행" 섹션에 "📊 통계 보기" 버튼 추가
-
-- **내정보 페이지**
-  - "포인트 관리" 섹션 추가
-  - 총 포인트 / 가용 포인트 표시
-  - 지갑 페이지로 이동하는 링크
-
-#### 수정된 파일
-- `frontend/src/common/layouts/header.tsx` - 네비게이션 메뉴 정리
-- `frontend/src/common/layouts/bottom-nav.tsx` - 모바일 하단바 정리
-- `frontend/src/app/page.tsx` - 통계 진입 버튼 추가
-- `frontend/src/app/my-info/page.tsx` - 포인트 관리 섹션 추가
-
----
-
-### 비밀번호 재설정 기능 (이전)
-
-#### Backend
-- **PasswordReset 엔티티** (`/modules/auth/entities/password-reset.entity.ts`) - 비밀번호 재설정 토큰 저장
-- **EmailService** (`/modules/auth/email.service.ts`) - nodemailer를 이용한 이메일 발송
-- **비밀번호 재설정 API**
-  - `POST /auth/forgot-password` - 재설정 이메일 발송
-  - `POST /auth/reset-password` - 새 비밀번호 설정
-  - `GET /auth/verify-reset-token` - 토큰 유효성 검증
-- **User 엔티티 수정** - `email` 필드 추가 (unique, nullable)
-- **RegisterDto 수정** - `email` 필드 추가 (필수)
-- **nodemailer 패키지 추가**
-
-#### Frontend
-- **회원가입 페이지 수정** (`/app/signup/page.tsx`) - 이메일 필드 추가
-- **비밀번호 찾기 페이지 수정** (`/app/forgot-password/page.tsx`) - API 연동
-- **비밀번호 재설정 페이지 생성** (`/app/reset-password/page.tsx`) - 토큰 검증 및 비밀번호 변경
-
----
-
-## 1-1. 이전 세션 완료 작업
-
-### 대시보드 재설계
-
-#### Backend
-- **공지사항 엔티티** (`Announcement`) - 클랜 공지사항 관리
-- **명예의전당 엔티티** (`HallOfFame`) - MVP, 기부자, 현상수배 통합
-- **공지사항 API**
-  - `GET /clans/:clanId/announcements` - 목록 조회
-  - `POST /clans/:clanId/announcements` - 생성
-  - `PATCH /clans/announcements/:id` - 수정
-  - `POST /clans/announcements/:id/delete` - 삭제
-- **명예의전당 API**
-  - `GET /clans/:clanId/hall-of-fame` - 목록 조회 (타입별 필터링)
-  - `POST /clans/:clanId/hall-of-fame` - 생성
-  - `PATCH /clans/hall-of-fame/:id` - 수정
-  - `POST /clans/hall-of-fame/:id/delete` - 삭제
-- **스크림 오늘 필터** - `GET /scrims?today=true` 지원
-
-#### Frontend
-- **TodayScrims 컴포넌트** - 오늘의 내전 목록 표시
-- **Announcements 컴포넌트 개선** - CRUD 기능, canManage prop
-- **HallOfFame 컴포넌트 개선** - MVP/기부자/현상수배 탭, CRUD 기능
-- **대시보드 페이지 업데이트** - 새 컴포넌트 통합, API 호출 추가
-
-### 통계/집계 페이지 (투표 메뉴 대체)
-
-- **투표 페이지 → 통계 페이지 변환** (`/vote/page.tsx`)
-  - 내전 기록 탭 - 스크림 히스토리, 필터링
-  - 리더보드 탭 - 포인트 랭킹
-  - 월별 통계 탭 - 월별 내전 집계
-- **헤더 메뉴 업데이트** - "투표" → "통계"
-
-### 경매 생성/관리 UI
-
-- **AuctionSetupPanel 컴포넌트** (`/modules/auction/components/auction-setup-panel.tsx`)
-  - 매물 등록 (클랜원 선택, 일괄 등록)
-  - 팀장 지정/해제
-  - 경매 설정 변경 (팀 수, 시작 포인트, 턴 시간)
-  - 참가자 제거
-- **경매 상세 페이지 통합** - PENDING 상태에서 설정 패널 표시
-
-### 모바일 UI 개선
-
-- **하단 네비게이션 재설계** (`/common/layouts/bottom-nav.tsx`)
-  - 주요 메뉴 4개: 홈, 통계, 경매, 지갑
-  - 확장 메뉴: 베팅, 상점, 유틸리티, 소개팅, 클랜 관리, 내 정보
-  - 사용자 정보 표시
-  - 로그아웃 버튼
-
----
-
-## 2. 다음 단계 (TODO)
+## 다음 단계 (TODO)
 
 ### 즉시 해야할 것
 
-0. **경매 포인트 차감 수동 검증** (WBS-012 배포 후)
-   - 낙찰 확정 시 팀장 포인트가 정상 차감되는지
-   - 타임아웃 자동 낙찰 시 포인트 차감 확인
-   - 자동 낙찰 조건 (경쟁자 포인트 부족) 트리거 확인
-   - 선수 풀 상태 배지(경매중/대기) 표시 확인
+1. **DB 마이그레이션 (CRITICAL)**
+   - `User.battleTag` nullable 변경
+   - `Replay` 엔티티 생성
 
-1. **배포 후 수동 테스트** (이전 WBS 분)
-   - 명예의전당: 기부자/수배자 등록 시 500 에러 안 나는지 확인
-   - 베팅: 카운트다운 표시 + 관리자 마감/수정 버튼 동작
-   - 상점: 카테고리 없이 상품 등록/구매 정상
-   - 소개팅: 성별/나이/MBTI/지역/흡연 필터 동작
-   - Hydration: 콘솔에 #418 에러 없는지 확인
-   - 경매 WebSocket 연결이 운영 서버로 정상 연결되는지 확인
+2. **배포 후 수동 테스트**
+   - OverFastAPI 연동: 프로필 조회/동기화 정상 동작
+   - 영웅/맵 DB 페이지 확인
+   - 리플레이 등록/조회/삭제 테스트
+   - 클랜 리더보드 확인
 
-2. ~~**베팅 백엔드 확인**~~ ✅ 완료 (2026-01-26)
-
-3. ~~**경매 포인트 차감 버그**~~ ✅ 완료 (WBS-012, 2026-01-27)
-   - confirmCurrentBid, autoConfirmOnTimeout 포인트 차감 수정
-   - checkAutoConfirm 자동 낙찰 로직 추가
-
-4. **환경변수 설정** (이메일 발송을 위해 필수)
+3. **환경변수 추가** (선택)
    ```env
-   # backend .env
+   OVERFAST_API_URL=https://overfast-api.tekrop.fr
+   OVERFAST_API_TIMEOUT=15000
+   OVERFAST_USER_AGENT=POTG-Backend/1.0
+   ```
+
+4. **환경변수 설정** (이메일 발송용)
+   ```env
    SMTP_HOST=smtp.gmail.com
    SMTP_PORT=587
    SMTP_USER=your-email@gmail.com
@@ -299,26 +321,25 @@ export class BidDto {
    FRONTEND_URL=http://localhost:3001
    ```
 
-4. **DB 마이그레이션**
-   - `PasswordReset` 엔티티 추가됨
-   - `User` 엔티티에 `email` 필드 추가됨
-   - Announcement, HallOfFame 엔티티 추가됨
-   - 실제 DB와 동기화 필요
+3. **DB 마이그레이션 필요**
+   - OverwatchProfile, OverwatchStatsSnapshot
+   - PointRule, AttendanceRecord
+   - Scrim/ScrimParticipant 필드 확장
+   - PasswordReset, Announcement, HallOfFame
 
-5. **ESLint 설정 수정**
-   - 현재 ESLint 9.x에서 circular reference 에러 발생
-   - `eslint.config.mjs` 설정 점검 필요
+4. **ESLint 설정 수정**
+   - ESLint 9.x circular reference 에러 해결 필요
 
 ### 선택적 개선사항
 
-- React Query 적용 확대 (API 호출 최적화)
+- React Query 적용 확대
 - Framer Motion 애니메이션 확장
 - 스켈레톤 로딩 적용
 - 404/에러 페이지
 
 ---
 
-## 3. 권한 체계
+## 권한 체계
 
 ### 시스템 역할 (UserRole)
 | 역할 | 설명 |
@@ -335,157 +356,96 @@ export class BidDto {
 
 ---
 
-## 4. 파일 위치 요약
+## 신규 엔티티 스키마 (마이그레이션 필요)
 
-### 2026-01-26 세션에서 수정된 파일
-
-```
-frontend/src/
-├── components/dashboard/
-│   └── hall-of-fame.tsx              # title 필드 누락 수정
-├── modules/
-│   ├── auction/hooks/
-│   │   └── use-auction-socket.ts     # WebSocket fallback URL 수정
-│   └── shop/components/
-│       └── product-card.tsx          # 카테고리 Badge 제거
-├── app/
-│   ├── betting/page.tsx              # 카운트다운 + 관리자 기능
-│   ├── shop/page.tsx                 # 카테고리 탭 제거, toast 전환
-│   └── gallery/page.tsx              # 필터링 개선
-└── common/layouts/
-    └── bottom-nav.tsx                # hydration 에러 수정 (mounted state)
-```
-
-### 2026-01-24 세션에서 수정된 파일
-
-```
-frontend/src/common/layouts/
-├── header.tsx                   # 메뉴 정리 (통계, 지갑 삭제, 대시보드→로비)
-└── bottom-nav.tsx               # 모바일 하단바 (로비, 경매만 유지)
-
-frontend/src/app/
-├── page.tsx                     # 통계 진입 버튼 추가
-└── my-info/page.tsx             # 포인트 관리 섹션 추가
+### OverwatchProfile
+```typescript
+{
+  id: string (UUID)
+  clanMemberId: string
+  battleTag: string (unique)
+  platform: string
+  isPublic: boolean
+  level: number
+  endorsementLevel: number
+  avatar: string (nullable)
+  namecard: string (nullable)
+  title: string (nullable)
+  lastSyncedAt: timestamp
+  createdAt: timestamp
+  updatedAt: timestamp
+}
 ```
 
-### 이전 세션에서 수정/생성된 파일
-
+### OverwatchStatsSnapshot
+```typescript
+{
+  id: string (UUID)
+  profileId: string
+  gameMode: 'competitive' | 'quickplay'
+  role: 'tank' | 'damage' | 'support' | 'all'
+  rank: string (nullable)
+  rankIcon: string (nullable)
+  tier: number (nullable)
+  division: number (nullable)
+  gamesPlayed: number
+  gamesWon: number
+  winRate: number
+  kdRatio: number
+  snapshotDate: date
+  rawData: jsonb
+  createdAt: timestamp
+}
 ```
-backend/src/
-├── modules/auth/
-│   ├── auth.module.ts               # PasswordReset 엔티티, EmailService 추가
-│   ├── auth.controller.ts           # forgot-password, reset-password API 추가
-│   ├── auth.service.ts              # 비밀번호 재설정 로직 추가
-│   ├── email.service.ts             # NEW - nodemailer 이메일 서비스
-│   ├── dto/auth.dto.ts              # ForgotPasswordDto, ResetPasswordDto 추가
-│   └── entities/
-│       └── password-reset.entity.ts # NEW - 비밀번호 재설정 토큰 엔티티
-├── modules/users/
-│   ├── entities/user.entity.ts      # email 필드 추가
-│   └── users.service.ts             # findByEmail, updatePassword 메서드 추가
-├── modules/clans/
-│   ├── clans.module.ts              # Announcement, HallOfFame 엔티티 추가
-│   ├── clans.controller.ts          # 공지/명예의전당 API 추가
-│   ├── clans.service.ts             # 공지/명예의전당 비즈니스 로직
-│   └── entities/
-│       ├── announcement.entity.ts   # NEW - 공지사항 엔티티
-│       └── hall-of-fame.entity.ts   # NEW - 명예의전당 엔티티
-└── modules/scrims/
-    ├── scrims.controller.ts         # today 파라미터 추가
-    └── scrims.service.ts            # 오늘 날짜 필터링 로직
 
-frontend/src/
-├── app/
-│   ├── page.tsx                     # 대시보드 재설계 (새 컴포넌트 통합)
-│   ├── vote/page.tsx                # 통계 페이지로 변환
-│   ├── auction/[id]/page.tsx        # AuctionSetupPanel 통합
-│   ├── login/page.tsx               # 아이디 필드명 수정
-│   ├── signup/page.tsx              # 이메일 필드 추가
-│   ├── forgot-password/page.tsx     # API 연동
-│   └── reset-password/page.tsx      # NEW - 비밀번호 재설정 페이지
-├── common/layouts/
-│   ├── header.tsx                   # "투표" → "통계" 메뉴명 변경
-│   └── bottom-nav.tsx               # 모바일 네비게이션 재설계
-├── components/dashboard/
-│   ├── today-scrims.tsx             # NEW - 오늘의 내전
-│   ├── announcements.tsx            # 개선 - CRUD 기능
-│   └── hall-of-fame.tsx             # 개선 - 탭 UI, CRUD 기능
-└── modules/auction/components/
-    └── auction-setup-panel.tsx      # NEW - 경매 설정 패널
+### PointRule
+```typescript
+{
+  id: string (UUID)
+  clanId: string
+  code: string (unique per clan)
+  name: string
+  description: string
+  points: number
+  isActive: boolean
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
 
-docs/
-└── handoff.md                       # 업데이트
+### AttendanceRecord
+```typescript
+{
+  id: string (UUID)
+  clanMemberId: string
+  scrimId: string
+  attendedAt: timestamp
+  pointsAwarded: number
+  consecutiveDays: number
+  createdAt: timestamp
+}
 ```
 
 ---
 
-## 5. 주의사항
+## 테스트 계정
 
-### DB 마이그레이션 필요
-- `Announcement` 엔티티 추가됨
-- `HallOfFame` 엔티티 추가됨 (type: MVP/DONOR/WANTED)
-- TypeORM sync 또는 마이그레이션 실행 필요
+- **tcaptain1** / test1234 (TCaptain1#1111, 탱커, 마스터)
+- **tcaptain2** / test1234 (TCaptain2#2222, DPS, 마스터)
+- 테스트 경매 ID: `54079df7-f010-4923-a8e0-addbf8058622`
 
-### 새 엔티티 스키마
+---
 
-```typescript
-// PasswordReset
-{
-  id: string (UUID)
-  userId: string
-  token: string (unique)
-  expiresAt: timestamp
-  used: boolean (default: false)
-  createdAt: timestamp
-  updatedAt: timestamp
-}
+## 주의사항
 
-// User 추가 필드
-{
-  email: string (unique, nullable)
-}
+### DB 마이그레이션 필수
+TypeORM sync 또는 마이그레이션 실행 필요:
+- OverwatchProfile, OverwatchStatsSnapshot (2026-01-29)
+- PointRule, AttendanceRecord (2026-01-28)
+- Scrim/ScrimParticipant 필드 확장 (2026-01-28)
+- PasswordReset, Announcement, HallOfFame (이전)
 
-// Announcement
-{
-  id: string (UUID)
-  clanId: string
-  authorId: string
-  title: string
-  content: text
-  isPinned: boolean (default: false)
-  isActive: boolean (default: true)
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-
-// HallOfFame
-{
-  id: string (UUID)
-  clanId: string
-  userId: string (nullable)
-  type: enum('MVP', 'DONOR', 'WANTED')
-  title: string
-  description: text (nullable)
-  amount: integer (default: 0)
-  imageUrl: string (nullable)
-  displayOrder: integer (default: 0)
-  isActive: boolean (default: true)
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-```
-
-### 테스트 필요 항목
-- **[2026-01-26 수정분]**
-  - 명예의전당 기부자/수배자 등록 (title 포함 여부)
-  - 경매 WebSocket 운영 서버 연결
-  - 베팅 카운트다운 표시 + 관리자 마감/수정 기능
-  - 상점 카테고리 제거 후 상품 등록/구매
-  - 소개팅 필터 (성별/나이/MBTI/지역/흡연)
-  - Hydration 에러 (#418) 해소 확인
-- **[이전 수정분]**
-  - 비밀번호 재설정 플로우 (이메일 발송, 토큰 검증, 비밀번호 변경)
-  - 공지사항 CRUD API
-  - 경매 비딩 플로우 (BidDto 수정 후 재테스트)
-    - 테스트 계정: tcaptain1, tcaptain2 (비밀번호: test1234)
-    - 테스트 경매 ID: 54079df7-f010-4923-a8e0-addbf8058622
+### Entity 변경 시 규칙
+1. `docs/erd.md` 업데이트
+2. 마이그레이션 작성
+3. handoff 문서 기록

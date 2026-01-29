@@ -8,15 +8,21 @@ import {
   UseGuards,
   Request,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { OverwatchService } from './overwatch.service';
-import { UpdateSyncSettingsDto } from './dto/overwatch.dto';
+import { OverwatchApiService } from './overwatch-api.service';
+import { UpdateSyncSettingsDto, GetStatsHistoryDto } from './dto/overwatch.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('overwatch')
 export class OverwatchController {
-  constructor(private readonly overwatchService: OverwatchService) {}
+  constructor(
+    private readonly overwatchService: OverwatchService,
+    private readonly overwatchApiService: OverwatchApiService,
+  ) {}
 
   /**
    * 내 오버워치 프로필 조회
@@ -38,8 +44,10 @@ export class OverwatchController {
 
   /**
    * 내 프로필 수동 동기화
+   * Rate limit: 1분에 최대 3회
    */
   @UseGuards(AuthGuard('jwt'))
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('profile/me/sync')
   syncMyProfile(@Request() req: AuthenticatedRequest) {
     return this.overwatchService.syncProfile(req.user.userId);
@@ -70,17 +78,24 @@ export class OverwatchController {
   @Get('stats/:userId/history')
   getStatsHistory(
     @Param('userId') userId: string,
-    @Query('limit') limit?: number,
+    @Query() query: GetStatsHistoryDto,
   ) {
-    return this.overwatchService.getSnapshots(userId, limit || 30);
+    return this.overwatchService.getSnapshots(userId, query.limit ?? 30);
   }
 
   /**
    * 클랜원 랭킹 조회
+   * 본인이 속한 클랜만 조회 가능
    */
   @UseGuards(AuthGuard('jwt'))
   @Get('rankings/:clanId')
-  getClanRankings(@Param('clanId') clanId: string) {
+  getClanRankings(
+    @Param('clanId') clanId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (req.user.clanId !== clanId) {
+      throw new ForbiddenException('해당 클랜의 랭킹을 볼 권한이 없습니다.');
+    }
     return this.overwatchService.getClanRankings(clanId);
   }
 
@@ -97,5 +112,52 @@ export class OverwatchController {
       req.user.userId,
       dto.autoSync ?? true,
     );
+  }
+
+  // ============================================
+  // 게임 데이터 API (Public - 인증 불필요)
+  // ============================================
+
+  /**
+   * 영웅 목록 조회
+   */
+  @Get('heroes')
+  getHeroes(@Query('locale') locale?: string) {
+    return this.overwatchApiService.getHeroes(locale || 'ko-kr');
+  }
+
+  /**
+   * 영웅 상세 정보 조회
+   */
+  @Get('heroes/:heroKey')
+  getHeroDetail(
+    @Param('heroKey') heroKey: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.overwatchApiService.getHeroDetail(heroKey, locale || 'ko-kr');
+  }
+
+  /**
+   * 맵 목록 조회
+   */
+  @Get('maps')
+  getMaps(@Query('locale') locale?: string) {
+    return this.overwatchApiService.getMaps(locale || 'ko-kr');
+  }
+
+  /**
+   * 게임모드 목록 조회
+   */
+  @Get('gamemodes')
+  getGamemodes(@Query('locale') locale?: string) {
+    return this.overwatchApiService.getGamemodes(locale || 'ko-kr');
+  }
+
+  /**
+   * 역할 목록 조회
+   */
+  @Get('roles')
+  getRoles(@Query('locale') locale?: string) {
+    return this.overwatchApiService.getRoles(locale || 'ko-kr');
   }
 }

@@ -94,7 +94,8 @@ export class OverwatchService {
       profile.title = summary.title ?? undefined;
       profile.endorsementLevel = summary.endorsement?.level || 0;
       profile.privacy = summary.privacy;
-      profile.competitiveRank = summary.competitive as any;
+      profile.competitiveRank =
+        summary.competitive as unknown as Record<string, unknown>;
 
       // 통계 가져오기 (공개 프로필만)
       if (summary.privacy === 'public') {
@@ -105,8 +106,9 @@ export class OverwatchService {
         );
 
         if (stats) {
-          profile.statsSummary = stats.general as any;
-          profile.topHeroes = stats.heroes as any;
+          profile.statsSummary =
+            stats.general as unknown as Record<string, unknown>;
+          profile.topHeroes = stats.heroes as unknown as Record<string, unknown>;
         }
       }
 
@@ -118,15 +120,15 @@ export class OverwatchService {
       this.logger.log(`Profile synced: ${profile.battleTag}`);
 
       return profile;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       profile.lastSyncStatus = 'error';
-      profile.lastSyncError = error.message;
+      profile.lastSyncError = errorMessage;
       profile.lastSyncedAt = new Date();
       await this.profileRepo.save(profile);
 
-      this.logger.error(
-        `Sync failed for ${profile.battleTag}: ${error.message}`,
-      );
+      this.logger.error(`Sync failed for ${profile.battleTag}: ${errorMessage}`);
       return profile;
     }
   }

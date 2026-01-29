@@ -1,4 +1,11 @@
-import { Entity, Column, OneToOne, JoinColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+  ManyToOne,
+} from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { User } from '../../users/entities/user.entity';
 
@@ -67,8 +74,8 @@ export class OverwatchStatsSnapshot extends BaseEntity {
   @Column()
   profileId: string;
 
+  @ManyToOne(() => OverwatchProfile, (profile) => profile.snapshots)
   @JoinColumn({ name: 'profileId' })
-  @OneToMany(() => OverwatchProfile, (profile) => profile.snapshots)
   profile: OverwatchProfile;
 
   @Column({ type: 'jsonb' })

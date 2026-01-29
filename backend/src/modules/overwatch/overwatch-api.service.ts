@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import axios, { AxiosInstance } from 'axios';
+import { ConfigService } from '@nestjs/config';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
   OverFastPlayerSummary,
   OverFastPlayerStats,
   OverFastHero,
+  OverFastHeroDetail,
+  OverFastMap,
+  OverFastGamemode,
+  OverFastRole,
 } from './interfaces/overfast-api.interface';
 
 /**
@@ -15,12 +20,18 @@ export class OverwatchApiService {
   private readonly logger = new Logger(OverwatchApiService.name);
   private readonly client: AxiosInstance;
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     this.client = axios.create({
-      baseURL: 'https://overfast-api.tekrop.fr',
-      timeout: 15000,
+      baseURL: this.configService.get<string>(
+        'OVERFAST_API_URL',
+        'https://overfast-api.tekrop.fr',
+      ),
+      timeout: this.configService.get<number>('OVERFAST_API_TIMEOUT', 15000),
       headers: {
-        'User-Agent': 'POTG-Backend/1.0',
+        'User-Agent': this.configService.get<string>(
+          'OVERFAST_USER_AGENT',
+          'POTG-Backend/1.0',
+        ),
       },
     });
   }
@@ -45,15 +56,17 @@ export class OverwatchApiService {
         `/players/${tag}/summary`,
       );
       return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        this.logger.warn(`Player not found: ${battleTag}`);
-        return null;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 404) {
+          this.logger.warn(`Player not found: ${battleTag}`);
+          return null;
+        }
+        this.logger.error(
+          `Failed to fetch player summary: ${battleTag}`,
+          error.message,
+        );
       }
-      this.logger.error(
-        `Failed to fetch player summary: ${battleTag}`,
-        error.message,
-      );
       throw error;
     }
   }
@@ -75,15 +88,17 @@ export class OverwatchApiService {
         },
       );
       return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 404 || error.response?.status === 422) {
-        this.logger.warn(`Stats not available for: ${battleTag}`);
-        return null;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 404 || error.response?.status === 422) {
+          this.logger.warn(`Stats not available for: ${battleTag}`);
+          return null;
+        }
+        this.logger.error(
+          `Failed to fetch player stats: ${battleTag}`,
+          error.message,
+        );
       }
-      this.logger.error(
-        `Failed to fetch player stats: ${battleTag}`,
-        error.message,
-      );
       throw error;
     }
   }
@@ -91,12 +106,86 @@ export class OverwatchApiService {
   /**
    * 영웅 목록 조회
    */
-  async getHeroes(): Promise<OverFastHero[]> {
+  async getHeroes(locale = 'ko-kr'): Promise<OverFastHero[]> {
     try {
-      const response = await this.client.get<OverFastHero[]>('/heroes');
+      const response = await this.client.get<OverFastHero[]>('/heroes', {
+        params: { locale },
+      });
       return response.data;
-    } catch (error: any) {
-      this.logger.error('Failed to fetch heroes list', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to fetch heroes list', message);
+      throw error;
+    }
+  }
+
+  /**
+   * 영웅 상세 정보 조회
+   */
+  async getHeroDetail(
+    heroKey: string,
+    locale = 'ko-kr',
+  ): Promise<OverFastHeroDetail | null> {
+    try {
+      const response = await this.client.get<OverFastHeroDetail>(
+        `/heroes/${heroKey}`,
+        { params: { locale } },
+      );
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        return null;
+      }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to fetch hero detail: ${heroKey}`, message);
+      throw error;
+    }
+  }
+
+  /**
+   * 맵 목록 조회
+   */
+  async getMaps(locale = 'ko-kr'): Promise<OverFastMap[]> {
+    try {
+      const response = await this.client.get<OverFastMap[]>('/maps', {
+        params: { locale },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to fetch maps list', message);
+      throw error;
+    }
+  }
+
+  /**
+   * 게임모드 목록 조회
+   */
+  async getGamemodes(locale = 'ko-kr'): Promise<OverFastGamemode[]> {
+    try {
+      const response = await this.client.get<OverFastGamemode[]>('/gamemodes', {
+        params: { locale },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to fetch gamemodes list', message);
+      throw error;
+    }
+  }
+
+  /**
+   * 역할 목록 조회
+   */
+  async getRoles(locale = 'ko-kr'): Promise<OverFastRole[]> {
+    try {
+      const response = await this.client.get<OverFastRole[]>('/roles', {
+        params: { locale },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to fetch roles list', message);
       throw error;
     }
   }
