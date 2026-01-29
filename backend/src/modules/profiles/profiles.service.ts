@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { MemberProfile } from './entities/member-profile.entity';
 import { Follow } from './entities/follow.entity';
 import { Guestbook } from './entities/guestbook.entity';
@@ -21,6 +21,7 @@ export class ProfilesService {
     private visitRepo: Repository<ProfileVisit>,
     @InjectRepository(ClanMember)
     private memberRepo: Repository<ClanMember>,
+    private dataSource: DataSource,
   ) {}
 
   // ==================== 헬퍼 ====================
@@ -96,26 +97,34 @@ export class ProfilesService {
       throw new ForbiddenException('자기 자신을 팔로우할 수 없습니다.');
     }
 
-    const existing = await this.followRepo.findOne({
-      where: { followerId, followingId },
+    await this.dataSource.transaction(async (manager) => {
+      // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING RETURNING id
+      // 실제로 삽입된 경우에만 row가 반환됨
+      const inserted = await manager.query(
+        `INSERT INTO follows ("followerId", "followingId")
+         VALUES ($1, $2)
+         ON CONFLICT ("followerId", "followingId") DO NOTHING
+         RETURNING id`,
+        [followerId, followingId],
+      );
+
+      // 실제로 삽입된 경우에만 카운트 증가
+      if (inserted.length > 0) {
+        await manager.increment(MemberProfile, { memberId: followerId }, 'followingCount', 1);
+        await manager.increment(MemberProfile, { memberId: followingId }, 'followerCount', 1);
+      }
     });
-
-    if (existing) return;
-
-    await this.followRepo.save({ followerId, followingId });
-
-    // 카운트 업데이트
-    await this.profileRepo.increment({ memberId: followerId }, 'followingCount', 1);
-    await this.profileRepo.increment({ memberId: followingId }, 'followerCount', 1);
   }
 
   async unfollow(followerId: string, followingId: string): Promise<void> {
-    const result = await this.followRepo.delete({ followerId, followingId });
-    
-    if (result.affected && result.affected > 0) {
-      await this.profileRepo.decrement({ memberId: followerId }, 'followingCount', 1);
-      await this.profileRepo.decrement({ memberId: followingId }, 'followerCount', 1);
-    }
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager.delete(Follow, { followerId, followingId });
+
+      if (result.affected && result.affected > 0) {
+        await manager.decrement(MemberProfile, { memberId: followerId }, 'followingCount', 1);
+        await manager.decrement(MemberProfile, { memberId: followingId }, 'followerCount', 1);
+      }
+    });
   }
 
   async getFollowers(memberId: string, page = 1, limit = 20): Promise<{ data: Follow[]; total: number }> {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,23 +27,7 @@ export default function ProfilePage() {
 
   const isOwner = profile?.member?.user?.id === user?.id;
 
-  useEffect(() => {
-    if (memberId && clanId) {
-      loadProfile();
-    }
-  }, [memberId, clanId]);
-
-  useEffect(() => {
-    if (profile && clanId) {
-      if (activeTab === 'feed') {
-        loadPosts();
-      } else if (activeTab === 'guestbook') {
-        loadGuestbooks();
-      }
-    }
-  }, [profile, activeTab, clanId]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       const [profileRes, followRes] = await Promise.all([
@@ -57,37 +41,52 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [memberId, clanId]);
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       const res = await apiClient.get(`/posts?clanId=${clanId}&authorId=${memberId}`);
-      setPosts(res.data.data || []);
+      const postsData = res.data.data || [];
+      setPosts(postsData);
 
-      // 좋아요 상태 확인
-      const liked = new Set<string>();
-      for (const post of res.data.data || []) {
-        try {
-          const likeRes = await apiClient.get(`/posts/${post.id}/like-status?clanId=${clanId}`);
-          if (likeRes.data.isLiked) {
-            liked.add(post.id);
-          }
-        } catch {}
+      // 벌크 API로 좋아요 상태 한 번에 확인
+      if (postsData.length > 0) {
+        const postIds = postsData.map((p: Post) => p.id).join(',');
+        const likeRes = await apiClient.get(
+          `/posts/bulk/like-status?clanId=${clanId}&postIds=${postIds}`
+        );
+        const likeStatus = likeRes.data.likeStatus || {};
+        setLikedPosts(new Set(Object.keys(likeStatus).filter((id) => likeStatus[id])));
       }
-      setLikedPosts(liked);
     } catch (error) {
       console.error('Failed to load posts:', error);
     }
-  };
+  }, [clanId, memberId]);
 
-  const loadGuestbooks = async () => {
+  const loadGuestbooks = useCallback(async () => {
     try {
       const res = await apiClient.get(`/profiles/${memberId}/guestbook?clanId=${clanId}`);
       setGuestbooks(res.data.data || []);
     } catch (error) {
       console.error('Failed to load guestbooks:', error);
     }
-  };
+  }, [memberId, clanId]);
+
+  useEffect(() => {
+    if (memberId && clanId) {
+      loadProfile();
+    }
+  }, [memberId, clanId, loadProfile]);
+
+  useEffect(() => {
+    if (profile && clanId) {
+      if (activeTab === 'feed') {
+        loadPosts();
+      } else if (activeTab === 'guestbook') {
+        loadGuestbooks();
+      }
+    }
+  }, [profile, activeTab, clanId, loadPosts, loadGuestbooks]);
 
   const handleFollow = async () => {
     try {

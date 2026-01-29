@@ -46,6 +46,21 @@ export class PostsController {
     });
   }
 
+  // 벌크 API는 :id 라우트보다 먼저 선언해야 함
+  @Get('bulk/like-status')
+  async getLikeStatusBulk(
+    @Request() req: AuthenticatedRequest,
+    @Query('clanId') clanId: string,
+    @Query('postIds') postIds: string,
+  ) {
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    if (!memberId) return { likeStatus: {} };
+
+    const ids = postIds.split(',').filter(Boolean);
+    const likeStatus = await this.postsService.getLikeStatusBulk(ids, memberId);
+    return { likeStatus };
+  }
+
   @Get(':id')
   async getPost(
     @Param('id') id: string,

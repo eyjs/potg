@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Post, PostType, PostVisibility } from './entities/post.entity';
 import { PostLike } from './entities/post-like.entity';
 import { PostComment } from './entities/post-comment.entity';
@@ -18,6 +18,7 @@ export class PostsService {
     private commentRepo: Repository<PostComment>,
     @InjectRepository(Follow)
     private followRepo: Repository<Follow>,
+    private dataSource: DataSource,
   ) {}
 
   // ==================== 게시물 ====================
@@ -122,23 +123,52 @@ export class PostsService {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('게시물을 찾을 수 없습니다.');
 
-    const existing = await this.likeRepo.findOne({ where: { postId, memberId } });
-    if (existing) return;
+    await this.dataSource.transaction(async (manager) => {
+      // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING RETURNING id
+      // 실제로 삽입된 경우에만 row가 반환됨
+      const inserted = await manager.query(
+        `INSERT INTO post_likes ("postId", "memberId")
+         VALUES ($1, $2)
+         ON CONFLICT ("postId", "memberId") DO NOTHING
+         RETURNING id`,
+        [postId, memberId],
+      );
 
-    await this.likeRepo.save({ postId, memberId });
-    await this.postRepo.increment({ id: postId }, 'likeCount', 1);
+      // 실제로 삽입된 경우에만 카운트 증가
+      if (inserted.length > 0) {
+        await manager.increment(Post, { id: postId }, 'likeCount', 1);
+      }
+    });
   }
 
   async unlike(postId: string, memberId: string): Promise<void> {
-    const result = await this.likeRepo.delete({ postId, memberId });
-    if (result.affected && result.affected > 0) {
-      await this.postRepo.decrement({ id: postId }, 'likeCount', 1);
-    }
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager.delete(PostLike, { postId, memberId });
+
+      if (result.affected && result.affected > 0) {
+        await manager.decrement(Post, { id: postId }, 'likeCount', 1);
+      }
+    });
   }
 
   async isLiked(postId: string, memberId: string): Promise<boolean> {
     const count = await this.likeRepo.count({ where: { postId, memberId } });
     return count > 0;
+  }
+
+  async getLikeStatusBulk(postIds: string[], memberId: string): Promise<Record<string, boolean>> {
+    if (!postIds.length || !memberId) return {};
+
+    const likes = await this.likeRepo.find({
+      where: { postId: In(postIds), memberId },
+      select: ['postId'],
+    });
+
+    const likedSet = new Set(likes.map((l) => l.postId));
+    return postIds.reduce((acc, id) => {
+      acc[id] = likedSet.has(id);
+      return acc;
+    }, {} as Record<string, boolean>);
   }
 
   // ==================== 댓글 ====================
