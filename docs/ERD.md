@@ -298,6 +298,39 @@ erDiagram
     }
 
     %% ==========================================
+    %% Overwatch Profile Domain (OverFastAPI 연동)
+    %% ==========================================
+    OverwatchProfile {
+        uuid id PK
+        uuid userId FK "unique - User"
+        string battleTag
+        string platform "default: pc"
+        string avatar "Nullable"
+        string namecard "Nullable"
+        string title "Nullable"
+        int endorsementLevel "default: 0"
+        string privacy "default: public"
+        jsonb competitiveRank "Nullable - 경쟁전 랭크"
+        jsonb statsSummary "Nullable - 플레이 통계 요약"
+        jsonb topHeroes "Nullable - 가장 많이 플레이한 영웅"
+        boolean autoSync "default: true"
+        timestamp lastSyncedAt "Nullable"
+        string lastSyncStatus "default: success"
+        string lastSyncError "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    OverwatchStatsSnapshot {
+        uuid id PK
+        uuid profileId FK "OverwatchProfile"
+        jsonb snapshot "전체 통계 스냅샷"
+        timestamp snapshotDate
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ==========================================
     %% Blind Date Domain
     %% ==========================================
     BlindDateListing {
@@ -447,6 +480,7 @@ erDiagram
     User ||--o{ BettingQuestion : "creates_questions"
     User ||--o{ BettingTicket : "places_bets"
     User ||--o{ PointLog : "has_history"
+    User ||--o| OverwatchProfile : "has_ow_profile"
 
     %% Auction
     Auction ||--|{ AuctionParticipant : "has"
@@ -490,5 +524,8 @@ erDiagram
 
     %% Shop
     ShopProduct ||--o{ ShopPurchase : "has_purchases"
+
+    %% Overwatch
+    OverwatchProfile ||--o{ OverwatchStatsSnapshot : "tracks_history"
 
 ```

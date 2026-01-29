@@ -25,6 +25,7 @@ import { BlindDateModule } from './modules/blind-date/blind-date.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
+import { OverwatchModule } from './modules/overwatch/overwatch.module';
 
 @Module({
   imports: [
@@ -128,6 +129,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
     WalletModule,
     UploadsModule,
     AttendanceModule,
+    OverwatchModule,
   ],
   controllers: [AppController],
   providers: [
