@@ -28,6 +28,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { OverwatchModule } from './modules/overwatch/overwatch.module';
 import { ProfilesModule } from './modules/profiles/profiles.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { GamesModule } from './modules/games/games.module';
 
 @Module({
   imports: [
@@ -134,6 +135,7 @@ import { PostsModule } from './modules/posts/posts.module';
     OverwatchModule,
     ProfilesModule,
     PostsModule,
+    GamesModule,
   ],
   controllers: [AppController],
   providers: [
