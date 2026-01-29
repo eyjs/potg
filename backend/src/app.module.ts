@@ -26,6 +26,8 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { OverwatchModule } from './modules/overwatch/overwatch.module';
+import { ProfilesModule } from './modules/profiles/profiles.module';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -130,6 +132,8 @@ import { OverwatchModule } from './modules/overwatch/overwatch.module';
     UploadsModule,
     AttendanceModule,
     OverwatchModule,
+    ProfilesModule,
+    PostsModule,
   ],
   controllers: [AppController],
   providers: [
