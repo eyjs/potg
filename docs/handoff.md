@@ -8,7 +8,13 @@
 
 ### 2026-01-29 세션 (Phase 1 & 2)
 
-#### [491c0a4] feat: 오버워치 Phase 1 & 2 구현 + 보안 수정
+#### [4f7f9f2] fix: 오버워치 페이지 모바일 반응형 수정
+
+- **replay-card.tsx**: 모바일에서 스택 레이아웃으로 변경, 텍스트 truncate 적용
+- **replays/page.tsx**: 필터 셀렉트박스 모바일 flex-1 레이아웃 개선
+- **profile-header.tsx**: 동기화 버튼 모바일 전체 너비 적용
+
+#### [90a92b3] feat: 오버워치 Phase 1 & 2 구현 + 보안 수정
 
 #### 코드 리뷰 1차 수정 사항 (CRITICAL/HIGH)
 

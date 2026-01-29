@@ -112,11 +112,11 @@ export function ProfileHeader({
             <Button
               onClick={onSync}
               disabled={isSyncing}
-              className="skew-x-[-8deg] bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wide"
+              className="w-full sm:w-auto skew-x-[-8deg] bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wide text-sm"
             >
-              <span className="skew-x-[8deg] flex items-center gap-2">
+              <span className="skew-x-[8deg] flex items-center justify-center gap-2">
                 <RefreshCw className={cn('w-4 h-4', isSyncing && 'animate-spin')} />
-                {isSyncing ? '동기화 중...' : '프로필 동기화'}
+                {isSyncing ? '동기화 중...' : '동기화'}
               </span>
             </Button>
           )}

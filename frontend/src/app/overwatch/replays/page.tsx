@@ -124,8 +124,8 @@ export default function ReplaysPage() {
           {/* Filters */}
           <Card className="border-border/50 bg-card">
             <CardContent className="py-4">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
+              <div className="flex flex-col gap-3">
+                <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="코드 또는 제목 검색..."
@@ -135,31 +135,33 @@ export default function ReplaysPage() {
                   />
                 </div>
 
-                <Select value={mapFilter} onValueChange={setMapFilter}>
-                  <SelectTrigger className="w-40 bg-muted/20 border-border/50">
-                    <SelectValue placeholder="맵 필터" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 맵</SelectItem>
-                    {maps.map((map) => (
-                      <SelectItem key={map.name} value={map.name}>
-                        {map.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={mapFilter} onValueChange={setMapFilter}>
+                    <SelectTrigger className="flex-1 sm:w-40 sm:flex-none bg-muted/20 border-border/50">
+                      <SelectValue placeholder="맵 필터" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체 맵</SelectItem>
+                      {maps.map((map) => (
+                        <SelectItem key={map.name} value={map.name}>
+                          {map.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Select value={resultFilter} onValueChange={setResultFilter}>
-                  <SelectTrigger className="w-32 bg-muted/20 border-border/50">
-                    <SelectValue placeholder="결과" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    <SelectItem value="WIN">승리</SelectItem>
-                    <SelectItem value="LOSS">패배</SelectItem>
-                    <SelectItem value="DRAW">무승부</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select value={resultFilter} onValueChange={setResultFilter}>
+                    <SelectTrigger className="flex-1 sm:w-32 sm:flex-none bg-muted/20 border-border/50">
+                      <SelectValue placeholder="결과" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체</SelectItem>
+                      <SelectItem value="WIN">승리</SelectItem>
+                      <SelectItem value="LOSS">패배</SelectItem>
+                      <SelectItem value="DRAW">무승부</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>

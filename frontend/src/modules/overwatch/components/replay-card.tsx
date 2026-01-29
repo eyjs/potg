@@ -30,19 +30,12 @@ export function ReplayCard({ replay, isOwner, onDelete, onLike }: ReplayCardProp
     <Card className="overflow-hidden border-border/50 bg-card hover:border-border transition-colors">
       <CardContent className="p-0">
         {/* Main Content */}
-        <div className="flex gap-4 p-4">
-          {/* Map Info */}
-          <div className="shrink-0 w-24">
-            <p className="font-bold text-sm text-foreground">{replay.mapName}</p>
-            {replay.gamemode && (
-              <p className="text-xs text-muted-foreground">{replay.gamemode}</p>
-            )}
-          </div>
-
-          {/* Replay Code */}
-          <div className="flex-1">
+        <div className="p-4 space-y-3">
+          {/* Mobile: Stacked layout, Desktop: Row layout */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            {/* Replay Code - Always prominent */}
             <div className="flex items-center gap-2">
-              <code className="px-3 py-1.5 rounded bg-primary/10 border border-primary/30 font-mono font-bold text-primary text-lg tracking-wider">
+              <code className="px-3 py-1.5 rounded bg-primary/10 border border-primary/30 font-mono font-bold text-primary text-base sm:text-lg tracking-wider">
                 {replay.code}
               </code>
               <Button
@@ -54,44 +47,54 @@ export function ReplayCard({ replay, isOwner, onDelete, onLike }: ReplayCardProp
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
-          </div>
 
-          {/* User & Date */}
-          <div className="shrink-0 text-right">
-            <div className="flex items-center gap-2 justify-end">
-              <Avatar className="w-6 h-6">
-                <AvatarImage src={replay.user?.avatarUrl} />
-                <AvatarFallback className="text-xs bg-muted">
-                  {replay.user?.battleTag?.charAt(0) || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-foreground">{replay.user?.battleTag || '알 수 없음'}</span>
+            {/* Map Info */}
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-foreground truncate">{replay.mapName}</p>
+              {replay.gamemode && (
+                <p className="text-xs text-muted-foreground truncate">{replay.gamemode}</p>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {new Date(replay.createdAt).toLocaleDateString('ko-KR')}
-            </p>
+
+            {/* User & Date */}
+            <div className="flex items-center gap-2 sm:flex-col sm:items-end">
+              <div className="flex items-center gap-2">
+                <Avatar className="w-5 h-5 sm:w-6 sm:h-6">
+                  <AvatarImage src={replay.user?.avatarUrl} />
+                  <AvatarFallback className="text-xs bg-muted">
+                    {replay.user?.battleTag?.charAt(0) || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs sm:text-sm text-foreground truncate max-w-[100px] sm:max-w-none">
+                  {replay.user?.battleTag || '알 수 없음'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground whitespace-nowrap">
+                {new Date(replay.createdAt).toLocaleDateString('ko-KR')}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Heroes & Result */}
-        <div className="flex items-center justify-between px-4 py-2 bg-muted/10 border-t border-border/30">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">영웅:</span>
-            <div className="flex gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-muted/10 border-t border-border/30">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground shrink-0">영웅:</span>
+            <div className="flex gap-1 flex-wrap">
               {replay.heroes.slice(0, 3).map((hero) => (
-                <Badge key={hero} variant="outline" className="text-xs border-border/50">
+                <Badge key={hero} variant="outline" className="text-[10px] sm:text-xs border-border/50">
                   {hero}
                 </Badge>
               ))}
               {replay.heroes.length > 3 && (
-                <Badge variant="outline" className="text-xs border-border/50">
+                <Badge variant="outline" className="text-[10px] sm:text-xs border-border/50">
                   +{replay.heroes.length - 3}
                 </Badge>
               )}
             </div>
           </div>
 
-          <Badge className={cn('font-bold', resultStyle)}>
+          <Badge className={cn('font-bold text-xs shrink-0', resultStyle)}>
             {resultLabel}
           </Badge>
         </div>
