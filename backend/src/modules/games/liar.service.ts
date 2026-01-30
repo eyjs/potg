@@ -140,7 +140,7 @@ export class LiarService {
     roomId: string,
     voterId: string,
     targetId: string,
-  ): Promise<{ success: boolean; allVoted: boolean }> {
+  ): Promise<{ success: boolean; allVoted: boolean; reason?: string }> {
     const state = this.gameStates.get(roomId);
     if (!state) {
       return { success: false, allVoted: false };
@@ -152,7 +152,7 @@ export class LiarService {
 
     // 자기 자신에게 투표 방지
     if (voterId === targetId) {
-      return { success: false, allVoted: false };
+      return { success: false, allVoted: false, reason: '자신에게 투표할 수 없습니다' };
     }
 
     const room = await this.gameRoomRepo.findOne({

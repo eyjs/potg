@@ -385,9 +385,26 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (result.allVoted) {
           const voteResult = await this.liarService.calculateVoteResult(data.roomId);
           this.server.to(`room:${data.roomId}`).emit('liar:vote-result', voteResult);
+
+          if (voteResult.isLiar) {
+            // 라이어 지목 성공 -> 라이어에게 정답 맞출 기회
+            this.liarService.startGuessing(data.roomId);
+            this.emitToMember(voteResult.liarId, 'liar:guess-chance', {
+              timeLimit: 30000,
+            });
+          } else {
+            // 라이어 지목 실패 -> 라이어 승리
+            await this.liarService.endGame(data.roomId, voteResult.liarId);
+            this.server.to(`room:${data.roomId}`).emit('game:ended', {
+              liarWon: true,
+              liarId: voteResult.liarId,
+            });
+          }
         }
       } else {
-        client.emit('liar:vote-failed', { message: '투표에 실패했습니다.' });
+        client.emit('liar:vote-failed', {
+          message: result.reason || '투표에 실패했습니다.',
+        });
       }
     } catch (error) {
       this.logger.error('Liar vote error:', error);
