@@ -18,6 +18,7 @@ const navItems = [
   { href: "/auction", label: "경매장" },
   { href: "/betting", label: "베팅" },
   { href: "/shop", label: "상점" },
+  { href: "/games", label: "아케이드" },
   { href: "/utility", label: "유틸리티" },
   { href: "/gallery", label: "소개팅" },
 ]

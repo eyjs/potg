@@ -1,10 +1,65 @@
 # POTG 경매 시스템 - 핸드오프 문서
 
-마지막 업데이트: 2026-01-29
+마지막 업데이트: 2026-01-30
 
 ---
 
 ## 최근 완료 작업
+
+### 2026-01-30 세션
+
+#### [5fc935a] feat: 내 정보 페이지 OverFastAPI 기반 재구성
+
+##### 백엔드 변경
+- **User.rating**: `default: 1000` → `nullable: true` (OverFastAPI 연동 후 실제 랭크 사용)
+- **User.mainRole**: `default: FLEX` → `nullable: true` (선택적 입력)
+- **회원가입 서비스**: `mainRole` 필수 검사 제거
+
+##### 프론트엔드 - 내 정보 페이지 재구성
+```
+frontend/src/modules/overwatch/components/
+└── profile-banner.tsx              # NEW - Namecard 배경 + 아바타 + 동기화 버튼
+
+frontend/src/modules/my-info/
+├── index.ts                        # NEW
+└── components/
+    ├── account-settings-card.tsx   # NEW - 계정 설정 카드
+    └── security-settings-card.tsx  # NEW - 보안 설정 카드
+
+frontend/src/app/my-info/page.tsx   # 전면 재구성
+```
+
+**새 레이아웃:**
+- 상단: ProfileBanner (Namecard 배경 + 아바타 + 동기화)
+- 2열 그리드:
+  - 왼쪽: 경쟁전 랭크 / 주력 영웅 / 커리어 통계
+  - 오른쪽: 계정 설정 / 보안 설정 / 포인트 관리 / 소속 클랜
+
+##### 프론트엔드 - 회원가입 페이지 수정
+- **티어 선택 UI 제거** (RANK_OPTIONS 삭제)
+- **mainRole 선택적으로 변경** ("나중에 설정할게요" 옵션 추가)
+- OverFastAPI 자동 동기화 안내 문구 추가
+
+##### 수정된 파일
+```
+backend/src/modules/auth/auth.service.ts
+backend/src/modules/users/entities/user.entity.ts
+frontend/src/app/my-info/page.tsx
+frontend/src/app/signup/page.tsx
+frontend/src/modules/overwatch/index.ts
+frontend/src/modules/overwatch/components/profile-banner.tsx  # NEW
+frontend/src/modules/my-info/                                 # NEW
+```
+
+#### 헤더에 아케이드(미니게임) 메뉴 추가
+- `/games` 경로 접근 가능하도록 navItems에 "아케이드" 추가
+
+##### 수정된 파일
+```
+frontend/src/common/layouts/header.tsx
+```
+
+---
 
 ### 2026-01-29 세션 (Phase 1 & 2)
 
@@ -169,22 +224,6 @@ backend/src/modules/overwatch/           # NEW - 전체 모듈
 docs/erd.md                              # 업데이트
 ```
 
-#### [a8b4f56] 내전 목록 페이지에 생성 버튼 추가
-
-- 스크림 목록 페이지에 생성 버튼 추가
-- CreateScrimModal 연동
-- 생성 후 상세 페이지로 자동 이동
-- toast 알림 추가
-
-##### 수정된 파일
-```
-frontend/src/app/scrims/page.tsx
-```
-
-#### [f62d0f9] CI/CD 브랜치 수정
-
-- GitHub Actions 워크플로우의 브랜치를 `main`에서 `master`로 변경
-
 ---
 
 ### 2026-01-28 세션
@@ -216,84 +255,6 @@ frontend/src/app/clans/[id]/manage/page.tsx
 docs/erd.md                              # PointRule.code 컬럼 반영
 ```
 
-#### [WBS-020] Phase 1: 스크림 스케줄러 고도화 + Vote 디커플링
-
-##### 백엔드 변경
-- **Scrim Entity 확장**
-  - `checkInStart`, `minPlayers`, `maxPlayers`, `roleSlots`, `description`
-- **ScrimParticipant 확장**
-  - `preferredRoles`, `assignedRole`, `note`, `checkedIn`, `checkedInAt`, `respondedAt`
-- **Vote-Scrim 디커플링**
-  - VotesService에서 ScrimsService 의존성 제거
-  - RecruitmentType/ParticipantSource에서 VOTE 제거, OPEN 추가
-- **체크인 기능**
-  - 시간 윈도우 기반 체크인 API
-
-##### 프론트엔드 변경
-- 참가 신청 다이얼로그: 선호 역할 + 메모 입력
-- 체크인 기능 UI
-- 내전 생성 폼: 모집방식, 체크인시간, 인원제한, 설명 필드 추가
-
-##### 코드 품질 개선
-- `any` 타입 전면 제거: `Record<string, unknown>` + 명시적 캐스팅
-- 유저 데이터 sanitization 헬퍼 추출
-
-##### 수정된 파일
-```
-backend/src/modules/scrims/
-├── scrims.service.ts
-├── scrims.controller.ts
-└── entities/
-    ├── scrim.entity.ts
-    └── scrim-participant.entity.ts
-backend/src/modules/votes/votes.service.ts
-frontend/src/app/scrims/[id]/page.tsx
-frontend/src/modules/scrim/components/
-docs/erd.md                              # Attendance, Achievement, Mentoring, Bingo 도메인 추가
-```
-
----
-
-### 2026-01-27 세션
-
-#### [WBS-012] 경매 포인트 차감 버그 수정 및 자동 낙찰 로직
-
-1. **confirmCurrentBid 포인트 차감 누락 수정** (치명적 버그)
-   - 낙찰 확정 시 `captain.currentPoints -= amount` 추가
-
-2. **autoConfirmOnTimeout 포인트 차감 누락 수정** (치명적 버그)
-   - 타임아웃 자동 낙찰 시에도 포인트 차감 로직 추가
-
-3. **checkAutoConfirm() 자동 낙찰 로직 추가**
-   - 입찰 후 모든 경쟁 팀장의 잔여 포인트가 최소 다음 입찰가 미만이면 자동 낙찰
-
-4. **window.location.reload() → socket requestRoomState 대체**
-
-5. **선수 풀 상태 배지 UI 추가**
-   - 현재 경매 중인 선수: "경매중" 배지 (파란색)
-   - 나머지 선수: "대기" 배지
-
-##### 수정된 파일
-```
-backend/src/modules/auctions/auction.gateway.ts
-backend/src/modules/auctions/auctions.service.ts
-frontend/src/app/auction/[id]/page.tsx
-frontend/src/modules/auction/hooks/use-auction-socket.ts
-```
-
----
-
-### 2026-01-26 세션
-
-#### 프론트엔드 버그 수정 (6건)
-
-1. **명예의전당 CRUD 500 에러** - `title` 필드 누락 수정
-2. **WebSocket URL** - fallback URL을 운영 서버로 변경
-3. **베팅 카운트다운** - 실시간 카운트다운 + 관리자 마감/수정 기능
-4. **상점 카테고리 제거** - 탭/Badge 제거, toast 전환
-5. **소개팅 필터링 개선** - 성별/나이/MBTI/지역/흡연 필터
-6. **React #418 Hydration 에러** - mounted 상태 추가
-
 ---
 
 ## 다음 단계 (TODO)
@@ -301,14 +262,15 @@ frontend/src/modules/auction/hooks/use-auction-socket.ts
 ### 즉시 해야할 것
 
 1. **DB 마이그레이션 (CRITICAL)**
+   - `User.rating`, `User.mainRole` nullable 변경 (2026-01-30)
    - `User.battleTag` nullable 변경
    - `Replay` 엔티티 생성
 
 2. **배포 후 수동 테스트**
+   - 내 정보 페이지: ProfileBanner + 레이아웃 확인
+   - 회원가입: rating 없이 가입 정상 동작
    - OverFastAPI 연동: 프로필 조회/동기화 정상 동작
-   - 영웅/맵 DB 페이지 확인
-   - 리플레이 등록/조회/삭제 테스트
-   - 클랜 리더보드 확인
+   - 아케이드 메뉴 접근 확인
 
 3. **환경변수 추가** (선택)
    ```env
@@ -317,31 +279,61 @@ frontend/src/modules/auction/hooks/use-auction-socket.ts
    OVERFAST_USER_AGENT=POTG-Backend/1.0
    ```
 
-4. **환경변수 설정** (이메일 발송용)
-   ```env
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_USER=your-email@gmail.com
-   SMTP_PASS=your-app-password
-   SMTP_FROM="POTG" <noreply@potg.gg>
-   FRONTEND_URL=http://localhost:3001
-   ```
-
-3. **DB 마이그레이션 필요**
-   - OverwatchProfile, OverwatchStatsSnapshot
-   - PointRule, AttendanceRecord
-   - Scrim/ScrimParticipant 필드 확장
-   - PasswordReset, Announcement, HallOfFame
-
-4. **ESLint 설정 수정**
-   - ESLint 9.x circular reference 에러 해결 필요
-
 ### 선택적 개선사항
 
 - React Query 적용 확대
 - Framer Motion 애니메이션 확장
 - 스켈레톤 로딩 적용
 - 404/에러 페이지
+
+---
+
+## 현재 페이지 라우트 구조
+
+```
+/                           # 로비 (대시보드)
+/login                      # 로그인
+/signup                     # 회원가입
+/forgot-password            # 비밀번호 찾기
+/reset-password             # 비밀번호 재설정
+
+/my-info                    # 내 정보 (재구성됨)
+/wallet                     # 포인트 지갑
+
+/auction                    # 경매 목록
+/auction/[id]               # 경매 상세
+
+/betting                    # 베팅 목록
+/betting/my-bets            # 내 베팅
+
+/shop                       # 상점
+/vote                       # 투표 목록
+/vote/[id]                  # 투표 상세
+
+/scrim                      # 내전 목록
+/scrim/[id]                 # 내전 상세
+
+/games                      # 아케이드 (메인)
+/games/quiz                 # 퀴즈 배틀
+/games/leaderboard          # 리더보드
+
+/utility                    # 유틸리티
+/gallery                    # 소개팅
+/gallery/[id]               # 소개팅 상세
+/gallery/register           # 소개팅 등록
+
+/overwatch/profile          # 오버워치 프로필
+/overwatch/database         # 영웅/맵 DB
+/overwatch/replays          # 리플레이 코드
+/overwatch/leaderboard      # 리더보드
+
+/clan/create                # 클랜 생성
+/clan/join                  # 클랜 가입
+/clan/manage                # 클랜 관리
+
+/profile/[memberId]         # 멤버 프로필
+/profile/shop               # 프로필 상점
+```
 
 ---
 
@@ -362,78 +354,6 @@ frontend/src/modules/auction/hooks/use-auction-socket.ts
 
 ---
 
-## 신규 엔티티 스키마 (마이그레이션 필요)
-
-### OverwatchProfile
-```typescript
-{
-  id: string (UUID)
-  clanMemberId: string
-  battleTag: string (unique)
-  platform: string
-  isPublic: boolean
-  level: number
-  endorsementLevel: number
-  avatar: string (nullable)
-  namecard: string (nullable)
-  title: string (nullable)
-  lastSyncedAt: timestamp
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-```
-
-### OverwatchStatsSnapshot
-```typescript
-{
-  id: string (UUID)
-  profileId: string
-  gameMode: 'competitive' | 'quickplay'
-  role: 'tank' | 'damage' | 'support' | 'all'
-  rank: string (nullable)
-  rankIcon: string (nullable)
-  tier: number (nullable)
-  division: number (nullable)
-  gamesPlayed: number
-  gamesWon: number
-  winRate: number
-  kdRatio: number
-  snapshotDate: date
-  rawData: jsonb
-  createdAt: timestamp
-}
-```
-
-### PointRule
-```typescript
-{
-  id: string (UUID)
-  clanId: string
-  code: string (unique per clan)
-  name: string
-  description: string
-  points: number
-  isActive: boolean
-  createdAt: timestamp
-  updatedAt: timestamp
-}
-```
-
-### AttendanceRecord
-```typescript
-{
-  id: string (UUID)
-  clanMemberId: string
-  scrimId: string
-  attendedAt: timestamp
-  pointsAwarded: number
-  consecutiveDays: number
-  createdAt: timestamp
-}
-```
-
----
-
 ## 테스트 계정
 
 - **tcaptain1** / test1234 (TCaptain1#1111, 탱커, 마스터)
@@ -446,7 +366,9 @@ frontend/src/modules/auction/hooks/use-auction-socket.ts
 
 ### DB 마이그레이션 필수
 TypeORM sync 또는 마이그레이션 실행 필요:
+- User.rating, User.mainRole nullable 변경 (2026-01-30)
 - OverwatchProfile, OverwatchStatsSnapshot (2026-01-29)
+- Replay 엔티티 (2026-01-29)
 - PointRule, AttendanceRecord (2026-01-28)
 - Scrim/ScrimParticipant 필드 확장 (2026-01-28)
 - PasswordReset, Announcement, HallOfFame (이전)
