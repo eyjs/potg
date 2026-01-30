@@ -516,6 +516,11 @@ export class QuizService {
       questions.push(...additional);
     }
 
+    // 문제 개수 검증
+    if (questions.length < count) {
+      throw new BadRequestException(`문제가 부족합니다. 필요: ${count}개, 현재: ${questions.length}개`);
+    }
+
     // 순서 섞기
     return questions.sort(() => Math.random() - 0.5);
   }

@@ -37,7 +37,6 @@ export function QuizResult({
   useEffect(() => {
     if (isWinner) {
       // 승리 축하 효과
-      console.log('🎉 Victory!');
     }
   }, [isWinner]);
 

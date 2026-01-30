@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { QuizService } from './quiz.service';
 import { QuizMatchStatus } from './entities/quiz-match.entity';
 import { WsJwtGuard, WsAuthUser } from '../../common/guards/ws-jwt.guard';
@@ -46,7 +47,10 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // matchId -> 참가자 소켓 Set
   private matchSockets = new Map<string, Set<string>>();
 
-  constructor(private quizService: QuizService) {}
+  constructor(
+    private quizService: QuizService,
+    private jwtService: JwtService,
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -78,8 +82,14 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { token: string; memberId: string; clanId: string; displayName: string; avatarUrl?: string },
   ) {
-    // 실제로는 JWT 토큰 검증 필요
-    // 여기서는 간단히 memberId만 저장
+    try {
+      // JWT 토큰 검증
+      this.jwtService.verify(data.token);
+    } catch {
+      client.emit('auth:error', { message: '인증에 실패했습니다.' });
+      return;
+    }
+
     client.user = {
       memberId: data.memberId,
       clanId: data.clanId,

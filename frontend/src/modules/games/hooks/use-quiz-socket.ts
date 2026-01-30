@@ -9,7 +9,7 @@ import type {
   QuizMatchEndEvent,
 } from '../types';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8100';
 
 export type QuizSocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -89,7 +89,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Quiz socket connected');
       setSocketStatus('connected');
       
       // 인증
@@ -103,26 +102,23 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
     });
 
     socket.on('auth:success', () => {
-      console.log('Quiz auth successful');
+      // Auth successful
     });
 
     socket.on('disconnect', () => {
-      console.log('Quiz socket disconnected');
       setSocketStatus('disconnected');
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('Quiz socket error:', error);
+    socket.on('connect_error', () => {
       setSocketStatus('error');
     });
 
-    socket.on('error', (data: { message: string }) => {
-      console.error('Quiz error:', data.message);
+    socket.on('error', () => {
+      // Error handled
     });
 
     // 매칭 대기
     socket.on('quiz:waiting', (data: { matchId: string; message: string }) => {
-      console.log('Waiting for match:', data);
       isPlayer1Ref.current = true; // 먼저 대기열에 들어간 사람이 player1
       setGameState((prev) => ({
         ...prev,
@@ -133,7 +129,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
 
     // 매칭 성공
     socket.on('quiz:matched', (data: QuizMatchedEvent) => {
-      console.log('Matched!', data);
       setGameState((prev) => ({
         ...prev,
         status: 'matched',
@@ -145,7 +140,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
 
     // 게임 시작
     socket.on('quiz:started', (data: { matchId: string; totalRounds: number }) => {
-      console.log('Game started:', data);
       setGameState((prev) => ({
         ...prev,
         status: 'playing',
@@ -158,7 +152,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
 
     // 라운드 시작
     socket.on('quiz:round-start', (data: QuizRoundStartEvent) => {
-      console.log('Round start:', data);
       setGameState((prev) => ({
         ...prev,
         status: 'playing',
@@ -183,7 +176,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
 
     // 라운드 결과
     socket.on('quiz:round-result', (data: QuizRoundResultEvent) => {
-      console.log('Round result:', data);
       const isP1 = isPlayer1Ref.current;
       setGameState((prev) => ({
         ...prev,
@@ -196,7 +188,6 @@ export function useQuizSocket(options: UseQuizSocketOptions) {
 
     // 게임 종료
     socket.on('quiz:match-end', (data: QuizMatchEndEvent) => {
-      console.log('Match end:', data);
       const isP1 = isPlayer1Ref.current;
       setGameState((prev) => ({
         ...prev,
