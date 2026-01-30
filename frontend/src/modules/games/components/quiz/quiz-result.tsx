@@ -1,8 +1,8 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/common/components/ui/button';
+import { Card, CardContent } from '@/common/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar';
 import { Trophy, Medal, Coins, Home, RotateCcw } from 'lucide-react';
 import type { QuizGameState } from '../../hooks/use-quiz-socket';
 import { cn } from '@/lib/utils';

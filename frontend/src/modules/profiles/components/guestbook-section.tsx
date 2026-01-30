@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/common/components/ui/button';
+import { Textarea } from '@/common/components/ui/textarea';
+import { Checkbox } from '@/common/components/ui/checkbox';
 import { Lock, Trash2, Send } from 'lucide-react';
 import type { Guestbook } from '../types';
 

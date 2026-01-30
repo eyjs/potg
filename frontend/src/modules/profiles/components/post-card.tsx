@@ -4,8 +4,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/common/components/ui/button';
+import { Badge } from '@/common/components/ui/badge';
 import {
   Heart,
   MessageCircle,
@@ -20,7 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/common/components/ui/dropdown-menu';
 import type { Post, PostType, PostVisibility } from '../types';
 
 interface PostCardProps {

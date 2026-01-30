@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
-import { Menu, Shield, LogIn, LogOut, User, Settings, Gamepad2, Database, Film } from "lucide-react"
+import { Menu, Shield, LogIn, LogOut, User, Settings, Database, Film } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -79,12 +78,6 @@ export function Header() {
                   <DropdownMenuItem className="cursor-pointer">
                     <User className="w-4 h-4 mr-2" />
                     내 정보
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/overwatch/profile">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Gamepad2 className="w-4 h-4 mr-2" />
-                    오버워치 프로필
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/overwatch/database">

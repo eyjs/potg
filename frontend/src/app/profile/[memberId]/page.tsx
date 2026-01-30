@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
+import { Skeleton } from '@/common/components/ui/skeleton';
 import { ProfileHeader } from '@/modules/profiles/components/profile-header';
 import { PostCard } from '@/modules/profiles/components/post-card';
 import { GuestbookSection } from '@/modules/profiles/components/guestbook-section';
 import type { MemberProfile, Post, Guestbook } from '@/modules/profiles/types';
 import { useClan } from '@/contexts/ClanContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { apiClient } from '@/lib/api';
+import { useAuth } from '@/context/auth-context';
+import api from '@/lib/api';
 
 export default function ProfilePage() {
   const { memberId } = useParams();
@@ -31,8 +31,8 @@ export default function ProfilePage() {
     try {
       setLoading(true);
       const [profileRes, followRes] = await Promise.all([
-        apiClient.get(`/profiles/${memberId}?clanId=${clanId}`),
-        apiClient.get(`/profiles/${memberId}/follow-status?clanId=${clanId}`),
+        api.get(`/profiles/${memberId}?clanId=${clanId}`),
+        api.get(`/profiles/${memberId}/follow-status?clanId=${clanId}`),
       ]);
       setProfile(profileRes.data);
       setIsFollowing(followRes.data.isFollowing);
@@ -45,14 +45,14 @@ export default function ProfilePage() {
 
   const loadPosts = useCallback(async () => {
     try {
-      const res = await apiClient.get(`/posts?clanId=${clanId}&authorId=${memberId}`);
+      const res = await api.get(`/posts?clanId=${clanId}&authorId=${memberId}`);
       const postsData = res.data.data || [];
       setPosts(postsData);
 
       // 벌크 API로 좋아요 상태 한 번에 확인
       if (postsData.length > 0) {
         const postIds = postsData.map((p: Post) => p.id).join(',');
-        const likeRes = await apiClient.get(
+        const likeRes = await api.get(
           `/posts/bulk/like-status?clanId=${clanId}&postIds=${postIds}`
         );
         const likeStatus = likeRes.data.likeStatus || {};
@@ -65,7 +65,7 @@ export default function ProfilePage() {
 
   const loadGuestbooks = useCallback(async () => {
     try {
-      const res = await apiClient.get(`/profiles/${memberId}/guestbook?clanId=${clanId}`);
+      const res = await api.get(`/profiles/${memberId}/guestbook?clanId=${clanId}`);
       setGuestbooks(res.data.data || []);
     } catch (error) {
       console.error('Failed to load guestbooks:', error);
@@ -90,7 +90,7 @@ export default function ProfilePage() {
 
   const handleFollow = async () => {
     try {
-      await apiClient.post(`/profiles/${memberId}/follow?clanId=${clanId}`);
+      await api.post(`/profiles/${memberId}/follow?clanId=${clanId}`);
       setIsFollowing(true);
       if (profile) {
         setProfile({ ...profile, followerCount: profile.followerCount + 1 });
@@ -102,7 +102,7 @@ export default function ProfilePage() {
 
   const handleUnfollow = async () => {
     try {
-      await apiClient.delete(`/profiles/${memberId}/follow?clanId=${clanId}`);
+      await api.delete(`/profiles/${memberId}/follow?clanId=${clanId}`);
       setIsFollowing(false);
       if (profile) {
         setProfile({ ...profile, followerCount: Math.max(0, profile.followerCount - 1) });
@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
   const handleLikePost = async (postId: string) => {
     try {
-      await apiClient.post(`/posts/${postId}/like?clanId=${clanId}`);
+      await api.post(`/posts/${postId}/like?clanId=${clanId}`);
       setLikedPosts((prev) => new Set(prev).add(postId));
       setPosts((prev) =>
         prev.map((p) =>
@@ -128,7 +128,7 @@ export default function ProfilePage() {
 
   const handleUnlikePost = async (postId: string) => {
     try {
-      await apiClient.delete(`/posts/${postId}/like?clanId=${clanId}`);
+      await api.delete(`/posts/${postId}/like?clanId=${clanId}`);
       setLikedPosts((prev) => {
         const next = new Set(prev);
         next.delete(postId);
@@ -146,7 +146,7 @@ export default function ProfilePage() {
 
   const handleWriteGuestbook = async (content: string, isSecret: boolean) => {
     try {
-      const res = await apiClient.post(
+      const res = await api.post(
         `/profiles/${memberId}/guestbook?clanId=${clanId}`,
         { content, isSecret }
       );
@@ -159,7 +159,7 @@ export default function ProfilePage() {
 
   const handleDeleteGuestbook = async (id: string) => {
     try {
-      await apiClient.delete(`/profiles/guestbook/${id}?clanId=${clanId}`);
+      await api.delete(`/profiles/guestbook/${id}?clanId=${clanId}`);
       setGuestbooks((prev) => prev.filter((g) => g.id !== id));
     } catch (error) {
       console.error('Failed to delete guestbook:', error);

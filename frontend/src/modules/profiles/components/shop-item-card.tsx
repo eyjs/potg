@@ -1,8 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/common/components/ui/button';
+import { Badge } from '@/common/components/ui/badge';
 import { Coins, Check, Star } from 'lucide-react';
 import type { ProfileItem, ProfileItemCategory } from '../types';
 

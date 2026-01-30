@@ -1,17 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/common/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card';
+import { Badge } from '@/common/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/common/components/ui/select';
 import { Loader2, Search, Swords, Trophy, X } from 'lucide-react';
 import type { QuizSocketStatus, QuizGameState } from '../../hooks/use-quiz-socket';
 import { cn } from '@/lib/utils';

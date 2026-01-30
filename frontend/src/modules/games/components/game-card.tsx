@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/common/components/ui/badge';
+import { Button } from '@/common/components/ui/button';
 import { Users, Play, Trophy } from 'lucide-react';
 import type { Game, GameType } from '../types';
 

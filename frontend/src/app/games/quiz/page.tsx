@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/common/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useQuizSocket } from '@/modules/games/hooks/use-quiz-socket';

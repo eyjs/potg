@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/common/components/ui/button';
+import { Badge } from '@/common/components/ui/badge';
 import { Edit, Settings, Music, Users, Eye, Pause, Play } from 'lucide-react';
 import type { MemberProfile } from '../types';
 

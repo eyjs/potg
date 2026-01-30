@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/common/components/ui/badge';
 import { Trophy, Medal, Award, Clock } from 'lucide-react';
 import type { LeaderboardEntry } from '../types';
 

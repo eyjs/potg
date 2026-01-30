@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
+import { Skeleton } from '@/common/components/ui/skeleton';
+import { Button } from '@/common/components/ui/button';
 import { Gamepad2, Trophy, Users, Zap } from 'lucide-react';
 import { GameCard } from '@/modules/games/components/game-card';
 import type { Game, GameType } from '@/modules/games/types';

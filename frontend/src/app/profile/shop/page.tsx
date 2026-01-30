@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
+import { Skeleton } from '@/common/components/ui/skeleton';
 import { Coins, Sparkles } from 'lucide-react';
 import { ShopItemCard } from '@/modules/profiles/components/shop-item-card';
 import type { ProfileItem, ProfileItemCategory } from '@/modules/profiles/types';

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
+import { Button } from '@/common/components/ui/button';
+import { Card, CardContent } from '@/common/components/ui/card';
+import { Badge } from '@/common/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar';
+import { Progress } from '@/common/components/ui/progress';
 import { CheckCircle2, XCircle, Clock, Zap } from 'lucide-react';
 import type { QuizGameState } from '../../hooks/use-quiz-socket';
 import { QuizDifficulty } from '../../types';
