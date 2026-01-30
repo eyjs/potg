@@ -92,7 +92,7 @@ export function Header() {
                     리플레이 코드
                   </DropdownMenuItem>
                 </Link>
-                {user.clanId && isAdmin && (
+                {user.clanId && (user.clanRole === 'MASTER' || user.clanRole === 'MANAGER') && (
                   <Link href="/clan/manage">
                     <DropdownMenuItem className="cursor-pointer">
                       <Settings className="w-4 h-4 mr-2" />
