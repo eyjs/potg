@@ -7,6 +7,7 @@ import { GamesService } from './games.service';
 import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
 import { QuizGateway } from './quiz.gateway';
+import { GameGateway } from './game.gateway';
 import { Game } from './entities/game.entity';
 import { GameScore } from './entities/game-score.entity';
 import { GameRoom } from './entities/game-room.entity';
@@ -41,7 +42,7 @@ import { ProfilesModule } from '../profiles/profiles.module';
     forwardRef(() => ProfilesModule),
   ],
   controllers: [GamesController, QuizController],
-  providers: [GamesService, QuizService, QuizGateway],
-  exports: [GamesService, QuizService],
+  providers: [GamesService, QuizService, QuizGateway, GameGateway],
+  exports: [GamesService, QuizService, GameGateway],
 })
 export class GamesModule {}
