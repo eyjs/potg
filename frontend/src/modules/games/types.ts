@@ -138,4 +138,69 @@ export interface QuizMatch {
   currentRound: number;
   totalRounds: number;
   winnerId: string | null;
+  player1?: {
+    memberId: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+  player2?: {
+    memberId: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+}
+
+// WebSocket 이벤트 타입
+export interface QuizMatchedEvent {
+  matchId: string;
+  opponent: {
+    memberId: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  totalRounds: number;
+}
+
+export interface QuizRoundStartEvent {
+  round: number;
+  question: {
+    id: string;
+    question: string;
+    options: string[];
+    category: QuizCategory;
+    difficulty: QuizDifficulty;
+    imageUrl?: string;
+  };
+  timeLimit: number;
+}
+
+export interface QuizRoundResultEvent {
+  round: number;
+  correctIndex: number;
+  player1: {
+    answer: number | null;
+    time: number | null;
+    correct: boolean;
+    pointsGained: number;
+  };
+  player2: {
+    answer: number | null;
+    time: number | null;
+    correct: boolean;
+    pointsGained: number;
+  };
+  scores: {
+    player1Score: number;
+    player2Score: number;
+  };
+}
+
+export interface QuizMatchEndEvent {
+  winnerId: string | null;
+  winnerDisplayName?: string;
+  finalScores: {
+    player1Score: number;
+    player2Score: number;
+  };
+  pointsEarned: number;
 }
