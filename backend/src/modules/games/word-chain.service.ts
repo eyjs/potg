@@ -150,11 +150,13 @@ export class WordChainService {
   ): Promise<{ valid: boolean; reason?: string }> {
     const normalizedWord = word.trim().toLowerCase();
 
-    // 끝글자 일치 검사
+    // 끝글자 일치 검사 (두음법칙 적용)
     const lastChar = this.getLastChar(state.currentWord);
     const firstChar = this.getFirstChar(normalizedWord);
+    const normalizedLastChar = this.normalizeFirstChar(lastChar);
+    const normalizedFirstChar = this.normalizeFirstChar(firstChar);
 
-    if (lastChar !== firstChar) {
+    if (lastChar !== firstChar && normalizedLastChar !== normalizedFirstChar) {
       return {
         valid: false,
         reason: `'${lastChar}'(으)로 시작하는 단어를 입력해주세요`,
@@ -262,5 +264,28 @@ export class WordChainService {
 
   private getFirstChar(word: string): string {
     return word.charAt(0);
+  }
+
+  /**
+   * 두음법칙 적용 - 첫 글자 정규화
+   * 녀→여, 뇨→요, 뉴→유, 니→이, 랴→야, 려→여, 례→예, 료→요, 류→유, 리→이, 라→나, 래→내
+   */
+  private normalizeFirstChar(char: string): string {
+    const duumMap: Record<string, string> = {
+      '녀': '여',
+      '뇨': '요',
+      '뉴': '유',
+      '니': '이',
+      '랴': '야',
+      '려': '여',
+      '례': '예',
+      '료': '요',
+      '류': '유',
+      '리': '이',
+      '라': '나',
+      '래': '내',
+    };
+
+    return duumMap[char] || char;
   }
 }

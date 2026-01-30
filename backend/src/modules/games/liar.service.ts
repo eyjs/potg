@@ -150,6 +150,11 @@ export class LiarService {
       return { success: false, allVoted: false };
     }
 
+    // 자기 자신에게 투표 방지
+    if (voterId === targetId) {
+      return { success: false, allVoted: false };
+    }
+
     const room = await this.gameRoomRepo.findOne({
       where: { id: roomId },
       relations: ['players'],

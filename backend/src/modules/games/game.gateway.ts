@@ -11,6 +11,9 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GamesService } from './games.service';
+import { WordChainService } from './word-chain.service';
+import { LiarService } from './liar.service';
+import { CatchMindService } from './catch-mind.service';
 
 interface AuthenticatedSocket extends Socket {
   user?: {
@@ -41,10 +44,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private memberToSocket = new Map<string, string>();
   // roomId -> 참가자 소켓 Set
   private roomSockets = new Map<string, Set<string>>();
+  // roomId -> 끝말잇기 타이머
+  private wordChainTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private gamesService: GamesService,
     private jwtService: JwtService,
+    private wordChainService: WordChainService,
+    private liarService: LiarService,
+    private catchMindService: CatchMindService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -276,6 +284,251 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message: data.message.slice(0, 200),
       timestamp: Date.now(),
     });
+  }
+
+  // ==================== 끝말잇기 ====================
+
+  @SubscribeMessage('wordchain:submit')
+  async handleWordChainSubmit(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; word: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      // 기존 타이머 클리어
+      this.clearWordChainTimer(data.roomId);
+
+      const result = await this.wordChainService.submitWord(data.roomId, memberId, data.word);
+
+      if (result.valid) {
+        // 유효한 단어
+        this.server.to(`room:${data.roomId}`).emit('wordchain:valid', {
+          memberId,
+          word: result.word,
+          nextPlayerId: result.nextPlayerId,
+        });
+
+        // 다음 플레이어 타이머 시작 (15초)
+        this.startWordChainTimer(data.roomId, 15000);
+      } else {
+        // 유효하지 않은 단어
+        client.emit('wordchain:invalid', {
+          word: data.word,
+          reason: result.reason,
+        });
+      }
+    } catch (error) {
+      this.logger.error('WordChain submit error:', error);
+      client.emit('error', { message: (error as Error).message });
+    }
+  }
+
+  private startWordChainTimer(roomId: string, durationMs: number) {
+    const timer = setTimeout(async () => {
+      const result = await this.wordChainService.handleTimeout(roomId);
+      if (result) {
+        this.server.to(`room:${roomId}`).emit('wordchain:timeout', {
+          loserId: result.loserId,
+          reason: result.reason,
+        });
+
+        await this.wordChainService.endGame(roomId, result.loserId);
+        this.server.to(`room:${roomId}`).emit('game:ended', {
+          loserId: result.loserId,
+          reason: '시간 초과',
+        });
+      }
+    }, durationMs);
+
+    this.wordChainTimers.set(roomId, timer);
+    this.wordChainService.setTurnTimeout(roomId, timer);
+  }
+
+  private clearWordChainTimer(roomId: string) {
+    const timer = this.wordChainTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.wordChainTimers.delete(roomId);
+    }
+    this.wordChainService.clearTurnTimeout(roomId);
+  }
+
+  // ==================== 라이어 게임 ====================
+
+  @SubscribeMessage('liar:vote')
+  async handleLiarVote(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; targetId: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      const result = await this.liarService.submitVote(data.roomId, memberId, data.targetId);
+
+      if (result.success) {
+        // 투표 성공
+        this.server.to(`room:${data.roomId}`).emit('liar:voted', {
+          voterId: memberId,
+          allVoted: result.allVoted,
+        });
+
+        // 모두 투표 완료 시 결과 계산
+        if (result.allVoted) {
+          const voteResult = await this.liarService.calculateVoteResult(data.roomId);
+          this.server.to(`room:${data.roomId}`).emit('liar:vote-result', voteResult);
+        }
+      } else {
+        client.emit('liar:vote-failed', { message: '투표에 실패했습니다.' });
+      }
+    } catch (error) {
+      this.logger.error('Liar vote error:', error);
+      client.emit('error', { message: (error as Error).message });
+    }
+  }
+
+  @SubscribeMessage('liar:guess')
+  async handleLiarGuess(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; guess: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      const state = this.liarService.getState(data.roomId);
+      if (!state || state.liarId !== memberId) {
+        client.emit('error', { message: '라이어만 정답을 맞출 수 있습니다.' });
+        return;
+      }
+
+      const result = await this.liarService.checkLiarGuess(data.roomId, data.guess);
+
+      this.server.to(`room:${data.roomId}`).emit('liar:guess-result', {
+        liarId: memberId,
+        guess: data.guess,
+        correct: result.correct,
+        actualWord: result.actualWord,
+      });
+
+      // 게임 종료
+      const winnerId = result.correct ? memberId : null;
+      await this.liarService.endGame(data.roomId, winnerId);
+
+      this.server.to(`room:${data.roomId}`).emit('game:ended', {
+        liarId: memberId,
+        liarWon: result.correct,
+        actualWord: result.actualWord,
+      });
+    } catch (error) {
+      this.logger.error('Liar guess error:', error);
+      client.emit('error', { message: (error as Error).message });
+    }
+  }
+
+  // ==================== 캐치마인드 ====================
+
+  @SubscribeMessage('catchmind:draw')
+  async handleCatchMindDraw(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; drawData: { type: string; x?: number; y?: number; color?: string; lineWidth?: number } },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      return;
+    }
+
+    // 출제자만 그릴 수 있음
+    const drawerId = this.catchMindService.getDrawerId(data.roomId);
+    if (drawerId !== memberId) {
+      return;
+    }
+
+    // 본인 제외 브로드캐스트
+    client.to(`room:${data.roomId}`).emit('catchmind:draw', {
+      drawData: data.drawData,
+    });
+  }
+
+  @SubscribeMessage('catchmind:guess')
+  async handleCatchMindGuess(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string; guess: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      const result = await this.catchMindService.checkGuess(data.roomId, memberId, data.guess);
+
+      if (result.isDrawer) {
+        return; // 출제자는 무시
+      }
+
+      if (result.alreadyGuessed) {
+        return; // 이미 맞춘 사람은 무시
+      }
+
+      if (result.correct) {
+        // 정답!
+        this.server.to(`room:${data.roomId}`).emit('catchmind:correct', {
+          guesserId: memberId,
+          displayName: client.user?.displayName || 'Unknown',
+          points: result.points,
+          allGuessed: result.allGuessed,
+        });
+
+        // 모두 맞췄으면 라운드 종료
+        if (result.allGuessed) {
+          const roundResult = await this.catchMindService.endRound(data.roomId);
+          this.server.to(`room:${data.roomId}`).emit('catchmind:round-ended', roundResult);
+
+          // 다음 라운드 또는 게임 종료
+          const nextRound = await this.catchMindService.startNextRound(data.roomId);
+          if (nextRound) {
+            // 출제자에게만 정답 전송
+            this.emitToMember(nextRound.drawerId, 'catchmind:your-turn', {
+              word: nextRound.word,
+              hint: nextRound.hint,
+            });
+
+            // 전체에게 라운드 시작 알림
+            this.server.to(`room:${data.roomId}`).emit('catchmind:round-started', {
+              round: nextRound.round,
+              drawerId: nextRound.drawerId,
+            });
+          } else {
+            // 게임 종료
+            const gameResult = await this.catchMindService.endGame(data.roomId);
+            this.server.to(`room:${data.roomId}`).emit('game:ended', gameResult);
+          }
+        }
+      } else {
+        // 오답 (채팅에 표시)
+        this.server.to(`room:${data.roomId}`).emit('catchmind:wrong-guess', {
+          guesserId: memberId,
+          displayName: client.user?.displayName || 'Unknown',
+          guess: data.guess.slice(0, 50),
+        });
+      }
+    } catch (error) {
+      this.logger.error('CatchMind guess error:', error);
+      client.emit('error', { message: (error as Error).message });
+    }
   }
 
   // ==================== 유틸리티 ====================
