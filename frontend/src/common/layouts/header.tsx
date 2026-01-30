@@ -92,7 +92,7 @@ export function Header() {
                     리플레이 코드
                   </DropdownMenuItem>
                 </Link>
-                {user.clanId && (
+                {user.clanId && isAdmin && (
                   <Link href="/clan/manage">
                     <DropdownMenuItem className="cursor-pointer">
                       <Settings className="w-4 h-4 mr-2" />

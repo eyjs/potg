@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avat
 
 export function BottomNav() {
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -44,7 +44,7 @@ export function BottomNav() {
     { href: "/scrim", label: "내전", icon: Swords },
     { href: "/betting", label: "베팅", icon: Dices },
     { href: "/vote", label: "통계", icon: BarChart3 },
-    { href: "/clan/manage", label: "클랜 관리", icon: Settings },
+    ...(isAdmin ? [{ href: "/clan/manage", label: "클랜 관리", icon: Settings }] : []),
   ]
 
   return (
