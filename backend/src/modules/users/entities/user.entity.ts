@@ -34,11 +34,11 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
-  @Column({ type: 'enum', enum: MainRole, default: MainRole.FLEX })
-  mainRole: MainRole;
+  @Column({ type: 'enum', enum: MainRole, nullable: true })
+  mainRole?: MainRole;
 
-  @Column({ default: 1000 }) // Default rating
-  rating: number;
+  @Column({ nullable: true }) // OverFastAPI 연동 후 실제 랭크 사용
+  rating?: number;
 
   @Column({ nullable: true })
   avatarUrl: string;

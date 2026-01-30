@@ -1,6 +1,7 @@
 export * from './types';
 export * from './components/ow-profile-card';
 export * from './components/competitive-rank-card';
+export * from './components/profile-banner';
 export * from './components/hero-stats-card';
 export * from './components/rank-card';
 export * from './components/profile-header';

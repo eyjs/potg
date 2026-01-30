@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, UserPlus, Shield, Check, X } from "lucide-react"
+import { Eye, EyeOff, UserPlus, Shield, Check, X, Info } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
@@ -13,17 +13,6 @@ import { Checkbox } from "@/common/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import api from "@/lib/api"
 import { handleApiError } from "@/lib/api-error"
-
-const RANK_OPTIONS = [
-  { value: "bronze", label: "브론즈" },
-  { value: "silver", label: "실버" },
-  { value: "gold", label: "골드" },
-  { value: "platinum", label: "플래티넘" },
-  { value: "diamond", label: "다이아몬드" },
-  { value: "master", label: "마스터" },
-  { value: "grandmaster", label: "그랜드마스터" },
-  { value: "champion", label: "챔피언" },
-]
 
 const ROLE_OPTIONS = [
   { value: "tank", label: "탱커", icon: "🛡️" },
@@ -45,8 +34,7 @@ export default function SignupPage() {
     confirmPassword: "",
     nickname: "",
     battleTag: "",
-    rank: "",
-    mainRole: "",
+    mainRole: "", // 선택적
     agreeTerms: false,
     agreePrivacy: false,
   })
@@ -61,11 +49,10 @@ export default function SignupPage() {
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
   const isStep1Valid = formData.username && isEmailValid && passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
+  // mainRole 필수 제거: 닉네임, 배틀태그, 약관 동의만 필수
   const isStep2Valid =
     formData.nickname &&
     formData.battleTag &&
-    formData.rank &&
-    formData.mainRole &&
     formData.agreeTerms &&
     formData.agreePrivacy
 
@@ -76,30 +63,21 @@ export default function SignupPage() {
       return
     }
     setIsLoading(true)
-    
-    // Map tier to initial rating
-    const rankToRating: Record<string, number> = {
-      bronze: 1000,
-      silver: 1500,
-      gold: 2000,
-      platinum: 2500,
-      diamond: 3000,
-      master: 3500,
-      grandmaster: 4000,
-      champion: 4500,
-    }
 
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         username: formData.username,
         email: formData.email,
         battleTag: formData.battleTag,
         password: formData.password,
         nickname: formData.nickname,
-        mainRole: formData.mainRole === 'damage' ? 'DPS' : formData.mainRole.toUpperCase(),
-        rating: rankToRating[formData.rank] || 1000,
       }
-      
+
+      // mainRole은 선택된 경우에만 전송 (skip 제외)
+      if (formData.mainRole && formData.mainRole !== 'skip') {
+        payload.mainRole = formData.mainRole === 'damage' ? 'DPS' : formData.mainRole.toUpperCase()
+      }
+
       await api.post('/auth/register', payload)
       router.push("/login?registered=true")
     } catch (error) {
@@ -341,50 +319,36 @@ export default function SignupPage() {
                       required
                       className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                     />
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      가입 후 OverFastAPI 연동으로 티어가 자동 동기화됩니다
+                    </p>
                   </div>
 
-                  {/* Rank & Role */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        최고 티어
-                      </Label>
-                      <Select
-                        value={formData.rank}
-                        onValueChange={(value) => setFormData({ ...formData, rank: value })}
-                      >
-                        <SelectTrigger className="bg-[#1a1a1a] border-border/50 h-12 text-foreground">
-                          <SelectValue placeholder="티어 선택" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-border">
-                          {RANK_OPTIONS.map((rank) => (
-                            <SelectItem key={rank.value} value={rank.value}>
-                              {rank.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        주 포지션
-                      </Label>
-                      <Select
-                        value={formData.mainRole}
-                        onValueChange={(value) => setFormData({ ...formData, mainRole: value })}
-                      >
-                        <SelectTrigger className="bg-[#1a1a1a] border-border/50 h-12 text-foreground">
-                          <SelectValue placeholder="포지션 선택" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-border">
-                          {ROLE_OPTIONS.map((role) => (
-                            <SelectItem key={role.value} value={role.value}>
-                              {role.icon} {role.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {/* Main Role (Optional) */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      주 포지션 <span className="text-muted-foreground/60">(선택)</span>
+                    </Label>
+                    <Select
+                      value={formData.mainRole}
+                      onValueChange={(value) => setFormData({ ...formData, mainRole: value })}
+                    >
+                      <SelectTrigger className="bg-[#1a1a1a] border-border/50 h-12 text-foreground">
+                        <SelectValue placeholder="나중에 설정할게요" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="skip">나중에 설정할게요</SelectItem>
+                        {ROLE_OPTIONS.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.icon} {role.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      미선택 시 플레이 데이터 기반으로 자동 추론됩니다
+                    </p>
                   </div>
 
                   {/* Terms Agreement */}

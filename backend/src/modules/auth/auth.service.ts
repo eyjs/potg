@@ -55,9 +55,7 @@ export class AuthService {
     if (!userDto.battleTag) {
       throw new BadRequestException('BattleTag is required');
     }
-    if (!userDto.mainRole) {
-      throw new BadRequestException('Main role is required');
-    }
+    // mainRole과 rating은 선택적 (OverFastAPI 연동 후 자동 설정)
 
     // Check for duplicate username
     const existingUser = await this.usersService.findByUsername(
