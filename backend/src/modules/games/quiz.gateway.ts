@@ -26,6 +26,7 @@ interface AuthenticatedSocket extends Socket {
 
 const ROUND_TIME_LIMIT = 15000; // 15초
 const ROUND_INTERVAL = 3000; // 라운드 간 대기 시간 3초
+const MATCH_START_DELAY = 3000; // 매칭 후 게임 시작 대기 시간
 
 @WebSocketGateway({
   namespace: '/quiz',
@@ -46,6 +47,8 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private memberToSocket = new Map<string, string>();
   // matchId -> 참가자 소켓 Set
   private matchSockets = new Map<string, Set<string>>();
+  // Rate limiting: memberId -> 마지막 메시지 시간
+  private lastMessageTime = new Map<string, number>();
 
   constructor(
     private quizService: QuizService,
@@ -171,8 +174,8 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
           });
         }
 
-        // 3초 후 게임 시작
-        setTimeout(() => this.startMatchGame(match.id), 3000);
+        // 매칭 후 게임 시작 대기
+        setTimeout(() => this.startMatchGame(match.id), MATCH_START_DELAY);
       } else {
         // 대기 중
         client.emit('quiz:waiting', {
@@ -307,6 +310,11 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId, 300)) {
+      return;
+    }
+
     try {
       const { bothAnswered, result } = await this.quizService.submitAnswer(
         data.matchId,
@@ -428,6 +436,11 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const memberId = this.socketToMember.get(client.id);
     if (!memberId) return;
 
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId, 300)) {
+      return;
+    }
+
     const displayName = client.user?.displayName || 'Unknown';
 
     this.server.to(`match:${data.matchId}`).emit('quiz:chat', {
@@ -436,5 +449,22 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message: data.message.slice(0, 200), // 메시지 길이 제한
       timestamp: Date.now(),
     });
+  }
+
+  // ==================== 유틸리티 ====================
+
+  /**
+   * Rate limiting 체크 - 너무 빠른 메시지 전송 방지
+   */
+  private checkRateLimit(memberId: string, limitMs = 300): boolean {
+    const now = Date.now();
+    const lastTime = this.lastMessageTime.get(memberId) || 0;
+
+    if (now - lastTime < limitMs) {
+      return false;
+    }
+
+    this.lastMessageTime.set(memberId, now);
+    return true;
   }
 }

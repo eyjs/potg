@@ -46,6 +46,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private roomSockets = new Map<string, Set<string>>();
   // roomId -> 끝말잇기 타이머
   private wordChainTimers = new Map<string, NodeJS.Timeout>();
+  // Rate limiting: memberId -> 마지막 메시지 시간
+  private lastMessageTime = new Map<string, number>();
 
   constructor(
     private gamesService: GamesService,
@@ -260,9 +262,64 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           order: p.order,
         })),
       });
+
+      // 게임 코드별 초기화 및 시작
+      await this.initGameByCode(data.roomId, room.game?.code);
     } catch (error) {
       this.logger.error('Start game error:', error);
       client.emit('error', { message: (error as Error).message });
+    }
+  }
+
+  private async initGameByCode(roomId: string, gameCode?: string) {
+    if (!gameCode) return;
+
+    switch (gameCode) {
+      case 'WORD_CHAIN': {
+        const initResult = await this.wordChainService.initGame(roomId);
+        this.server.to(`room:${roomId}`).emit('wordchain:started', {
+          startWord: initResult.startWord,
+          currentPlayerId: initResult.firstPlayerId,
+          timeLimit: 15000,
+        });
+        this.startWordChainTimer(roomId, 15000);
+        break;
+      }
+
+      case 'LIAR': {
+        const liarResult = await this.liarService.initGame(roomId);
+        // 각 플레이어에게 역할 전송
+        for (const roleInfo of liarResult.roles) {
+          this.emitToMember(roleInfo.memberId, 'liar:role-assigned', {
+            role: roleInfo.role,
+            topic: liarResult.topic,
+            word: roleInfo.role === 'LIAR' ? null : liarResult.word,
+          });
+        }
+        // 토론 시작 알림
+        this.server.to(`room:${roomId}`).emit('liar:discussion-start', {
+          timeLimit: 60000,
+        });
+        break;
+      }
+
+      case 'CATCH_MIND': {
+        await this.catchMindService.initGame(roomId);
+        const nextRound = await this.catchMindService.startNextRound(roomId);
+        if (nextRound) {
+          // 출제자에게 정답 전송
+          this.emitToMember(nextRound.drawerId, 'catchmind:your-turn', {
+            word: nextRound.word,
+            hint: nextRound.hint,
+          });
+          // 전체에게 라운드 시작 알림
+          this.server.to(`room:${roomId}`).emit('catchmind:round-started', {
+            round: nextRound.round,
+            drawerId: nextRound.drawerId,
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -275,6 +332,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const memberId = this.socketToMember.get(client.id);
     if (!memberId) return;
+
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId, 300)) {
+      return;
+    }
 
     const displayName = client.user?.displayName || 'Unknown';
 
@@ -296,6 +358,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const memberId = this.socketToMember.get(client.id);
     if (!memberId) {
       client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId, 300)) {
       return;
     }
 
@@ -371,6 +438,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId)) {
+      return;
+    }
+
     try {
       const result = await this.liarService.submitVote(data.roomId, memberId, data.targetId);
 
@@ -420,6 +492,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const memberId = this.socketToMember.get(client.id);
     if (!memberId) {
       client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId)) {
       return;
     }
 
@@ -489,6 +566,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    // Rate limiting 체크
+    if (!this.checkRateLimit(memberId, 300)) {
+      return;
+    }
+
     try {
       const result = await this.catchMindService.checkGuess(data.roomId, memberId, data.guess);
 
@@ -549,6 +631,21 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // ==================== 유틸리티 ====================
+
+  /**
+   * Rate limiting 체크 - 너무 빠른 메시지 전송 방지
+   */
+  private checkRateLimit(memberId: string, limitMs = 300): boolean {
+    const now = Date.now();
+    const lastTime = this.lastMessageTime.get(memberId) || 0;
+
+    if (now - lastTime < limitMs) {
+      return false;
+    }
+
+    this.lastMessageTime.set(memberId, now);
+    return true;
+  }
 
   /**
    * 특정 방의 모든 클라이언트에게 이벤트 전송
