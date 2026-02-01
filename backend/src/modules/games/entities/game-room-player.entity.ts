@@ -38,7 +38,7 @@ export class GameRoomPlayer extends BaseEntity {
   order: number; // 턴 순서
 
   @Column({ type: 'varchar', nullable: true })
-  role: string; // 게임별 역할 (라이어게임: 'LIAR' | 'CITIZEN')
+  role: string | null; // 게임별 역할 (라이어게임: 'LIAR' | 'CITIZEN')
 
   @Column({ type: 'boolean', default: false })
   isHost: boolean;
