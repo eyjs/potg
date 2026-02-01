@@ -68,6 +68,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (memberId) {
       this.socketToMember.delete(client.id);
       this.memberToSocket.delete(memberId);
+      this.lastMessageTime.delete(memberId);
     }
 
     // 모든 방에서 소켓 제거
@@ -166,6 +167,76 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     } catch (error) {
       this.logger.error('Join room error:', error);
+      client.emit('error', { message: (error as Error).message });
+    }
+  }
+
+  // ==================== 재연결 ====================
+
+  @SubscribeMessage('room:reconnect')
+  async handleReconnect(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      const room = await this.gamesService.getRoom(data.roomId);
+
+      if (!room) {
+        client.emit('error', { message: '방을 찾을 수 없습니다.' });
+        return;
+      }
+
+      // 해당 방의 참가자인지 확인
+      const isParticipant = room.players.some((p) => p.memberId === memberId);
+      if (!isParticipant) {
+        client.emit('error', { message: '해당 방의 참가자가 아닙니다.' });
+        return;
+      }
+
+      // 소켓 room 재조인
+      client.join(`room:${room.id}`);
+
+      // 소켓 추적
+      if (!this.roomSockets.has(room.id)) {
+        this.roomSockets.set(room.id, new Set());
+      }
+      this.roomSockets.get(room.id)!.add(client.id);
+
+      // 현재 게임 상태 전송
+      client.emit('room:reconnected', {
+        roomId: room.id,
+        roomCode: room.code,
+        hostId: room.hostId,
+        maxPlayers: room.maxPlayers,
+        settings: room.settings,
+        status: room.status,
+        currentRound: room.currentRound,
+        totalRounds: room.totalRounds,
+        players: room.players.map((p) => ({
+          memberId: p.memberId,
+          displayName: p.member?.user?.battleTag || 'Unknown',
+          avatarUrl: p.member?.user?.avatarUrl || null,
+          isHost: p.isHost,
+          status: p.status,
+        })),
+        game: room.game ? {
+          code: room.game.code,
+          name: room.game.name,
+          type: room.game.type,
+          minPlayers: room.game.minPlayers,
+          maxPlayers: room.game.maxPlayers,
+        } : null,
+      });
+
+      this.logger.log(`Reconnected: ${memberId} to room ${room.id}`);
+    } catch (error) {
+      this.logger.error('Reconnect error:', error);
       client.emit('error', { message: (error as Error).message });
     }
   }

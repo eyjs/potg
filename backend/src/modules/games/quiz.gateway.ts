@@ -70,10 +70,11 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.socketToMember.delete(client.id);
       this.memberToSocket.delete(memberId);
+      this.lastMessageTime.delete(memberId);
     }
 
     // 모든 매치에서 소켓 제거
-    this.matchSockets.forEach((sockets, matchId) => {
+    this.matchSockets.forEach((sockets) => {
       sockets.delete(client.id);
     });
   }
@@ -233,8 +234,72 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
           player2Score: match.player2Score,
         },
       });
-    } catch (error) {
+    } catch {
       client.emit('error', { message: '매치를 찾을 수 없습니다.' });
+    }
+  }
+
+  // ==================== 재연결 ====================
+
+  @SubscribeMessage('quiz:reconnect')
+  async handleReconnect(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { matchId: string },
+  ) {
+    const memberId = this.socketToMember.get(client.id);
+    if (!memberId) {
+      client.emit('error', { message: '인증이 필요합니다.' });
+      return;
+    }
+
+    try {
+      const match = await this.quizService.getMatch(data.matchId);
+
+      if (!match) {
+        client.emit('error', { message: '매치를 찾을 수 없습니다.' });
+        return;
+      }
+
+      // 참가자인지 확인
+      if (match.player1Id !== memberId && match.player2Id !== memberId) {
+        client.emit('error', { message: '해당 매치의 참가자가 아닙니다.' });
+        return;
+      }
+
+      // 소켓 match room 재조인
+      client.join(`match:${match.id}`);
+
+      // 소켓 추적
+      if (!this.matchSockets.has(match.id)) {
+        this.matchSockets.set(match.id, new Set());
+      }
+      this.matchSockets.get(match.id)!.add(client.id);
+
+      // 상대방 정보 결정
+      const isPlayer1 = match.player1Id === memberId;
+      const opponent = isPlayer1 ? match.player2 : match.player1;
+
+      // 현재 게임 상태 전송
+      client.emit('quiz:reconnected', {
+        matchId: match.id,
+        status: match.status,
+        currentRound: match.currentRound,
+        totalRounds: match.totalRounds,
+        scores: {
+          player1Score: match.player1Score,
+          player2Score: match.player2Score,
+        },
+        opponent: opponent ? {
+          memberId: opponent.id,
+          displayName: opponent.user?.battleTag || 'Unknown',
+          avatarUrl: opponent.user?.avatarUrl || null,
+        } : null,
+      });
+
+      this.logger.log(`Reconnected: ${memberId} to match ${match.id}`);
+    } catch (error) {
+      this.logger.error('Reconnect error:', error);
+      client.emit('error', { message: (error as Error).message });
     }
   }
 
