@@ -18,6 +18,10 @@ import { WordChainDict } from './entities/word-chain-dict.entity';
 import { LiarTopic } from './entities/liar-topic.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { ProfilesModule } from '../profiles/profiles.module';
+import { WordChainService } from './word-chain.service';
+import { LiarService } from './liar.service';
+import { CatchMindService } from './catch-mind.service';
+import { CatchMindWord } from './entities/catch-mind-word.entity';
 
 @Module({
   imports: [
@@ -30,6 +34,7 @@ import { ProfilesModule } from '../profiles/profiles.module';
       QuizMatch,
       WordChainDict,
       LiarTopic,
+      CatchMindWord,
       ClanMember,
     ]),
     JwtModule.registerAsync({
@@ -42,7 +47,7 @@ import { ProfilesModule } from '../profiles/profiles.module';
     forwardRef(() => ProfilesModule),
   ],
   controllers: [GamesController, QuizController],
-  providers: [GamesService, QuizService, QuizGateway, GameGateway],
+  providers: [GamesService, QuizService, QuizGateway, GameGateway, WordChainService, LiarService, CatchMindService],
   exports: [GamesService, QuizService, GameGateway],
 })
 export class GamesModule {}
