@@ -98,56 +98,10 @@ erDiagram
     }
 
     %% ==========================================
-    %% Scrim Domain (확장)
+    %% Scrim Domain (삭제됨 - 2026-04-10)
+    %% Scrim, ScrimParticipant, ScrimMatch 테이블은 코드에서 제거됨
+    %% DB 테이블은 남아있으나 더 이상 사용하지 않음
     %% ==========================================
-    Scrim {
-        uuid id PK
-        uuid clanId FK "Nullable"
-        uuid auctionId FK "Nullable"
-        string title
-        enum status "DRAFT, SCHEDULED, IN_PROGRESS, FINISHED, CANCELLED"
-        enum recruitmentType "AUCTION, MANUAL, OPEN"
-        uuid hostId FK
-        timestamp scheduledDate "Nullable"
-        timestamp signupDeadline "Nullable - 참가 신청 마감시간"
-        timestamp checkInStart "Nullable - 체크인 시작 시간"
-        int minPlayers "default: 6"
-        int maxPlayers "default: 12"
-        jsonb roleSlots "Nullable - 역할별 슬롯 {tank, dps, support}"
-        text description "Nullable"
-        jsonb teamSnapshot "Nullable"
-        int teamAScore "default: 0"
-        int teamBScore "default: 0"
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    ScrimParticipant {
-        uuid id PK
-        uuid scrimId FK
-        uuid userId FK
-        enum source "AUCTION, MANUAL, SIGNUP"
-        enum status "PENDING, CONFIRMED, BENCH, DECLINED, REMOVED"
-        enum assignedTeam "TEAM_A, TEAM_B, BENCH, UNASSIGNED"
-        jsonb preferredRoles "Nullable - 선호 역할"
-        enum assignedRole "TANK, DPS, SUPPORT - Nullable"
-        text note "Nullable - 참가 메모"
-        boolean checkedIn "default: false"
-        timestamp checkedInAt "Nullable"
-        timestamp respondedAt "Nullable"
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    ScrimMatch {
-        uuid id PK
-        uuid scrimId FK
-        string mapName
-        int teamAScore
-        int teamBScore
-        string screenshotUrl "Nullable"
-        timestamp created_at
-    }
 
     %% ==========================================
     %% Attendance & Point Rules
@@ -168,7 +122,7 @@ erDiagram
     AttendanceRecord {
         uuid id PK
         uuid memberId FK "ClanMember"
-        uuid scrimId FK
+        uuid scrimId "Nullable - 레거시, 더 이상 FK 아님"
         enum status "PRESENT, LATE, ABSENT, EXCUSED"
         int pointsEarned
         int bonusPoints "연속 출석 보너스 등"
@@ -337,61 +291,27 @@ erDiagram
         uuid id PK
         uuid clanId FK
         uuid registerId FK
-        enum status "PRIVATE, OPEN, MATCHED, CLOSED"
+        enum status "OPEN, CLOSED"
         string name
         int age
         enum gender "MALE, FEMALE"
         string location
+        string desiredLocation "Nullable - 원하는 상대 거주지역"
         int height "Nullable"
         string job
         string education "Nullable"
         text description
-        text idealType
-        jsonb photos
+        text idealType "Nullable"
+        string mbti "Nullable"
+        boolean smoking "default: false"
+        jsonb photos "Nullable"
         string contactInfo "Nullable"
-        uuid matchedRequestId FK "Nullable"
-        int pointsEarned
         timestamp created_at
         timestamp updated_at
     }
 
-    BlindDateRequest {
-        uuid id PK
-        uuid listingId FK
-        uuid requesterId FK
-        uuid clanId FK
-        enum status "PENDING, APPROVED, REJECTED, CANCELLED"
-        text message "Nullable"
-        jsonb requesterInfo
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    BlindDateMatch {
-        uuid id PK
-        uuid listingId FK
-        uuid requestId FK
-        uuid clanId FK
-        uuid registerId FK
-        uuid requesterId FK
-        int pointsAwarded
-        timestamp created_at
-    }
-
-    BlindDatePreference {
-        uuid id PK
-        uuid listingId FK "Unique"
-        int minAge "Nullable"
-        int maxAge "Nullable"
-        enum preferredGender "MALE, FEMALE - Nullable"
-        jsonb preferredLocations "Nullable"
-        jsonb preferredJobs "Nullable"
-        enum minEducation "HIGH_SCHOOL, COLLEGE, BACHELOR, MASTER, DOCTORATE - Nullable"
-        int minHeight "Nullable"
-        int maxHeight "Nullable"
-        timestamp created_at
-        timestamp updated_at
-    }
+    %% BlindDateRequest, BlindDateMatch, BlindDatePreference 테이블은
+    %% 코드에서 제거됨 (2026-04-10). DB 테이블은 남아있으나 사용하지 않음
 
     %% ==========================================
     %% Shop Domain
@@ -459,7 +379,6 @@ erDiagram
     %% Clan Core
     Clan ||--o{ ClanMember : "has_members"
     Clan ||--o{ Auction : "hosts"
-    Clan ||--o{ Scrim : "organizes"
     Clan ||--o{ BlindDateListing : "contains"
     Clan ||--o{ ShopProduct : "sells"
     Clan ||--o{ PointRule : "defines"
@@ -469,13 +388,10 @@ erDiagram
     %% User Core
     User ||--o{ ClanMember : "belongs_to_clans"
     User ||--o{ Auction : "creates"
-    User ||--o{ Scrim : "hosts"
     User ||--o{ AuctionParticipant : "participates_in"
     User ||--o{ AuctionBid : "makes_bid"
     User ||--o{ AuctionBid : "is_target_of"
-    User ||--o{ ScrimParticipant : "joins_scrim_as"
     User ||--o{ BlindDateListing : "registers"
-    User ||--o{ BlindDateRequest : "makes_request"
     User ||--o{ ShopPurchase : "makes_purchase"
     User ||--o{ BettingQuestion : "creates_questions"
     User ||--o{ BettingTicket : "places_bets"
@@ -485,12 +401,6 @@ erDiagram
     %% Auction
     Auction ||--|{ AuctionParticipant : "has"
     Auction ||--o{ AuctionBid : "records"
-
-    %% Scrim
-    Scrim ||--o{ ScrimMatch : "consists_of"
-    Scrim ||--o{ ScrimParticipant : "has_participants"
-    Scrim ||--o{ BettingQuestion : "has_questions"
-    Scrim ||--o{ AttendanceRecord : "records"
 
     %% Attendance & Points
     ClanMember ||--o{ AttendanceRecord : "has"
@@ -516,11 +426,8 @@ erDiagram
     %% Betting
     BettingQuestion ||--o{ BettingTicket : "has_bets"
 
-    %% Blind Date
-    BlindDateListing ||--o{ BlindDateRequest : "receives_requests"
-    BlindDateListing ||--o| BlindDateMatch : "results_in"
-    BlindDateListing ||--o| BlindDatePreference : "has_preference"
-    BlindDateRequest ||--o| BlindDateMatch : "results_in"
+    %% Blind Date (simplified - no more Request/Match/Preference)
+    %% BlindDateListing is now standalone CRUD
 
     %% Shop
     ShopProduct ||--o{ ShopPurchase : "has_purchases"

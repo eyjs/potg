@@ -1,12 +1,9 @@
-import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
-import { BlindDateRequest } from './blind-date-request.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum ListingStatus {
-  PRIVATE = 'PRIVATE',
   OPEN = 'OPEN',
-  MATCHED = 'MATCHED',
   CLOSED = 'CLOSED',
 }
 
@@ -21,13 +18,13 @@ export class BlindDateListing extends BaseEntity {
   clanId: string;
 
   @Column()
-  registerId: string; // User who registered this profile (Manager/Friend)
+  registerId: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'registerId' })
   register: User;
 
-  @Column({ type: 'enum', enum: ListingStatus, default: ListingStatus.PRIVATE })
+  @Column({ type: 'enum', enum: ListingStatus, default: ListingStatus.OPEN })
   status: ListingStatus;
 
   @Column()
@@ -41,6 +38,9 @@ export class BlindDateListing extends BaseEntity {
 
   @Column()
   location: string;
+
+  @Column({ nullable: true })
+  desiredLocation: string;
 
   @Column({ nullable: true })
   height: number;
@@ -68,13 +68,4 @@ export class BlindDateListing extends BaseEntity {
 
   @Column({ nullable: true })
   contactInfo: string;
-
-  @Column({ nullable: true })
-  matchedRequestId: string;
-
-  @Column({ default: 0 })
-  pointsEarned: number;
-
-  @OneToMany(() => BlindDateRequest, (req) => req.listing)
-  requests: BlindDateRequest[];
 }

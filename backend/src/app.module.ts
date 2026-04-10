@@ -15,7 +15,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
-import { ScrimsModule } from './modules/scrims/scrims.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClansModule } from './modules/clans/clans.module';
 import { VotesModule } from './modules/votes/votes.module';
@@ -124,7 +123,6 @@ import { GamesModule } from './modules/games/games.module';
     UsersModule,
     ClansModule,
     AuctionsModule,
-    ScrimsModule,
     VotesModule,
     ShopModule,
     BettingModule,

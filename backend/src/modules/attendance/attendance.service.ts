@@ -1,20 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { PointRule, PointRuleCategory } from './entities/point-rule.entity';
 import { AttendanceRecord, AttendanceStatus } from './entities/attendance-record.entity';
 import { CreatePointRuleDto, UpdatePointRuleDto } from './dto/point-rule.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
-import { PointLog } from '../clans/entities/point-log.entity';
-import { Scrim } from '../scrims/entities/scrim.entity';
-import { ParticipantStatus } from '../scrims/entities/scrim-participant.entity';
 
 const DEFAULT_RULES: Omit<CreatePointRuleDto, 'category'>[] & { category: PointRuleCategory }[] = [
   { code: 'ATTENDANCE_BASE', name: '출석 기본 포인트', category: PointRuleCategory.ATTENDANCE, points: 100 },
   { code: 'STREAK_3', name: '3연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 100 },
   { code: 'STREAK_5', name: '5연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 300 },
   { code: 'STREAK_10', name: '10연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 500 },
-  { code: 'SCRIM_WIN', name: '내전 승리 보너스', category: PointRuleCategory.ACTIVITY, points: 1000 },
 ];
 
 @Injectable()
@@ -103,7 +99,7 @@ export class AttendanceService {
   ): Promise<{ records: AttendanceRecord[]; total: number }> {
     const [records, total] = await this.attendanceRecordRepository.findAndCount({
       where: { member: { clanId } },
-      relations: ['member', 'member.user', 'scrim'],
+      relations: ['member', 'member.user'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
@@ -152,130 +148,6 @@ export class AttendanceService {
     }
 
     return stats.sort((a, b) => b.attendanceRate - a.attendanceRate);
-  }
-
-  /**
-   * 내전 종료 시 호출: 참여자 출석 기록 생성 + 기본 포인트/보너스 지급
-   * manager를 받아 트랜잭션 내에서 실행
-   */
-  async generateAttendanceFromScrim(
-    scrimId: string,
-    manager: EntityManager,
-  ): Promise<AttendanceRecord[]> {
-    const scrim = await manager.findOne(Scrim, {
-      where: { id: scrimId },
-      relations: ['participants'],
-    });
-    if (!scrim || !scrim.clanId) return [];
-
-    // 이미 출석 기록이 있는지 확인
-    const existingRecords = await manager.find(AttendanceRecord, {
-      where: { scrimId },
-    });
-    if (existingRecords.length > 0) return existingRecords;
-
-    // 해당 클랜의 포인트 규칙 조회
-    const rules = await manager.find(PointRule, {
-      where: { clanId: scrim.clanId, isActive: true },
-    });
-    const ruleMap = new Map(rules.map((r) => [r.code, r.points]));
-
-    const basePoints = ruleMap.get('ATTENDANCE_BASE') ?? 100;
-    const streak3Bonus = ruleMap.get('STREAK_3') ?? 100;
-    const streak5Bonus = ruleMap.get('STREAK_5') ?? 300;
-    const streak10Bonus = ruleMap.get('STREAK_10') ?? 500;
-
-    const confirmedParticipants = scrim.participants.filter(
-      (p) => p.status === ParticipantStatus.CONFIRMED,
-    );
-
-    const records: AttendanceRecord[] = [];
-
-    for (const participant of confirmedParticipants) {
-      const clanMember = await manager.findOne(ClanMember, {
-        where: { userId: participant.userId, clanId: scrim.clanId },
-      });
-      if (!clanMember) continue;
-
-      // 출석 상태 결정: 체크인 여부로 판정
-      const status = participant.checkedIn
-        ? AttendanceStatus.PRESENT
-        : AttendanceStatus.ABSENT;
-
-      // 연속 출석 계산
-      const previousRecords = await manager.find(AttendanceRecord, {
-        where: { memberId: clanMember.id },
-        order: { createdAt: 'DESC' },
-        take: 20,
-      });
-
-      const currentStreak = this.calculateCurrentStreak(previousRecords);
-      // 이번 출석을 더한 연속 카운트
-      const newStreak = status === AttendanceStatus.PRESENT ? currentStreak + 1 : 0;
-
-      // 보너스 계산: 가장 높은 티어만 적용
-      let bonusPoints = 0;
-      let bonusReason: string | undefined = undefined;
-
-      if (status === AttendanceStatus.PRESENT) {
-        if (newStreak >= 10 && newStreak % 10 === 0) {
-          bonusPoints = streak10Bonus;
-          bonusReason = `${newStreak}연속 출석 (10연속 보너스)`;
-        } else if (newStreak >= 5 && newStreak % 5 === 0) {
-          bonusPoints = streak5Bonus;
-          bonusReason = `${newStreak}연속 출석 (5연속 보너스)`;
-        } else if (newStreak >= 3 && newStreak % 3 === 0) {
-          bonusPoints = streak3Bonus;
-          bonusReason = `${newStreak}연속 출석 (3연속 보너스)`;
-        }
-      }
-
-      const pointsEarned = status === AttendanceStatus.PRESENT ? basePoints : 0;
-
-      const record = manager.create(AttendanceRecord, {
-        memberId: clanMember.id,
-        scrimId,
-        status,
-        pointsEarned,
-        bonusPoints,
-        bonusReason,
-        checkedInAt: participant.checkedInAt || undefined,
-      });
-
-      const savedRecord = await manager.save(record);
-      records.push(savedRecord);
-
-      // 포인트 지급
-      const totalReward = pointsEarned + bonusPoints;
-      if (totalReward > 0) {
-        clanMember.totalPoints += totalReward;
-        await manager.save(clanMember);
-
-        // 기본 출석 포인트 로그
-        if (pointsEarned > 0) {
-          const baseLog = manager.create(PointLog, {
-            userId: participant.userId,
-            clanId: scrim.clanId,
-            amount: pointsEarned,
-            reason: `ATTENDANCE:${scrimId}`,
-          });
-          await manager.save(baseLog);
-        }
-
-        // 연속 출석 보너스 로그
-        if (bonusPoints > 0) {
-          const bonusLog = manager.create(PointLog, {
-            userId: participant.userId,
-            clanId: scrim.clanId,
-            amount: bonusPoints,
-            reason: `ATTENDANCE_STREAK:${scrimId}:${bonusReason}`,
-          });
-          await manager.save(bonusLog);
-        }
-      }
-    }
-
-    return records;
   }
 
   private calculateCurrentStreak(records: AttendanceRecord[]): number {

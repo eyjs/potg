@@ -12,8 +12,7 @@ import {
   Dices,
   User,
   Heart,
-  BarChart3,
-  Swords
+  BarChart3
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -43,7 +42,6 @@ export function BottomNav() {
   const isClanAdmin = user?.clanRole === 'MASTER' || user?.clanRole === 'MANAGER';
   
   const menuItems = [
-    { href: "/scrim", label: "내전", icon: Swords },
     { href: "/betting", label: "베팅", icon: Dices },
     { href: "/vote", label: "통계", icon: BarChart3 },
     ...(isClanAdmin ? [{ href: "/clan/manage", label: "클랜 관리", icon: Settings }] : []),

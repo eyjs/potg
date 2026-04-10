@@ -464,27 +464,6 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
-  @SubscribeMessage('createScrim')
-  async handleCreateScrim(
-    @MessageBody() payload: { auctionId: string; adminId: string; scheduledDate: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { auctionId, adminId, scheduledDate } = payload;
-
-    try {
-      const scrim = await this.auctionsService.createScrimFromAuction(
-        auctionId,
-        adminId,
-        new Date(scheduledDate),
-      );
-      const roomState = await this.auctionsService.getRoomState(auctionId);
-
-      this.server.to(auctionId).emit('scrimCreated', { scrimId: scrim.id, roomState });
-    } catch (error) {
-      client.emit('error', { message: error.message });
-    }
-  }
-
   // Timer management
   private startBiddingTimer(auctionId: string) {
     this.stopBiddingTimer(auctionId);

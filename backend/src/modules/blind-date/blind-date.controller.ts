@@ -32,47 +32,35 @@ export class BlindDateController {
   }
 
   @Get('listings')
-  findAll(@Query('clanId') clanId: string) {
-    return this.blindDateService.findAll(clanId);
+  findAll(
+    @Query('clanId') clanId: string,
+    @Query('status') status?: string,
+    @Query('gender') gender?: string,
+    @Query('ageMin') ageMin?: string,
+    @Query('ageMax') ageMax?: string,
+    @Query('location') location?: string,
+    @Query('mbti') mbti?: string,
+    @Query('smoking') smoking?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.blindDateService.findAll({
+      clanId,
+      status,
+      gender,
+      ageMin: ageMin ? Number(ageMin) : undefined,
+      ageMax: ageMax ? Number(ageMax) : undefined,
+      location,
+      mbti,
+      smoking,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get('listings/:id')
   findOne(@Param('id') id: string) {
     return this.blindDateService.findOne(id);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Get('listings/:id/requests')
-  getListingRequests(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return this.blindDateService.getListingRequests(id, req.user.userId);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post('listings/:id/request')
-  requestDate(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-    @Body('message') message?: string,
-  ) {
-    return this.blindDateService.requestDate(id, req.user.userId, message);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post('requests/:id/approve')
-  approveRequest(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return this.blindDateService.approveRequest(id, req.user.userId);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Post('requests/:id/reject')
-  rejectRequest(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.blindDateService.rejectRequest(id, req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -86,13 +74,16 @@ export class BlindDateController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Patch('listings/:id')
-  patchListing(
+  @Patch('listings/:id/close')
+  closeListing(
     @Param('id') id: string,
-    @Body() dto: UpdateListingDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.blindDateService.updateListing(id, dto, req.user.userId);
+    return this.blindDateService.closeListing(
+      id,
+      req.user.userId,
+      req.user.role,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -102,6 +93,10 @@ export class BlindDateController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    await this.blindDateService.deleteListing(id, req.user.userId);
+    await this.blindDateService.deleteListing(
+      id,
+      req.user.userId,
+      req.user.role,
+    );
   }
 }

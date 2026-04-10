@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Vote, Gavel, TrendingUp, Swords } from "lucide-react"
+import { Vote, Gavel, TrendingUp } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -65,21 +65,19 @@ interface QuickActionGridProps {
   voteCount: number
   auctionCount: number
   bettingCount: number
-  scrimCount: number
 }
 
 export function QuickActionGrid({
   voteCount,
   auctionCount,
   bettingCount,
-  scrimCount,
 }: QuickActionGridProps) {
   return (
     <section>
       <h2 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-foreground mb-4">
         빠른 <span className="text-primary">액세스</span>
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <ActionCard
           title="투표"
           count={voteCount}
@@ -100,13 +98,6 @@ export function QuickActionGrid({
           icon={<TrendingUp className="w-10 h-10" />}
           href="/betting"
           color="destructive"
-        />
-        <ActionCard
-          title="내전"
-          count={scrimCount}
-          icon={<Swords className="w-10 h-10" />}
-          href="/scrim"
-          color="secondary"
         />
       </div>
     </section>

@@ -5,11 +5,8 @@ import {
   IsOptional,
   IsArray,
   IsBoolean,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { Gender } from '../entities/blind-date-listing.entity';
-import { CreatePreferenceDto } from './create-preference.dto';
 
 export class CreateListingDto {
   @IsString()
@@ -32,6 +29,12 @@ export class CreateListingDto {
 
   @IsString()
   description: string;
+
+  @IsString()
+  contactInfo: string;
+
+  @IsString()
+  desiredLocation: string;
 
   @IsString()
   @IsOptional()
@@ -57,15 +60,6 @@ export class CreateListingDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
-
-  @IsString()
-  @IsOptional()
-  contactInfo?: string;
-
-  @ValidateNested()
-  @Type(() => CreatePreferenceDto)
-  @IsOptional()
-  preference?: CreatePreferenceDto;
 }
 
 export class UpdateListingDto {
@@ -91,6 +85,14 @@ export class UpdateListingDto {
 
   @IsString()
   @IsOptional()
+  contactInfo?: string;
+
+  @IsString()
+  @IsOptional()
+  desiredLocation?: string;
+
+  @IsString()
+  @IsOptional()
   idealType?: string;
 
   @IsString()
@@ -113,17 +115,4 @@ export class UpdateListingDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
-
-  @IsString()
-  @IsOptional()
-  contactInfo?: string;
-
-  @IsString()
-  @IsOptional()
-  status?: string;
-
-  @ValidateNested()
-  @Type(() => CreatePreferenceDto)
-  @IsOptional()
-  preference?: CreatePreferenceDto;
 }

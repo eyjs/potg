@@ -1,7 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { ClanMember } from '../../clans/entities/clan-member.entity';
-import { Scrim } from '../../scrims/entities/scrim.entity';
 
 export enum AttendanceStatus {
   PRESENT = 'PRESENT',
@@ -19,12 +18,8 @@ export class AttendanceRecord extends BaseEntity {
   @JoinColumn({ name: 'memberId' })
   member: ClanMember;
 
-  @Column()
+  @Column({ nullable: true })
   scrimId: string;
-
-  @ManyToOne(() => Scrim)
-  @JoinColumn({ name: 'scrimId' })
-  scrim: Scrim;
 
   @Column({ type: 'enum', enum: AttendanceStatus, default: AttendanceStatus.PRESENT })
   status: AttendanceStatus;

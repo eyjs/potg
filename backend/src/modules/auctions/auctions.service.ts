@@ -8,8 +8,6 @@ import {
 } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
 import { CreateAuctionDto } from './dto/create-auction.dto';
-import { Scrim, ScrimStatus, RecruitmentType } from '../scrims/entities/scrim.entity';
-import { ScrimParticipant, AssignedTeam, ParticipantSource } from '../scrims/entities/scrim-participant.entity';
 
 export interface RoomState {
   auction: {
@@ -1089,71 +1087,4 @@ export class AuctionsService {
     });
   }
 
-  async createScrimFromAuction(auctionId: string, adminId: string, scheduledDate: Date) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-        relations: ['participants', 'participants.user'],
-      });
-
-      if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-      if (auction.creatorId !== adminId)
-        throw new BadRequestException('관리자만 스크림을 생성할 수 있습니다.');
-      if (auction.status !== AuctionStatus.COMPLETED)
-        throw new BadRequestException('완료된 경매에서만 스크림을 생성할 수 있습니다.');
-
-      // Get clannId from auction creator
-      // For now, we'll need to get the clan from the user's membership
-      // This is a simplified version - in reality you'd get the clanId from the auction
-
-      const scrim = manager.create(Scrim, {
-        title: `${auction.title} 스크림`,
-        hostId: adminId,
-        status: ScrimStatus.SCHEDULED,
-        recruitmentType: RecruitmentType.AUCTION,
-        scheduledDate,
-        auctionId: auction.id,
-      });
-
-      await manager.save(scrim);
-
-      // Create scrim participants from auction result
-      const participants = auction.participants || [];
-      const captains = participants.filter((p) => p.role === AuctionRole.CAPTAIN);
-
-      for (let i = 0; i < captains.length; i++) {
-        const captain = captains[i];
-        const teamAssignment = i === 0 ? AssignedTeam.TEAM_A : AssignedTeam.TEAM_B;
-
-        // Add captain
-        const captainParticipant = manager.create(ScrimParticipant, {
-          scrimId: scrim.id,
-          userId: captain.userId,
-          assignedTeam: teamAssignment,
-          source: ParticipantSource.AUCTION,
-        });
-        await manager.save(captainParticipant);
-
-        // Add team members
-        const members = participants.filter(
-          (p) => p.assignedTeamCaptainId === captain.userId,
-        );
-        for (const member of members) {
-          const memberParticipant = manager.create(ScrimParticipant, {
-            scrimId: scrim.id,
-            userId: member.userId,
-            assignedTeam: teamAssignment,
-            source: ParticipantSource.AUCTION,
-          });
-          await manager.save(memberParticipant);
-        }
-      }
-
-      // Update auction with linked scrim
-      auction.linkedScrimId = scrim.id;
-      await manager.save(auction);
-
-      return scrim;
-    });
-  }
 }

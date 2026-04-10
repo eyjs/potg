@@ -1,27 +1,18 @@
 "use client"
 
-import { TrendingUp, Users, Coins, Swords } from "lucide-react"
-import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
+import { TrendingUp, Users, Coins } from "lucide-react"
+import { Card, CardContent } from "@/common/components/ui/card"
 
 interface ActivitySummaryProps {
-  scrimCount?: number
   bettingCount?: number
   totalParticipants?: number
 }
 
 export function ActivitySummary({
-  scrimCount = 0,
   bettingCount = 0,
   totalParticipants = 0,
 }: ActivitySummaryProps) {
   const stats = [
-    {
-      label: "이번 주 내전",
-      value: scrimCount,
-      unit: "회",
-      icon: <Swords className="w-5 h-5 text-accent" />,
-      color: "border-accent/30 bg-accent/5",
-    },
     {
       label: "총 베팅",
       value: bettingCount,
@@ -45,7 +36,7 @@ export function ActivitySummary({
         클랜 <span className="text-primary">활동 요약</span>
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {stats.map((stat, index) => (
           <Card
             key={index}

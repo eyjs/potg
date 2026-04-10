@@ -1,315 +1,188 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   BlindDateListing,
   ListingStatus,
 } from './entities/blind-date-listing.entity';
-import {
-  BlindDateRequest,
-  RequestStatus,
-} from './entities/blind-date-request.entity';
-import { BlindDateMatch } from './entities/blind-date-match.entity';
-import { BlindDatePreference } from './entities/blind-date-preference.entity';
-import { ClanMember } from '../clans/entities/clan-member.entity';
-import { PointLog } from '../clans/entities/point-log.entity';
 import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
+
+interface FindAllOptions {
+  clanId: string;
+  status?: string;
+  gender?: string;
+  ageMin?: number;
+  ageMax?: number;
+  location?: string;
+  mbti?: string;
+  smoking?: string;
+  page?: number;
+  limit?: number;
+}
 
 @Injectable()
 export class BlindDateService {
   constructor(
     @InjectRepository(BlindDateListing)
     private listingsRepository: Repository<BlindDateListing>,
-    @InjectRepository(BlindDateRequest)
-    private requestsRepository: Repository<BlindDateRequest>,
-    @InjectRepository(BlindDateMatch)
-    private matchesRepository: Repository<BlindDateMatch>,
-    @InjectRepository(BlindDatePreference)
-    private preferencesRepository: Repository<BlindDatePreference>,
-    private dataSource: DataSource,
   ) {}
 
-  async createListing(dto: CreateListingDto, userId: string) {
-    const { preference, ...listingData } = dto;
+  async createListing(
+    dto: CreateListingDto,
+    userId: string,
+  ): Promise<BlindDateListing> {
     const listing = this.listingsRepository.create({
-      ...listingData,
+      ...dto,
       registerId: userId,
       status: ListingStatus.OPEN,
     });
-    const saved = await this.listingsRepository.save(listing);
-
-    if (preference) {
-      const pref = this.preferencesRepository.create({
-        ...preference,
-        listingId: saved.id,
-      });
-      await this.preferencesRepository.save(pref);
-    }
-
-    return saved;
+    return this.listingsRepository.save(listing);
   }
 
-  async findOne(id: string) {
+  async findAll(
+    options: FindAllOptions,
+  ): Promise<{ data: BlindDateListing[]; total: number; page: number; limit: number }> {
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const limit = options.limit && options.limit > 0 ? Math.min(options.limit, 100) : 20;
+
+    const qb = this.listingsRepository
+      .createQueryBuilder('listing')
+      .leftJoinAndSelect('listing.register', 'register')
+      .where('listing.clanId = :clanId', { clanId: options.clanId });
+
+    if (options.status) {
+      qb.andWhere('listing.status = :status', { status: options.status });
+    }
+
+    if (options.gender) {
+      qb.andWhere('listing.gender = :gender', { gender: options.gender });
+    }
+
+    if (options.ageMin) {
+      qb.andWhere('listing.age >= :ageMin', { ageMin: options.ageMin });
+    }
+
+    if (options.ageMax) {
+      qb.andWhere('listing.age <= :ageMax', { ageMax: options.ageMax });
+    }
+
+    if (options.location) {
+      qb.andWhere('listing.location ILIKE :location', {
+        location: `%${options.location}%`,
+      });
+    }
+
+    if (options.mbti) {
+      qb.andWhere('UPPER(listing.mbti) = :mbti', {
+        mbti: options.mbti.toUpperCase(),
+      });
+    }
+
+    if (options.smoking !== undefined && options.smoking !== '') {
+      qb.andWhere('listing.smoking = :smoking', {
+        smoking: options.smoking === 'true',
+      });
+    }
+
+    qb.orderBy('listing.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return { data, total, page, limit };
+  }
+
+  async findOne(id: string): Promise<BlindDateListing> {
     const listing = await this.listingsRepository.findOne({
       where: { id },
       relations: ['register'],
     });
-    if (!listing) throw new NotFoundException('Listing not found');
-
-    const preference = await this.preferencesRepository.findOne({
-      where: { listingId: id },
-    });
-
-    return { ...listing, preference };
-  }
-
-  async findAll(clanId: string) {
-    return this.listingsRepository.find({
-      where: { clanId },
-      relations: ['register'],
-      order: { createdAt: 'DESC' }
-    });
-  }
-
-  async getListingRequests(listingId: string, userId: string) {
-    const listing = await this.listingsRepository.findOne({
-      where: { id: listingId },
-    });
-    if (!listing) throw new NotFoundException('Listing not found');
-    if (listing.registerId !== userId)
-      throw new BadRequestException('Not authorized');
-
-    return this.requestsRepository.find({
-      where: { listingId },
-      relations: ['requester'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async requestDate(listingId: string, userId: string, message?: string) {
-    const listing = await this.listingsRepository.findOne({
-      where: { id: listingId },
-    });
-    if (!listing) throw new BadRequestException('Listing not found');
-    if (listing.status !== ListingStatus.OPEN)
-      throw new BadRequestException('Not available');
-
-    const existing = await this.requestsRepository.findOne({
-      where: { listingId, requesterId: userId },
-    });
-    if (existing) throw new BadRequestException('Already requested');
-
-    const request = this.requestsRepository.create({
-      listingId,
-      requesterId: userId,
-      message,
-    });
-    return this.requestsRepository.save(request);
-  }
-
-  async approveRequest(requestId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      // Get request with listing
-      const request = await manager.findOne(BlindDateRequest, {
-        where: { id: requestId },
-        relations: ['listing'],
-      });
-      if (!request) throw new BadRequestException('Request not found');
-
-      const listing = request.listing;
-
-      // Check ownership
-      if (listing.registerId !== userId)
-        throw new BadRequestException('Not authorized');
-
-      // Check status
-      if (listing.status !== ListingStatus.OPEN)
-        throw new BadRequestException('Listing is not open');
-      if (request.status !== RequestStatus.PENDING)
-        throw new BadRequestException('Request already processed');
-
-      // Calculate points (docs/blind-date/PROCESS.md:444-478)
-      const pointsAwarded = this.calculateBlindDatePoints(listing);
-
-      // Update request status
-      request.status = RequestStatus.APPROVED;
-      await manager.save(request);
-
-      // Update listing status
-      listing.status = ListingStatus.MATCHED;
-      listing.matchedRequestId = requestId;
-      listing.pointsEarned = pointsAwarded;
-      await manager.save(listing);
-
-      // Create match record
-      const match = manager.create(BlindDateMatch, {
-        listingId: listing.id,
-        requestId: request.id,
-        clanId: listing.clanId,
-        registerId: listing.registerId,
-        requesterId: request.requesterId,
-        pointsAwarded,
-      });
-      await manager.save(match);
-
-      // Award points to register
-      const clanMember = await manager.findOne(ClanMember, {
-        where: { userId: listing.registerId, clanId: listing.clanId },
-      });
-      if (clanMember) {
-        clanMember.totalPoints += pointsAwarded;
-        await manager.save(clanMember);
-
-        // Create point log
-        const log = manager.create(PointLog, {
-          userId: listing.registerId,
-          clanId: listing.clanId,
-          amount: pointsAwarded,
-          reason: `BLIND_DATE_MATCH:${listing.id}`,
-        });
-        await manager.save(log);
-      }
-
-      // Reject all other pending requests
-      await manager.update(
-        BlindDateRequest,
-        {
-          listingId: listing.id,
-          status: RequestStatus.PENDING,
-        },
-        { status: RequestStatus.REJECTED },
-      );
-
-      return request;
-    });
-  }
-
-  private calculateBlindDatePoints(listing: BlindDateListing): number {
-    let basePoints = 500;
-
-    // Age bonus
-    if (listing.age >= 35) {
-      basePoints += 200;
+    if (!listing) {
+      throw new NotFoundException('매물을 찾을 수 없습니다.');
     }
-
-    // TODO: Gender demand check (requires clan statistics)
-    // const genderDemand = await this.getGenderDemand(listing.clanId, listing.gender);
-    // if (genderDemand === 'HIGH') basePoints += 300;
-
-    // Education bonus
-    if (
-      typeof listing.education === 'string' &&
-      (listing.education.includes('대졸') ||
-        listing.education.includes('대학원'))
-    ) {
-      basePoints += 100;
-    }
-
-    // Job bonus
-    if (
-      typeof listing.job === 'string' &&
-      (listing.job.includes('전문직') || listing.job.includes('공무원'))
-    ) {
-      basePoints += 100;
-    }
-
-    // Photo count bonus
-    const photoCount = listing.photos?.length || 0;
-    if (photoCount >= 3) {
-      basePoints += 50;
-    }
-
-    return basePoints;
-  }
-
-  async rejectRequest(requestId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const request = await manager.findOne(BlindDateRequest, {
-        where: { id: requestId },
-        relations: ['listing'],
-      });
-      if (!request) throw new BadRequestException('Request not found');
-
-      const listing = request.listing;
-
-      // Check ownership
-      if (listing.registerId !== userId)
-        throw new BadRequestException('Not authorized');
-
-      // Check status
-      if (request.status !== RequestStatus.PENDING)
-        throw new BadRequestException('Request already processed');
-
-      // Update request status
-      request.status = RequestStatus.REJECTED;
-      await manager.save(request);
-
-      return request;
-    });
+    return listing;
   }
 
   async updateListing(
     id: string,
     dto: UpdateListingDto,
     userId: string,
-  ): Promise<BlindDateListing & { preference?: BlindDatePreference }> {
+  ): Promise<BlindDateListing> {
     const listing = await this.listingsRepository.findOne({
       where: { id },
     });
 
-    if (!listing) throw new BadRequestException('Listing not found');
-
-    // Check ownership
-    if (listing.registerId !== userId)
-      throw new BadRequestException('Not authorized');
-
-    // Cannot update if matched
-    if (listing.status === ListingStatus.MATCHED)
-      throw new BadRequestException('Cannot update matched listing');
-
-    const { preference, ...listingData } = dto;
-    Object.assign(listing, listingData);
-    const saved = await this.listingsRepository.save(listing);
-
-    // Handle preference upsert
-    let savedPreference: BlindDatePreference | undefined;
-    if (preference) {
-      const existing = await this.preferencesRepository.findOne({
-        where: { listingId: id },
-      });
-      if (existing) {
-        Object.assign(existing, preference);
-        savedPreference = await this.preferencesRepository.save(existing);
-      } else {
-        const newPref = this.preferencesRepository.create({
-          ...preference,
-          listingId: id,
-        });
-        savedPreference = await this.preferencesRepository.save(newPref);
-      }
+    if (!listing) {
+      throw new NotFoundException('매물을 찾을 수 없습니다.');
     }
 
-    return { ...saved, preference: savedPreference };
+    if (listing.registerId !== userId) {
+      throw new ForbiddenException('등록자만 수정할 수 있습니다.');
+    }
+
+    if (listing.status === ListingStatus.CLOSED) {
+      throw new BadRequestException('마감된 매물은 수정할 수 없습니다.');
+    }
+
+    Object.assign(listing, dto);
+    return this.listingsRepository.save(listing);
   }
 
-  async deleteListing(id: string, userId: string): Promise<void> {
+  async closeListing(
+    id: string,
+    userId: string,
+    userRole: string,
+  ): Promise<BlindDateListing> {
     const listing = await this.listingsRepository.findOne({
       where: { id },
     });
 
-    if (!listing) throw new BadRequestException('Listing not found');
+    if (!listing) {
+      throw new NotFoundException('매물을 찾을 수 없습니다.');
+    }
 
-    // Check ownership
-    if (listing.registerId !== userId)
-      throw new BadRequestException('Not authorized');
+    const isOwner = listing.registerId === userId;
+    const isAdminOrManager =
+      userRole === 'ADMIN' || userRole === 'MASTER' || userRole === 'MANAGER';
 
-    // Cannot delete if matched
-    if (listing.status === ListingStatus.MATCHED)
-      throw new BadRequestException('Cannot delete matched listing');
+    if (!isOwner && !isAdminOrManager) {
+      throw new ForbiddenException('등록자 또는 관리자만 마감할 수 있습니다.');
+    }
+
+    if (listing.status === ListingStatus.CLOSED) {
+      throw new BadRequestException('이미 마감된 매물입니다.');
+    }
+
+    listing.status = ListingStatus.CLOSED;
+    return this.listingsRepository.save(listing);
+  }
+
+  async deleteListing(
+    id: string,
+    userId: string,
+    userRole: string,
+  ): Promise<void> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('매물을 찾을 수 없습니다.');
+    }
+
+    const isOwner = listing.registerId === userId;
+    const isAdminOrManager =
+      userRole === 'ADMIN' || userRole === 'MASTER' || userRole === 'MANAGER';
+
+    if (!isOwner && !isAdminOrManager) {
+      throw new ForbiddenException('등록자 또는 관리자만 삭제할 수 있습니다.');
+    }
 
     await this.listingsRepository.remove(listing);
   }

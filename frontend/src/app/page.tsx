@@ -3,26 +3,13 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
-import { TodayScrims } from "@/components/dashboard/today-scrims"
 import { Announcements } from "@/components/dashboard/announcements"
 import { HallOfFame } from "@/components/dashboard/hall-of-fame"
 import { useAuth } from "@/context/auth-context"
 import api from "@/lib/api"
 import Link from "next/link"
 import { Button } from "@/common/components/ui/button"
-import { toast } from "sonner"
 import { handleApiError } from "@/lib/api-error"
-
-interface Scrim {
-  id: string
-  title: string
-  scheduledDate: string
-  status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED"
-  recruitmentType: "VOTE" | "AUCTION" | "MANUAL"
-  teamAScore: number
-  teamBScore: number
-  participantsCount?: number
-}
 
 interface Announcement {
   id: string
@@ -51,7 +38,6 @@ interface Membership {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, isLoading, isAdmin } = useAuth()
-  const [scrims, setScrims] = useState<Scrim[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([])
   const [membership, setMembership] = useState<Membership | null>(null)
@@ -76,13 +62,11 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [scrimsRes, announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
-          api.get(`/scrims?clanId=${user.clanId}&today=true`).catch(() => ({ data: [] })),
+        const [announcementsRes, hallOfFameRes, membershipRes] = await Promise.all([
           api.get(`/clans/${user.clanId}/announcements`).catch(() => ({ data: [] })),
           api.get(`/clans/${user.clanId}/hall-of-fame`).catch(() => ({ data: [] })),
           api.get('/clans/membership/me').catch(() => ({ data: null })),
         ])
-        setScrims(scrimsRes.data)
         setAnnouncements(announcementsRes.data)
         setHallOfFame(hallOfFameRes.data)
         setMembership(membershipRes.data)
@@ -97,22 +81,6 @@ export default function DashboardPage() {
 
   // Check if user can manage (admin, master, or manager)
   const canManage = isAdmin || membership?.role === "MASTER" || membership?.role === "MANAGER"
-
-  const handleCreateScrim = async (scrimData: { title: string; scheduledDate: string; signupDeadline?: string }) => {
-    try {
-      await api.post('/scrims', {
-        clanId: user?.clanId,
-        title: scrimData.title,
-        scheduledDate: new Date(scrimData.scheduledDate).toISOString(),
-        recruitmentType: 'MANUAL',
-        ...(scrimData.signupDeadline ? { signupDeadline: new Date(scrimData.signupDeadline).toISOString() } : {}),
-      })
-      toast.success("내전이 생성되었습니다.")
-      refreshData()
-    } catch (error: unknown) {
-      handleApiError(error, "내전 생성 실패")
-    }
-  }
 
   if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">접속 확인 중...</div>
 
@@ -184,9 +152,6 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Content - 2/3 width */}
           <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            {/* Today's Scrims */}
-            <TodayScrims scrims={scrims} canManage={canManage} onCreateScrim={handleCreateScrim} />
-
             {/* Announcements */}
             <Announcements
               announcements={announcements}

@@ -6,8 +6,6 @@ import { AuctionGateway } from './auction.gateway';
 import { Auction } from './entities/auction.entity';
 import { AuctionParticipant } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
-import { Scrim } from '../scrims/entities/scrim.entity';
-import { ScrimParticipant } from '../scrims/entities/scrim-participant.entity';
 
 @Module({
   imports: [
@@ -15,8 +13,6 @@ import { ScrimParticipant } from '../scrims/entities/scrim-participant.entity';
       Auction,
       AuctionParticipant,
       AuctionBid,
-      Scrim,
-      ScrimParticipant,
     ]),
   ],
   controllers: [AuctionsController],
