@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Shuffle, Map, ChevronRight } from "lucide-react"
+import { Shuffle, Map, ChevronRight, Brain } from "lucide-react"
 import TeamShuffler from "@/modules/utility/components/team-shuffler"
 import MapRandomizer from "@/modules/utility/components/map-randomizer"
 import Link from "next/link"
 import { AuthGuard } from "@/common/components/auth-guard"
 
-type UtilityTool = "shuffle" | "map" | null
+type UtilityTool = "shuffle" | "map" | "quiz" | null
 
 export default function UtilityPage() {
   const [activeTool, setActiveTool] = useState<UtilityTool>(null)
@@ -28,6 +28,14 @@ export default function UtilityPage() {
       description: "오버워치 맵을 랜덤하게 선택합니다",
       icon: Map,
       color: "bg-[#f99e1a]",
+    },
+    {
+      id: "quiz" as const,
+      title: "퀴즈 배틀",
+      subtitle: "Quiz Battle",
+      description: "1:1 실시간 오버워치 퀴즈 대결",
+      icon: Brain,
+      color: "bg-[#a855f7]",
     },
   ]
 
@@ -93,6 +101,15 @@ export default function UtilityPage() {
 
             {activeTool === "shuffle" && <TeamShuffler />}
             {activeTool === "map" && <MapRandomizer />}
+            {activeTool === "quiz" && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">퀴즈 배틀 페이지로 이동합니다</p>
+                <Link href="/utility/quiz" className="inline-flex items-center gap-2 px-6 py-3 bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors">
+                  퀴즈 배틀 시작하기
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -15,7 +15,7 @@ export default function QuizBattlePage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const memberId = user?.id || ''; // 실제로는 clanMember.id가 필요
+  const memberId = user?.id || '';
   const clanId = user?.clanId || '';
   const displayName = user?.battleTag || user?.username || 'Player';
   const avatarUrl = user?.avatarUrl;
@@ -40,14 +40,12 @@ export default function QuizBattlePage() {
     token: typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '',
   });
 
-  // 비로그인 유저 리다이렉트
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [authLoading, user, router]);
 
-  // 클랜 미가입 유저 처리
   if (!authLoading && user && !user.clanId) {
     return (
       <div className="container max-w-2xl mx-auto p-4">
@@ -73,7 +71,6 @@ export default function QuizBattlePage() {
   const renderContent = () => {
     const { status } = gameState;
 
-    // 게임 종료
     if (status === 'finished') {
       return (
         <QuizResult
@@ -87,7 +84,6 @@ export default function QuizBattlePage() {
       );
     }
 
-    // 게임 진행 중 또는 라운드 결과
     if (status === 'playing' || status === 'round-result') {
       return (
         <QuizGame
@@ -100,7 +96,6 @@ export default function QuizBattlePage() {
       );
     }
 
-    // 로비 (매칭 대기 포함)
     return (
       <QuizLobby
         socketStatus={socketStatus}
@@ -125,7 +120,6 @@ export default function QuizBattlePage() {
 
   return (
     <div className="container max-w-2xl mx-auto p-4 space-y-4">
-      {/* 헤더 */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -133,7 +127,7 @@ export default function QuizBattlePage() {
           asChild
           className="shrink-0"
         >
-          <Link href="/games">
+          <Link href="/utility">
             <ChevronLeft className="w-5 h-5" />
           </Link>
         </Button>
@@ -147,7 +141,6 @@ export default function QuizBattlePage() {
         </div>
       </div>
 
-      {/* 메인 컨텐츠 */}
       {renderContent()}
     </div>
   );
