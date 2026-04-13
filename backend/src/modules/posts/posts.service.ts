@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { Post, PostType, PostVisibility } from './entities/post.entity';
@@ -6,9 +6,13 @@ import { PostLike } from './entities/post-like.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { CreatePostDto, UpdatePostDto, CreateCommentDto } from './dto/post.dto';
 import { Follow } from '../profiles/entities/follow.entity';
+import { WalletService } from '../wallet/wallet.service';
+import { ClanMember } from '../clans/entities/clan-member.entity';
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     @InjectRepository(Post)
     private postRepo: Repository<Post>,
@@ -18,8 +22,52 @@ export class PostsService {
     private commentRepo: Repository<PostComment>,
     @InjectRepository(Follow)
     private followRepo: Repository<Follow>,
+    @InjectRepository(ClanMember)
+    private clanMemberRepo: Repository<ClanMember>,
+    private walletService: WalletService,
     private dataSource: DataSource,
   ) {}
+
+  // ==================== 커뮤니티 (비인증) ====================
+
+  /**
+   * Get community feed - public posts only, no auth required.
+   */
+  async getCommunityFeed(
+    clanId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Post[]; total: number }> {
+    const [data, total] = await this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.author', 'author')
+      .leftJoinAndSelect('author.user', 'user')
+      .where('post.clanId = :clanId', { clanId })
+      .andWhere('post.visibility = :visibility', { visibility: PostVisibility.PUBLIC })
+      .orderBy('post.isPinned', 'DESC')
+      .addOrderBy('post.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total };
+  }
+
+  /**
+   * Get a single public post - no auth required.
+   */
+  async getPublicPost(id: string): Promise<Post> {
+    const post = await this.postRepo.findOne({
+      where: { id, visibility: PostVisibility.PUBLIC },
+      relations: ['author', 'author.user'],
+    });
+
+    if (!post) {
+      throw new NotFoundException('게시물을 찾을 수 없습니다.');
+    }
+
+    return post;
+  }
 
   // ==================== 게시물 ====================
 
@@ -95,13 +143,33 @@ export class PostsService {
     const post = this.postRepo.create({
       authorId,
       clanId,
+      title: dto.title ?? null,
       type: dto.type || PostType.TEXT,
       content: dto.content,
       media: dto.media,
       metadata: dto.metadata,
       visibility: dto.visibility || PostVisibility.PUBLIC,
     });
-    return this.postRepo.save(post);
+    const saved = await this.postRepo.save(post);
+
+    // Award activity points for community post (10p)
+    try {
+      const member = await this.clanMemberRepo.findOne({
+        where: { id: authorId },
+      });
+      if (member) {
+        await this.walletService.addPoints(
+          member.userId,
+          clanId,
+          10,
+          `COMMUNITY_POST:${saved.id}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to award post points: ${error}`);
+    }
+
+    return saved;
   }
 
   async updatePost(id: string, authorId: string, dto: UpdatePostDto): Promise<Post> {
@@ -204,6 +272,24 @@ export class PostsService {
     });
     await this.commentRepo.save(comment);
     await this.postRepo.increment({ id: postId }, 'commentCount', 1);
+
+    // Award activity points for comment (3p)
+    try {
+      const member = await this.clanMemberRepo.findOne({
+        where: { id: authorId },
+      });
+      if (member) {
+        await this.walletService.addPoints(
+          member.userId,
+          post.clanId,
+          3,
+          `COMMUNITY_COMMENT:${comment.id}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to award comment points: ${error}`);
+    }
+
     return comment;
   }
 

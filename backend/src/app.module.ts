@@ -28,6 +28,7 @@ import { OverwatchModule } from './modules/overwatch/overwatch.module';
 import { ProfilesModule } from './modules/profiles/profiles.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { GamesModule } from './modules/games/games.module';
+import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module';
 
 @Module({
   imports: [
@@ -134,6 +135,7 @@ import { GamesModule } from './modules/games/games.module';
     ProfilesModule,
     PostsModule,
     GamesModule,
+    ScrimResultsModule,
   ],
   controllers: [AppController],
   providers: [

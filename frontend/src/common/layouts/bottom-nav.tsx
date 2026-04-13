@@ -12,7 +12,9 @@ import {
   Dices,
   User,
   Heart,
-  BarChart3
+  BarChart3,
+  MessageSquare,
+  Trophy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -34,16 +36,18 @@ export function BottomNav() {
 
   const mainItems = [
     { href: "/", label: "홈", icon: Home },
+    { href: "/community", label: "커뮤니티", icon: MessageSquare },
     { href: "/shop", label: "상점", icon: ShoppingBag },
     { href: "/gallery", label: "소개팅", icon: Heart },
-    { href: "/utility", label: "유틸리티", icon: Wrench },
   ]
 
   const isClanAdmin = user?.clanRole === 'MASTER' || user?.clanRole === 'MANAGER';
   
   const menuItems = [
     { href: "/betting", label: "베팅", icon: Dices },
+    { href: "/ranking", label: "랭킹", icon: Trophy },
     { href: "/vote", label: "통계", icon: BarChart3 },
+    { href: "/utility", label: "유틸리티", icon: Wrench },
     ...(isClanAdmin ? [{ href: "/clan/manage", label: "클랜 관리", icon: Settings }] : []),
   ]
 

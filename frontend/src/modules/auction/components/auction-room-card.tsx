@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users, Calendar, Trash2, LogIn } from "lucide-react"
+import { Users, Calendar, Trash2, LogIn, Trophy } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
@@ -100,6 +100,13 @@ export function AuctionRoomCard({
             <span>{status === "ended" ? "기록 보기" : "입장"}</span>
           </Button>
         </Link>
+        {status === "ended" && (
+          <Link href={`/auction/${id}/result`}>
+            <Button variant="outline" size="icon" className="text-primary hover:bg-primary/20">
+              <Trophy className="w-4 h-4" />
+            </Button>
+          </Link>
+        )}
         {isAdmin && (
           <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/20" onClick={onDelete}>
             <Trash2 className="w-4 h-4" />

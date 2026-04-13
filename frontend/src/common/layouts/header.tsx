@@ -15,6 +15,7 @@ import {
 const navItems = [
   { href: "/", label: "로비" },
   { href: "/auction", label: "경매장" },
+  { href: "/community", label: "커뮤니티" },
   { href: "/betting", label: "베팅" },
   { href: "/shop", label: "상점" },
   { href: "/utility", label: "유틸리티" },

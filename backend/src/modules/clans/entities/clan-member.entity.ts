@@ -35,5 +35,8 @@ export class ClanMember extends BaseEntity {
   lockedPoints: number;
 
   @Column({ default: 0 })
+  scrimPoints: number;
+
+  @Column({ default: 0 })
   penaltyCount: number;
 }

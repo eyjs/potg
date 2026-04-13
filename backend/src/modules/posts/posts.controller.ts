@@ -19,15 +19,31 @@ import { PostType } from './entities/post.entity';
 import { ProfilesService } from '../profiles/profiles.service';
 
 @Controller('posts')
-@UseGuards(AuthGuard('jwt'))
 export class PostsController {
   constructor(
     private readonly postsService: PostsService,
     private readonly profilesService: ProfilesService,
   ) {}
 
+  // ==================== 커뮤니티 (비인증) ====================
+
+  @Get('community')
+  async getCommunityFeed(
+    @Query('clanId') clanId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    return this.postsService.getCommunityFeed(clanId, +page, +limit);
+  }
+
+  @Get('community/:id')
+  async getPublicPost(@Param('id') id: string) {
+    return this.postsService.getPublicPost(id);
+  }
+
   // ==================== 피드 ====================
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   async getFeed(
     @Request() req: AuthenticatedRequest,
@@ -47,6 +63,7 @@ export class PostsController {
   }
 
   // 벌크 API는 :id 라우트보다 먼저 선언해야 함
+  @UseGuards(AuthGuard('jwt'))
   @Get('bulk/like-status')
   async getLikeStatusBulk(
     @Request() req: AuthenticatedRequest,
@@ -61,6 +78,7 @@ export class PostsController {
     return { likeStatus };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async getPost(
     @Param('id') id: string,
@@ -71,6 +89,7 @@ export class PostsController {
     return this.postsService.getPost(id, memberId || '');
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   async createPost(
     @Request() req: AuthenticatedRequest,
@@ -82,6 +101,7 @@ export class PostsController {
     return this.postsService.createPost(memberId, clanId, dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
   async updatePost(
     @Param('id') id: string,
@@ -94,6 +114,7 @@ export class PostsController {
     return this.postsService.updatePost(id, memberId, dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   async deletePost(
     @Param('id') id: string,
@@ -108,6 +129,7 @@ export class PostsController {
 
   // ==================== 좋아요 ====================
 
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/like')
   async like(
     @Param('id') id: string,
@@ -120,6 +142,7 @@ export class PostsController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id/like')
   async unlike(
     @Param('id') id: string,
@@ -132,6 +155,7 @@ export class PostsController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/like-status')
   async getLikeStatus(
     @Param('id') id: string,
@@ -160,6 +184,7 @@ export class PostsController {
     return this.postsService.getReplies(commentId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/comments')
   async createComment(
     @Param('id') id: string,
@@ -172,6 +197,7 @@ export class PostsController {
     return this.postsService.createComment(id, memberId, dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete('comments/:commentId')
   async deleteComment(
     @Param('commentId') commentId: string,

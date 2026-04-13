@@ -11,6 +11,11 @@ import { PostType, PostVisibility } from '../entities/post.entity';
 
 export class CreatePostDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
   @IsEnum(PostType)
   type?: PostType;
 

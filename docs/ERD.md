@@ -35,8 +35,9 @@ erDiagram
         uuid clanId FK
         uuid userId FK
         enum clanRole "MASTER, MANAGER, MEMBER"
-        int totalPoints "실제 보유 포인트"
+        int totalPoints "실제 보유 포인트 (활동+내전)"
         int lockedPoints "베팅으로 잠긴 포인트"
+        int scrimPoints "내전 포인트 (별도 랭킹용)"
         int penaltyCount "해당 클랜 내 페널티"
         timestamp created_at
         timestamp updated_at
@@ -98,7 +99,73 @@ erDiagram
     }
 
     %% ==========================================
-    %% Scrim Domain (삭제됨 - 2026-04-10)
+    %% Post Domain (커뮤니티 게시판)
+    %% ==========================================
+    Post {
+        uuid id PK
+        uuid authorId FK "ClanMember"
+        uuid clanId FK
+        string title "Nullable (varchar 200) - 커뮤니티 게시판용"
+        enum type "TEXT, IMAGE, CLIP, SCRIM_RESULT, ACHIEVEMENT, GAME_RESULT, BALANCE_GAME"
+        text content "Nullable"
+        jsonb media "이미지 URL 배열 (최대 4개)"
+        jsonb metadata "type별 추가 데이터"
+        int likeCount
+        int commentCount
+        int shareCount
+        boolean isPinned
+        enum visibility "PUBLIC, FOLLOWERS, PRIVATE"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PostComment {
+        uuid id PK
+        uuid postId FK
+        uuid authorId FK "ClanMember"
+        text content
+        uuid parentId FK "Nullable - 대댓글"
+        int likeCount
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PostLike {
+        uuid id PK
+        uuid postId FK
+        uuid memberId FK "ClanMember"
+        timestamp created_at
+    }
+
+    %% ==========================================
+    %% Scrim Result Domain (내전 결과)
+    %% ==========================================
+    ScrimResult {
+        uuid id PK
+        uuid auctionId FK "unique - 경매 1:1"
+        enum status "DRAFT, CONFIRMED"
+        timestamp confirmedAt "Nullable"
+        uuid confirmedById "Nullable - 확정한 관리자"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ScrimResultEntry {
+        uuid id PK
+        uuid scrimResultId FK
+        uuid userId FK
+        uuid teamCaptainId "어떤 팀의 캡틴 userId"
+        int rank "1~4 팀 순위"
+        int basePoints "관리자 입력 기본 포인트"
+        int earnedActivityPoints "실제 활동 포인트 (캡틴 x2)"
+        int earnedScrimPoints "실제 내전 포인트 (캡틴 x2)"
+        boolean isCaptain
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ==========================================
+    %% Scrim Domain (레거시 - 삭제됨 2026-04-10)
     %% Scrim, ScrimParticipant, ScrimMatch 테이블은 코드에서 제거됨
     %% DB 테이블은 남아있으나 더 이상 사용하지 않음
     %% ==========================================
@@ -401,6 +468,18 @@ erDiagram
     %% Auction
     Auction ||--|{ AuctionParticipant : "has"
     Auction ||--o{ AuctionBid : "records"
+    Auction ||--o| ScrimResult : "has_result"
+
+    %% Scrim Result
+    ScrimResult ||--o{ ScrimResultEntry : "contains"
+    User ||--o{ ScrimResultEntry : "participated_in"
+
+    %% Posts
+    ClanMember ||--o{ Post : "writes"
+    Post ||--o{ PostComment : "has_comments"
+    Post ||--o{ PostLike : "has_likes"
+    ClanMember ||--o{ PostComment : "writes_comments"
+    ClanMember ||--o{ PostLike : "likes"
 
     %% Attendance & Points
     ClanMember ||--o{ AttendanceRecord : "has"

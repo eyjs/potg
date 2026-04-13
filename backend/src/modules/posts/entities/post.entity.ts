@@ -37,6 +37,9 @@ export class Post extends BaseEntity {
   @Index()
   clanId: string;
 
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  title: string | null;
+
   @Column({ type: 'enum', enum: PostType, default: PostType.TEXT })
   type: PostType;
 
