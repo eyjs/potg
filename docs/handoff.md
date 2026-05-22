@@ -1,379 +1,223 @@
-# POTG 경매 시스템 - 핸드오프 문서
+# POTG Discord 리팩토링 — 세션 핸드오프
 
-마지막 업데이트: 2026-01-30
-
----
-
-## 최근 완료 작업
-
-### 2026-01-30 세션
-
-#### [5fc935a] feat: 내 정보 페이지 OverFastAPI 기반 재구성
-
-##### 백엔드 변경
-- **User.rating**: `default: 1000` → `nullable: true` (OverFastAPI 연동 후 실제 랭크 사용)
-- **User.mainRole**: `default: FLEX` → `nullable: true` (선택적 입력)
-- **회원가입 서비스**: `mainRole` 필수 검사 제거
-
-##### 프론트엔드 - 내 정보 페이지 재구성
-```
-frontend/src/modules/overwatch/components/
-└── profile-banner.tsx              # NEW - Namecard 배경 + 아바타 + 동기화 버튼
-
-frontend/src/modules/my-info/
-├── index.ts                        # NEW
-└── components/
-    ├── account-settings-card.tsx   # NEW - 계정 설정 카드
-    └── security-settings-card.tsx  # NEW - 보안 설정 카드
-
-frontend/src/app/my-info/page.tsx   # 전면 재구성
-```
-
-**새 레이아웃:**
-- 상단: ProfileBanner (Namecard 배경 + 아바타 + 동기화)
-- 2열 그리드:
-  - 왼쪽: 경쟁전 랭크 / 주력 영웅 / 커리어 통계
-  - 오른쪽: 계정 설정 / 보안 설정 / 포인트 관리 / 소속 클랜
-
-##### 프론트엔드 - 회원가입 페이지 수정
-- **티어 선택 UI 제거** (RANK_OPTIONS 삭제)
-- **mainRole 선택적으로 변경** ("나중에 설정할게요" 옵션 추가)
-- OverFastAPI 자동 동기화 안내 문구 추가
-
-##### 수정된 파일
-```
-backend/src/modules/auth/auth.service.ts
-backend/src/modules/users/entities/user.entity.ts
-frontend/src/app/my-info/page.tsx
-frontend/src/app/signup/page.tsx
-frontend/src/modules/overwatch/index.ts
-frontend/src/modules/overwatch/components/profile-banner.tsx  # NEW
-frontend/src/modules/my-info/                                 # NEW
-```
-
-#### 헤더에 아케이드(미니게임) 메뉴 추가
-- `/games` 경로 접근 가능하도록 navItems에 "아케이드" 추가
-
-##### 수정된 파일
-```
-frontend/src/common/layouts/header.tsx
-```
+> 최종 갱신: 2026-05-22
+> 진행 상태: **Phase 1 → 4.1 완료 / Phase 4.2 (프론트엔드 admin) 대기**
 
 ---
 
-### 2026-01-29 세션 (Phase 1 & 2)
+## 1. 한눈에 보기
 
-#### [4f7f9f2] fix: 오버워치 페이지 모바일 반응형 수정
+| Phase | 상태 | 커밋 |
+|-------|------|------|
+| 1. 기반 (Entity + Migration) | ✅ 완료 | `2a0a0e1` |
+| 2. 핵심 로직 (Ledger/Betting/Shop/Match) | ✅ 완료 | `2a0a0e1` |
+| 3. Discord Bot + OAuth2 | ✅ 완료 + 코드리뷰 반영 | `8ab9dd4`, `f81f0eb` |
+| 4.1. 백엔드 admin API | ✅ 완료 | `f226e0d` |
+| 4.2. 프론트엔드 admin 페이지 | ⏳ 대기 | — |
+| 5. 정리 (Games/사용자 페이지 폐기) | ⏳ 대기 | — |
 
-- **replay-card.tsx**: 모바일에서 스택 레이아웃으로 변경, 텍스트 truncate 적용
-- **replays/page.tsx**: 필터 셀렉트박스 모바일 flex-1 레이아웃 개선
-- **profile-header.tsx**: 동기화 버튼 모바일 전체 너비 적용
-
-#### [90a92b3] feat: 오버워치 Phase 1 & 2 구현 + 보안 수정
-
-#### 코드 리뷰 1차 수정 사항 (CRITICAL/HIGH)
-
-1. **`any` 타입 제거** - `unknown` + 타입가드로 변경
-   - `overwatch-api.service.ts`: error handling
-   - `overwatch.service.ts`: API 응답 타입 캐스팅
-
-2. **Entity 관계 오류 수정**
-   - `OverwatchStatsSnapshot.profile`: `@OneToMany` → `@ManyToOne`
-
-3. **battleTag nullable 수정**
-   - `User.battleTag`: `nullable: true` 추가 (마이그레이션 필요!)
-
-4. **Rate Limiting 추가**
-   - `POST /overwatch/profile/me/sync`: 1분에 3회 제한
-   - `limit` 파라미터 DTO 검증 추가
-
-5. **ConfigService 적용**
-   - OverFast API URL, timeout 환경변수로 이동
-
-#### 코드 리뷰 2차 수정 사항 (보안)
-
-1. **CRITICAL: 클랜 접근 권한 검증 추가**
-   - `replay.controller.ts`: `findByClan`, `getClanStats`에 ForbiddenException
-   - `overwatch.controller.ts`: `getClanRankings`에 ForbiddenException
-
-2. **HIGH: Rate Limiting 추가**
-   - `POST /replays/:id/like`: 1분에 10회 제한 (@Throttle)
-
-3. **MEDIUM: SQL Wildcard Injection 방지**
-   - `replay.service.ts`: Like 쿼리에서 `%`, `_` 문자 이스케이프
-
-4. **MEDIUM: Race Condition 수정**
-   - `replay.service.ts`: toggleLike에 Transaction + Pessimistic Lock 적용
-
-#### Phase 1: 클랜원 프로필 카드 + 리더보드
-
-##### 백엔드 수정
-- `/overwatch/profile/me` - 내 프로필 조회
-- `/overwatch/rankings/:clanId` - 클랜 리더보드
-- Rate Limiting, Query Parameter 검증
-
-##### 프론트엔드 추가
-```
-frontend/src/modules/overwatch/
-├── types.ts                           # 타입 정의
-├── hooks/
-│   └── use-overwatch-profile.ts       # API 훅
-└── components/
-    ├── profile-header.tsx             # 프로필 헤더
-    ├── rank-card.tsx                  # 역할별 랭크
-    ├── hero-stats-card.tsx            # 주력 영웅
-    ├── career-stats-card.tsx          # 커리어 통계
-    └── clan-leaderboard.tsx           # 클랜 리더보드
-
-frontend/src/app/overwatch/
-├── profile/page.tsx                   # 프로필 페이지
-└── leaderboard/page.tsx               # 리더보드 페이지
-
-frontend/src/common/components/ui/
-└── skeleton.tsx                       # NEW - 스켈레톤 컴포넌트
-```
-
-#### Phase 2: 영웅/맵 DB + 리플레이 공유
-
-##### 백엔드 추가
-- **게임 데이터 API** (Public)
-  - `GET /overwatch/heroes` - 영웅 목록
-  - `GET /overwatch/heroes/:heroKey` - 영웅 상세
-  - `GET /overwatch/maps` - 맵 목록
-  - `GET /overwatch/gamemodes` - 게임모드 목록
-  - `GET /overwatch/roles` - 역할 목록
-
-- **Replay Entity** (NEW - 마이그레이션 필요!)
-  ```typescript
-  {
-    id: string
-    code: string (5-6자 영문숫자)
-    userId: string
-    clanId: string
-    mapName: string
-    gamemode?: string
-    heroes: string[]
-    result: 'WIN' | 'LOSS' | 'DRAW'
-    videoUrl?: string
-    notes?: string
-    tags?: string[]
-    likes: number
-    views: number
-  }
-  ```
-
-- **Replay API**
-  - `POST /replays` - 리플레이 등록
-  - `GET /replays/clan/:clanId` - 클랜 리플레이 목록
-  - `GET /replays/mine` - 내 리플레이
-  - `GET /replays/stats/:clanId` - 클랜 통계
-  - `GET /replays/:id` - 상세 조회
-  - `PATCH /replays/:id` - 수정
-  - `DELETE /replays/:id` - 삭제
-  - `POST /replays/:id/like` - 좋아요
-
-##### 프론트엔드 추가
-```
-frontend/src/modules/overwatch/
-├── hooks/
-│   ├── use-game-data.ts               # 영웅/맵/게임모드 훅
-│   └── use-replays.ts                 # 리플레이 훅
-└── components/
-    ├── hero-card.tsx                  # 영웅 카드
-    ├── hero-detail-modal.tsx          # 영웅 상세 모달
-    ├── map-card.tsx                   # 맵 카드
-    ├── replay-card.tsx                # 리플레이 카드
-    └── create-replay-modal.tsx        # 리플레이 등록 모달
-
-frontend/src/app/overwatch/
-├── database/page.tsx                  # 영웅/맵 DB 페이지
-└── replays/page.tsx                   # 리플레이 페이지
-```
-
-##### Header 업데이트
-- 오버워치 프로필, 영웅/맵 DB, 리플레이 코드 메뉴 추가
+**검증 현황**: 빌드 PASS, 신규 spec 15 PASS, 회귀 없음.
 
 ---
 
-#### [c888dc1] OverFastAPI 연동 - 오버워치 프로필 모듈 구현
+## 2. 완료된 작업
 
-##### 백엔드 추가
-- **OverwatchProfile 엔티티** - 오버워치 플레이어 프로필 저장
-- **OverwatchStatsSnapshot 엔티티** - 통계 히스토리 스냅샷
-- **OverFastAPI 클라이언트 서비스** - 외부 API 연동
-  - 플레이어 요약 조회
-  - 통계 조회
-  - 영웅 목록 조회
-- **프로필 API**
-  - `GET /overwatch/profile/:battleTag` - 프로필 조회
-  - `POST /overwatch/profile/:battleTag/sync` - 동기화
-  - `GET /overwatch/profile/:battleTag/heroes` - 영웅 통계
-  - `GET /overwatch/profile/:battleTag/competitive` - 경쟁전 정보
-  - `GET /clans/:clanId/ranking` - 클랜 내 랭킹
+### Phase 1 — 기반
+- TypeORM 마이그레이션 인프라 (`backend/src/database/`)
+- 신규 엔티티: `PointTx`, `Match/Team/TeamMember`, `BettingMarket/Stake`, `MarketOrder`, `SystemConfig`
+- User 확장: `discordId`, `pointsBalance`, `marketGatePassed`, `CAPTAIN` role
 
-##### 수정된 파일
+### Phase 2 — 핵심 로직
+- `LedgerService` — 복식부기 mint/burn/transfer + SINK 가상계정 (`00000000-...-000`)
+- `BettingService` — 패리뮤추얼 풀 분배 + 5% rake + LOCKED 강제
+- `ShopService` — 즉시소각 + 재고 원자적 차감
+- `MatchService` — 상태머신 DRAFT → BETTING_OPEN → LOCKED → SETTLED
+- `MarketGateService` (Phase 3 리뷰에서 공통화) — 출석 7일 + 내전 2회
+- `WalletService` 재작성 (pointsBalance 캐시 기반)
+- 폐기 4종 제거 + DROP 마이그레이션: `PointLog`, `BettingQuestion`, `BettingTicket`, `ShopPurchase`
+
+### Phase 3 — Discord Bot
+- `DiscordBotModule` (NestJS 내부, discord.js 14.26)
+- 슬래시 명령 7종: `/잔액 /출석 /리더보드 /베팅 /순위예측 /상점 /구매`
+- `DiscordMemberService.findOrCreate` — discord_id 멱등 가입 + SEED mint
+- Components V2 빌더 (embed fallback, IS_COMPONENTS_V2 상수 보존)
+- `passport-discord` strategy + `/auth/discord`, `/auth/discord/callback`
+- OAuth 콜백은 **HttpOnly Cookie**로 JWT 전달 (Referer 누출 방지)
+
+### Phase 4.1 — 백엔드 admin API
+- `/admin/matches` 상태머신 제어 + 팀 생성
+- `/admin/members` 페이징 + role 변경 + 잔액 조정 (Ledger 경유)
+- `/admin/attendance/upload` xlsx 일괄 (행별 결과)
+- `/admin/config` 경제 파라미터 GET/PATCH
+- `/admin/ledger` PointTx 페이징 + `/summary` (발행/소각/유통량)
+- 전부 `AuthGuard('jwt')` + `RolesGuard` + `@Roles(ADMIN)` 적용
+
+---
+
+## 3. 다음 세션에서 해야 할 일
+
+### 우선순위 1 — Phase 4.2 프론트엔드 admin
+
+`frontend/src/app/admin/*` 새로 구성. Next.js 16 App Router + 기존 Shadcn UI (`src/common/components/ui/`).
+
+페이지 목록:
+| 경로 | 화면 | 백엔드 매핑 |
+|------|------|-------------|
+| `/admin` | 경제 대시보드 (총발행/소각/유통량 그래프) | `GET /admin/ledger/summary` + 시간별 PointTx 집계 |
+| `/admin/matches` | 내전 목록 + 생성 | `GET/POST /admin/matches` |
+| `/admin/matches/[id]` | 내전 상세 + 상태 전이 컨트롤 | `GET /admin/matches/:id`, `POST :id/open/lock/settle/cancel` |
+| `/admin/matches/[id]/auction` | 경매 (기존 AuctionsModule 재활용, 팀장 접근) | 기존 `/auctions/*` |
+| `/admin/matches/[id]/settle` | 결과 입력 (winnerTeamId + placements) | `POST /admin/matches/:id/settle` |
+| `/admin/products` | 상품 등록/수정/재고 | 기존 `/shop/*` 일부 + 신규 admin 라우트 보강 필요 |
+| `/admin/orders` | 주문 목록, 전달/취소 | 기존 `/shop/admin/*` (재확인) |
+| `/admin/members` | 회원 목록, role/잔액 조정 | `GET/PATCH/POST /admin/members/*` |
+| `/admin/attendance` | 엑셀 업로드 + 결과 표시 | `POST /admin/attendance/upload` |
+| `/admin/config` | 경제 파라미터 표 + 인라인 편집 | `GET/PATCH /admin/config/*` |
+| `/admin/ledger` | PointTx 검색 + 페이징 | `GET /admin/ledger?filter` |
+
+작업 시 주의:
+- **인증 흐름 통합**: Phase 3에서 OAuth 콜백을 HttpOnly Cookie로 변경했으나 `frontend/src/lib/api.ts`는 여전히 `localStorage` 사용. `withCredentials: true` 추가 + AuthContext에서 쿠키 기반 세션 확인 분기 필요. 또는 admin 페이지는 localStorage 토큰 유지하고 디스코드 사용자만 쿠키 사용 → 결정 필요.
+- **레이아웃 가드**: `/admin/layout.tsx`에서 ADMIN role 확인 후 children 렌더. 미통과는 `/login` 리다이렉트.
+- **오버워치 테마 유지**: `bg-primary` (#f99e1a), skewed buttons, `text-ow-blue` 등. 하드코딩 색상 금지.
+- **상태 관리**: 기존 React Query 사용 여부 확인. 없으면 axios + useState 정도로 시작.
+
+### 우선순위 2 — Discord 봇 실 환경 활성화 (사용자 작업)
+
+`backend/.env`:
 ```
-backend/src/modules/overwatch/           # NEW - 전체 모듈
-├── overwatch.module.ts
-├── overwatch.controller.ts
-├── overwatch.service.ts
-├── overfast-api.service.ts              # 외부 API 클라이언트
-└── entities/
-    ├── overwatch-profile.entity.ts
-    └── overwatch-stats-snapshot.entity.ts
-docs/erd.md                              # 업데이트
+DISCORD_BOT_ENABLED=true
+DISCORD_BOT_TOKEN=<Discord Developer Portal → Bot → Reset Token>
+DISCORD_CLIENT_ID=<Application ID>
+DISCORD_CLIENT_SECRET=<OAuth2 → Client Secret>
+DISCORD_GUILD_ID=<우리 모임 길드 ID>
+DISCORD_OAUTH_ENABLED=true
+DISCORD_OAUTH_REDIRECT_URI=https://potg.joonbi.co.kr/auth/discord/callback
+```
+
+봇 권한 (OAuth2 URL Generator):
+- Scopes: `bot`, `applications.commands`
+- Bot Permissions: `Send Messages`, `Use Slash Commands`
+
+활성화 후:
+1. 길드에 봇 초대
+2. 백엔드 재시작 — 슬래시 명령 자동 등록 (길드 등록은 즉시 반영)
+3. 디스코드에서 `/잔액` 호출 → 자동 가입 + SEED 1000P 확인
+
+### 우선순위 3 — Phase 5 정리 (병행 가능)
+
+- `GamesModule` 삭제 + 관련 소켓 게이트웨이
+- 프론트엔드 사용자용 페이지 폐기: `/betting`, `/shop`, `/wallet`, `/ranking`, `/utility/quiz`, `/gallery/*`, `/profile/shop`
+- `ClanMember.totalPoints/lockedPoints` 컬럼 DROP (단일 클랜 전환)
+- 자체 회원가입 (`/signup`) 폐기 + Discord OAuth로 통합
+- `clanId` 의존 코드 제거 (80+ 파일)
+- `passport-discord` deprecated → maintained alternative로 교체
+- `MarketGateGuard` 캐시 무효화 정책 명확화
+
+---
+
+## 4. 주의사항
+
+### Entity 변경 규칙
+- Entity 수정 시 `docs/ERD.md` 동시 갱신 (`CLAUDE.md` 명시)
+- 마이그레이션 작성 후 SYNC_SCHEMA=true 임시 허용 또는 `migration:generate`로 재생성
+
+### DB 초기 부트
+- `Baseline.ts`는 placeholder. 클린 DB 첫 부트는:
+  1. `SYNC_SCHEMA=true npm run start:dev` 1회 (entities로 스키마 생성), 또는
+  2. `npm run migration:run` (현재 3 파일 체인 적용)
+- 운영 배포 전 통합 baseline 재생성 권장 (REPORT-phase2 리스크 1)
+
+### 회계 무결성
+- User.pointsBalance 직접 UPDATE 금지. 반드시 `LedgerService.transfer/mint/burn` 경유
+- `LedgerService.computeBalanceFromLedger(userId)` 로 PointTx 합 vs 캐시 일치 검증 가능 (관리자 모니터링)
+
+### 알려진 사전 존재 실패 테스트 (Phase 1부터 동일)
+- `test/unit/auth/auth.service.spec.ts` — JWT 환경변수 미주입
+- `src/modules/posts/posts-bulk-like.service.spec.ts` — ClanMemberRepository DI 누락
+- `test/app.e2e-spec.ts` — uuid ESM 트랜스폼
+- Phase 5 정리에서 수렴 예정. 현 작업과 무관.
+
+### 결정 사항 누적 (.pipeline/status.json 참조)
+- **RANK 마켓 정산**: `winningOption='1'` 단순화 (정책 모호 — Phase 5에서 재정의)
+- **BettingStake UNIQUE 미적용**: (market_id, user_id, side) — 서비스 합산 로직만 사용
+- **/구매 MarketGate**: 인라인 검증 → 공통 `MarketGateService`로 추출 완료 (Phase 3 리뷰 반영)
+- **passport-discord deprecated**: Phase 5에서 교체
+- **Components V2**: embed fallback, discord.js 정식 지원 시 `buildProductCard`만 교체
+
+---
+
+## 5. 파일 맵
+
+### 신규 백엔드 모듈
+```
+backend/src/modules/
+├── ledger/                         # 복식부기 원장
+│   ├── entities/point-tx.entity.ts
+│   ├── ledger.service.ts
+│   ├── ledger.controller.ts        # /admin/ledger
+│   ├── ledger.constants.ts         # SINK_ACCOUNT_ID, REASON
+│   └── ledger.module.ts
+├── matches/                        # 내전 상태머신
+│   ├── entities/{match,team,team-member}.entity.ts
+│   ├── enums/match-status.enum.ts
+│   ├── match.service.ts
+│   ├── match.controller.ts         # /admin/matches
+│   └── matches.module.ts
+├── system-config/                  # 경제 파라미터
+│   └── system-config.{service,controller,module}.ts
+├── discord-bot/                    # Phase 3
+│   ├── discord-{client,member}.service.ts
+│   ├── command-registry.ts
+│   ├── commands/{balance,attendance,leaderboard,bet,rank-predict,shop,buy}.command.ts
+│   ├── builders/components-v2.builder.ts
+│   └── discord-bot.module.ts
+└── ...
+
+backend/src/common/
+├── guards/market-gate.guard.ts     # HTTP 가드 (MarketGateService 위임)
+└── services/market-gate.{service,module}.ts  # 공통 게이트 로직
+```
+
+### 폐기된 파일 (git history만 남음)
+- `betting/entities/{betting-question,betting-ticket}.entity.ts`
+- `betting/enums/betting.enum.ts`
+- `clans/entities/point-log.entity.ts`
+- `shop/entities/shop-purchase.entity.ts`
+- `shop/shop.service.spec.ts` (재작성 필요)
+
+### 파이프라인 산출물
+```
+.pipeline/
+├── requirement.md              # Phase 1~5 요구사항 (consultant 산출)
+├── plan.md                     # Phase 1 계획
+├── plan-phase3.md
+├── plan-phase4.md
+├── status.json                 # SSOT
+├── reviews/plan-review.md
+├── REPORT-phase2.md
+├── REPORT-phase3.md
+└── REPORT-phase4.1.md
 ```
 
 ---
 
-### 2026-01-28 세션
+## 6. 빠른 시작 (다음 세션 진입자용)
 
-#### [WBS-020] Phase 2: 출석 & 포인트 규칙 시스템
+```bash
+# 1. 현재 상태 확인
+cat .pipeline/status.json | head -50
+git log --oneline -8
 
-##### 백엔드 추가
-- **PointRule 엔티티** - 포인트 규칙 정의
-  - 기본 규칙 시드: 출석, 연속보너스(3/5/10일), 승리
-- **AttendanceRecord 엔티티** - 출석 기록
-  - 내전 종료 시 자동 출석 생성
-  - 연속 출석 보너스 계산 (최고 티어만 적용)
+# 2. 빌드 확인
+cd backend && npm run build
 
-##### 프론트엔드 추가
-- 클랜 관리 페이지에 포인트 규칙/출석 관리 탭 추가
+# 3. 신규 spec 확인 (15개 PASS 기대)
+cd backend && npx jest --testPathPatterns='ledger.service.spec|betting.service.spec|discord-member.service.spec'
 
-##### 수정된 파일
-```
-backend/src/modules/point-rules/         # NEW
-├── point-rules.module.ts
-├── point-rules.controller.ts
-├── point-rules.service.ts
-└── entities/point-rule.entity.ts
-backend/src/modules/attendance/          # NEW
-├── attendance.module.ts
-├── attendance.service.ts
-└── entities/attendance-record.entity.ts
-frontend/src/app/clans/[id]/manage/page.tsx
-docs/erd.md                              # PointRule.code 컬럼 반영
+# 4. Phase 4.2 착수
+ls frontend/src/app/                          # 기존 사용자 페이지 확인
+ls frontend/src/common/components/ui/         # Shadcn UI 재활용 컴포넌트
+cat .pipeline/REPORT-phase4.1.md              # 백엔드 API 카탈로그
 ```
 
----
-
-## 다음 단계 (TODO)
-
-### 즉시 해야할 것
-
-1. **DB 마이그레이션 (CRITICAL)**
-   - `User.rating`, `User.mainRole` nullable 변경 (2026-01-30)
-   - `User.battleTag` nullable 변경
-   - `Replay` 엔티티 생성
-
-2. **배포 후 수동 테스트**
-   - 내 정보 페이지: ProfileBanner + 레이아웃 확인
-   - 회원가입: rating 없이 가입 정상 동작
-   - OverFastAPI 연동: 프로필 조회/동기화 정상 동작
-   - 아케이드 메뉴 접근 확인
-
-3. **환경변수 추가** (선택)
-   ```env
-   OVERFAST_API_URL=https://overfast-api.tekrop.fr
-   OVERFAST_API_TIMEOUT=15000
-   OVERFAST_USER_AGENT=POTG-Backend/1.0
-   ```
-
-### 선택적 개선사항
-
-- React Query 적용 확대
-- Framer Motion 애니메이션 확장
-- 스켈레톤 로딩 적용
-- 404/에러 페이지
-
----
-
-## 현재 페이지 라우트 구조
-
-```
-/                           # 로비 (대시보드)
-/login                      # 로그인
-/signup                     # 회원가입
-/forgot-password            # 비밀번호 찾기
-/reset-password             # 비밀번호 재설정
-
-/my-info                    # 내 정보 (재구성됨)
-/wallet                     # 포인트 지갑
-
-/auction                    # 경매 목록
-/auction/[id]               # 경매 상세
-
-/betting                    # 베팅 목록
-/betting/my-bets            # 내 베팅
-
-/shop                       # 상점
-/vote                       # 투표 목록
-/vote/[id]                  # 투표 상세
-
-/scrim                      # 내전 목록
-/scrim/[id]                 # 내전 상세
-
-/games                      # 아케이드 (메인)
-/games/quiz                 # 퀴즈 배틀
-/games/leaderboard          # 리더보드
-
-/utility                    # 유틸리티
-/gallery                    # 소개팅
-/gallery/[id]               # 소개팅 상세
-/gallery/register           # 소개팅 등록
-
-/overwatch/profile          # 오버워치 프로필
-/overwatch/database         # 영웅/맵 DB
-/overwatch/replays          # 리플레이 코드
-/overwatch/leaderboard      # 리더보드
-
-/clan/create                # 클랜 생성
-/clan/join                  # 클랜 가입
-/clan/manage                # 클랜 관리
-
-/profile/[memberId]         # 멤버 프로필
-/profile/shop               # 프로필 상점
-```
-
----
-
-## 권한 체계
-
-### 시스템 역할 (UserRole)
-| 역할 | 설명 |
-|------|------|
-| **ADMIN** | POTG 시스템 관리자 (모든 클랜 전체 권한) |
-| **USER** | 일반 사용자 |
-
-### 클랜 역할 (ClanRole)
-| 역할 | 권한 |
-|------|------|
-| **MASTER** | 클랜 내 모든 권한 |
-| **MANAGER** | 투표/스크림/경매/상품/베팅/공지/명예의전당 CRUD |
-| **MEMBER** | 참여만 가능 |
-
----
-
-## 테스트 계정
-
-- **tcaptain1** / test1234 (TCaptain1#1111, 탱커, 마스터)
-- **tcaptain2** / test1234 (TCaptain2#2222, DPS, 마스터)
-- 테스트 경매 ID: `54079df7-f010-4923-a8e0-addbf8058622`
-
----
-
-## 주의사항
-
-### DB 마이그레이션 필수
-TypeORM sync 또는 마이그레이션 실행 필요:
-- User.rating, User.mainRole nullable 변경 (2026-01-30)
-- OverwatchProfile, OverwatchStatsSnapshot (2026-01-29)
-- Replay 엔티티 (2026-01-29)
-- PointRule, AttendanceRecord (2026-01-28)
-- Scrim/ScrimParticipant 필드 확장 (2026-01-28)
-- PasswordReset, Announcement, HallOfFame (이전)
-
-### Entity 변경 시 규칙
-1. `docs/erd.md` 업데이트
-2. 마이그레이션 작성
-3. handoff 문서 기록
+진입 시 우선 `.pipeline/REPORT-phase4.1.md`의 §1.2 엔드포인트 카탈로그를 읽고, 그 다음 위 §3 "다음 세션에서 해야 할 일"의 페이지 목록대로 진행.
