@@ -16,7 +16,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuthGuard } from '@nestjs/passport';
-import { LoginDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import { LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import type { User } from '../users/entities/user.entity';
 
@@ -64,14 +64,14 @@ export class AuthController {
 
   /**
    * 자체 로그인.
-   * 쿠키(HttpOnly) + JSON 응답 듀얼 발급.
-   * JSON은 socket.io 등 기존 Bearer 클라이언트 호환을 위해 유지.
+   * JWT는 HttpOnly 쿠키로만 전달한다.
+   * 프론트는 로그인 후 GET /auth/profile 로 세션 정보를 조회한다.
    */
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ access_token: string }> {
+  ): Promise<{ ok: true }> {
     const user = await this.authService.validateUser(
       loginDto.username,
       loginDto.password,
@@ -88,7 +88,7 @@ export class AuthController {
       maxAge: SEVEN_DAYS_MS,
       path: '/',
     });
-    return tokens;
+    return { ok: true };
   }
 
   /**
@@ -99,11 +99,6 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response): { message: string } {
     res.clearCookie('access_token', { path: '/' });
     return { message: 'Logged out successfully' };
-  }
-
-  @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
   }
 
   @UseGuards(AuthGuard('jwt'))

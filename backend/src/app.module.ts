@@ -27,7 +27,6 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { OverwatchModule } from './modules/overwatch/overwatch.module';
 import { ProfilesModule } from './modules/profiles/profiles.module';
 import { PostsModule } from './modules/posts/posts.module';
-import { GamesModule } from './modules/games/games.module';
 import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { MatchesModule } from './modules/matches/matches.module';
@@ -144,7 +143,6 @@ import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
     OverwatchModule,
     ProfilesModule,
     PostsModule,
-    GamesModule,
     ScrimResultsModule,
     // === Phase 1 (Discord refactor) 신규 모듈 ===
     LedgerModule,

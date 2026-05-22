@@ -10,7 +10,7 @@ import { UserRole } from '../users/entities/user.entity';
 // auth.controller.ts의 쿠키 기반 로그인/로그아웃 검증
 describe('AuthController', () => {
   let controller: AuthController;
-  let authService: jest.Mocked<Pick<AuthService, 'validateUser' | 'login' | 'register'>>;
+  let authService: jest.Mocked<Pick<AuthService, 'validateUser' | 'login'>>;
   let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
 
   // Response 객체 mock (cookie / clearCookie)
@@ -31,7 +31,6 @@ describe('AuthController', () => {
     const mockAuthService = {
       validateUser: jest.fn(),
       login: jest.fn(),
-      register: jest.fn(),
     };
     const mockUsersService = {
       findByIdWithClan: jest.fn(),
@@ -59,7 +58,7 @@ describe('AuthController', () => {
   // ==================== POST /auth/login ====================
 
   describe('login', () => {
-    it('유효한 자격증명이면 쿠키를 설정하고 access_token을 반환한다', async () => {
+    it('유효한 자격증명이면 쿠키를 설정하고 ok: true를 반환한다', async () => {
       const user = baseUser();
       const token = 'jwt-token-xyz';
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
@@ -72,8 +71,8 @@ describe('AuthController', () => {
         res,
       );
 
-      // JSON 응답 검증
-      expect(result).toEqual({ access_token: token });
+      // 쿠키 신호 응답 검증 (token은 쿠키로만 전달)
+      expect(result).toEqual({ ok: true });
 
       // 쿠키 설정 검증
       expect(res.cookie).toHaveBeenCalledWith(

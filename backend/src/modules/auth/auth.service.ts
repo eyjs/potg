@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { UsersService } from '../users/users.service';
@@ -43,61 +43,6 @@ export class AuthService {
     return {
       access_token: await this.jwtService.signAsync(payload),
     };
-  }
-
-  async register(userDto: Partial<User>) {
-    if (!userDto.username) {
-      throw new BadRequestException('Username is required');
-    }
-    if (!userDto.password) {
-      throw new BadRequestException('Password is required');
-    }
-    if (!userDto.battleTag) {
-      throw new BadRequestException('BattleTag is required');
-    }
-    // mainRole과 rating은 선택적 (OverFastAPI 연동 후 자동 설정)
-
-    // Check for duplicate username
-    const existingUser = await this.usersService.findByUsername(
-      userDto.username,
-    );
-    if (existingUser) {
-      throw new BadRequestException('Username already exists');
-    }
-
-    // Check for duplicate battleTag
-    const existingTag = await this.usersService.findByBattleTag(
-      userDto.battleTag,
-    );
-    if (existingTag) {
-      throw new BadRequestException('BattleTag already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(userDto.password, 10);
-    try {
-      const user = await this.usersService.create({
-        ...userDto,
-        password: hashedPassword,
-      });
-      // Remove password from response
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user;
-      return result;
-    } catch (error: unknown) {
-      // Handle any other database constraint violations
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === '23505'
-      ) {
-        // PostgreSQL unique constraint violation
-        // We can't easily distinguish which field caused it without parsing error detail,
-        // but we did pre-checks.
-        throw new BadRequestException('Username or BattleTag already exists');
-      }
-      throw error;
-    }
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {

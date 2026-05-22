@@ -43,7 +43,6 @@ describe('AuthService - Unit Tests', () => {
     findByUsername: jest.fn(),
     findByEmail: jest.fn(),
     updatePassword: jest.fn(),
-    create: jest.fn(),
   };
 
   const mockJwtService = {
@@ -154,76 +153,6 @@ describe('AuthService - Unit Tests', () => {
 
       expect(jwtService.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({ clanId: 'clan-1' }),
-      );
-    });
-  });
-
-  describe('register', () => {
-    const registerDto = {
-      username: 'NewPlayer',
-      battleTag: 'NewPlayer#5678',
-      password: 'password123',
-      mainRole: MainRole.TANK,
-    };
-
-    it('비밀번호를 해시하여 새 유저를 생성해야 함', async () => {
-      const hashedPassword = 'hashed-password';
-      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
-
-      mockUsersService.findByUsername.mockResolvedValue(null);
-      mockUsersService.findByBattleTag.mockResolvedValue(null);
-
-      const newUser = {
-        ...mockUser,
-        username: registerDto.username,
-        battleTag: registerDto.battleTag,
-        password: hashedPassword,
-      };
-      mockUsersService.create.mockResolvedValue(newUser);
-
-      const result = await service.register(registerDto);
-
-      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
-      expect(usersService.create).toHaveBeenCalledWith({
-        ...registerDto,
-        password: hashedPassword,
-      });
-      // password 필드가 결과에 없어야 함
-      expect(result).not.toHaveProperty('password');
-    });
-
-    it('username이 없으면 BadRequestException을 던져야 함', async () => {
-      await expect(
-        service.register({ battleTag: 'Test#1234', password: 'pw' }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('password가 없으면 BadRequestException을 던져야 함', async () => {
-      await expect(
-        service.register({ username: 'TestUser', battleTag: 'Test#1234' }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('battleTag가 없으면 BadRequestException을 던져야 함', async () => {
-      await expect(
-        service.register({ username: 'TestUser', password: 'pw' }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('이미 존재하는 username이면 BadRequestException을 던져야 함', async () => {
-      mockUsersService.findByUsername.mockResolvedValue(mockUser);
-
-      await expect(service.register(registerDto)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('이미 존재하는 battleTag면 BadRequestException을 던져야 함', async () => {
-      mockUsersService.findByUsername.mockResolvedValue(null);
-      mockUsersService.findByBattleTag.mockResolvedValue(mockUser);
-
-      await expect(service.register(registerDto)).rejects.toThrow(
-        BadRequestException,
       );
     });
   });
