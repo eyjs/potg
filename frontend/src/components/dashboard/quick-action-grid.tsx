@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Vote, Gavel, TrendingUp } from "lucide-react"
+import { Vote, Gavel, MessageCircle } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Card, CardContent } from "@/common/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -61,16 +61,39 @@ function ActionCard({ title, count, icon, href, color }: ActionCardProps) {
   )
 }
 
+function DiscordNoticeCard() {
+  return (
+    <Card className="border-2 border-secondary/50 bg-secondary/5 hover:bg-secondary/10 transition-all h-full">
+      <CardContent className="p-6 flex flex-col items-center justify-between h-full min-h-[180px]">
+        <div className="flex flex-col items-center gap-3 flex-1 justify-center">
+          <div className="text-4xl opacity-80">
+            <MessageCircle className="w-10 h-10 text-secondary-foreground" />
+          </div>
+          <div className="text-center">
+            <h3 className="font-black italic uppercase tracking-tight text-foreground text-lg">
+              베팅 · 상점 · 지갑
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              디스코드 봇에서 이용하세요
+            </p>
+          </div>
+        </div>
+        <div className="w-full mt-4 py-2 px-4 bg-secondary/20 border border-secondary/40 text-center text-xs font-bold text-muted-foreground uppercase italic tracking-wide">
+          /베팅 · /상점 · /잔액
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 interface QuickActionGridProps {
   voteCount: number
   auctionCount: number
-  bettingCount: number
 }
 
 export function QuickActionGrid({
   voteCount,
   auctionCount,
-  bettingCount,
 }: QuickActionGridProps) {
   return (
     <section>
@@ -92,13 +115,7 @@ export function QuickActionGrid({
           href="/auction"
           color="accent"
         />
-        <ActionCard
-          title="베팅"
-          count={bettingCount}
-          icon={<TrendingUp className="w-10 h-10" />}
-          href="/betting"
-          color="destructive"
-        />
+        <DiscordNoticeCard />
       </div>
     </section>
   )

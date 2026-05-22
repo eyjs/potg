@@ -12,8 +12,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useConfirm } from "@/common/components/confirm-dialog"
 import { handleApiError } from "@/lib/api-error"
-import { User, Shield, LogOut, Wallet, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { User, Shield, LogOut, Wallet } from "lucide-react"
 import {
   ProfileBanner,
   CompetitiveRankCard,
@@ -179,14 +178,9 @@ export default function MyInfoPage() {
                       </div>
                     )}
 
-                    <Link href="/wallet">
-                      <Button
-                        variant="outline"
-                        className="w-full rounded-md font-bold h-10 gap-2 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10"
-                      >
-                        포인트 전송 / 내역 <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
+                    <div className="text-xs text-muted-foreground text-center py-2 border border-border/40 rounded-md bg-muted/10">
+                      포인트 전송은 디스코드 봇을 이용하세요
+                    </div>
                   </div>
                 </CardContent>
               </Card>

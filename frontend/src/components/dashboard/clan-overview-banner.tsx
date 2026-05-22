@@ -7,16 +7,14 @@ interface ClanOverviewBannerProps {
   clanName: string
   voteCount: number
   auctionCount: number
-  bettingCount: number
 }
 
 export function ClanOverviewBanner({
   clanName,
   voteCount,
   auctionCount,
-  bettingCount,
 }: ClanOverviewBannerProps) {
-  const totalEvents = voteCount + auctionCount + bettingCount
+  const totalEvents = voteCount + auctionCount
 
   return (
     <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent overflow-hidden relative">
@@ -59,10 +57,6 @@ export function ClanOverviewBanner({
               <div className="text-center px-3 py-2 bg-accent/10 rounded-lg border border-accent/30">
                 <p className="text-xs text-muted-foreground font-bold">경매</p>
                 <p className="text-lg font-black italic text-foreground">{auctionCount}</p>
-              </div>
-              <div className="text-center px-3 py-2 bg-destructive/10 rounded-lg border border-destructive/30">
-                <p className="text-xs text-muted-foreground font-bold">베팅</p>
-                <p className="text-lg font-black italic text-foreground">{bettingCount}</p>
               </div>
             </div>
           </div>

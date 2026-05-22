@@ -166,13 +166,10 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* Sign Up Link */}
+          {/* Sign Up Notice */}
           <div className="text-center mt-6">
-            <p className="text-muted-foreground">
-              아직 계정이 없으신가요?{" "}
-              <Link href="/signup" className="text-primary hover:text-primary/80 font-semibold transition-colors">
-                회원가입
-              </Link>
+            <p className="text-muted-foreground text-sm">
+              계정 등록은 관리자에게 문의하세요.
             </p>
           </div>
         </div>
