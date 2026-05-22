@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import { Repository } from 'typeorm';
@@ -31,13 +32,13 @@ export class LeaderboardCommand implements SlashCommand {
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const top = interaction.options.getInteger('top') ?? DEFAULT_TOP;
 
     const rows = await this.userRepo
       .createQueryBuilder('u')
-      .select(['u.id', 'u.username', 'u.nickname', 'u.points_balance'])
-      .orderBy('u.points_balance', 'DESC')
+      .select(['u.id', 'u.username', 'u.nickname', 'u.pointsBalance'])
+      .orderBy('u.pointsBalance', 'DESC')
       .limit(top)
       .getMany();
 

@@ -32,7 +32,11 @@ export class AuthController {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   discordLogin(): void {}
 
-  /** Discord OAuth2 콜백 — 토큰 발급 후 프론트로 리다이렉트. */
+  /**
+   * Discord OAuth2 콜백.
+   * JWT는 HttpOnly 쿠키로만 전달하여 Referer/이력 누출을 막는다.
+   * 프론트는 별도 `GET /auth/profile` 호출로 세션 확인.
+   */
   @Get('discord/callback')
   @UseGuards(AuthGuard('discord'))
   async discordCallback(
@@ -40,9 +44,17 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const tokens = await this.authService.login(req.user);
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    res.cookie('access_token', tokens.access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000,
+      path: '/',
+    });
     const redirect =
       this.configService.get<string>('DISCORD_OAUTH_SUCCESS_REDIRECT') ??
-      `/auth/discord/success?token=${encodeURIComponent(tokens.access_token)}`;
+      '/auth/discord/success';
     res.redirect(redirect);
   }
 

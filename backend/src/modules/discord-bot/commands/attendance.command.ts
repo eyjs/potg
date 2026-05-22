@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import { Repository } from 'typeorm';
@@ -30,14 +31,14 @@ export class AttendanceCommand implements SlashCommand {
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { user } = await this.members.findOrCreate({
       discordId: interaction.user.id,
       username: interaction.user.username,
       avatarUrl: interaction.user.displayAvatarURL({ size: 256 }),
     });
 
-    const today = startOfTodayUtc();
+    const today = startOfTodayKst();
     const already = await this.pointTxRepo
       .createQueryBuilder('tx')
       .where('tx.to_account = :uid', { uid: user.id })
@@ -71,9 +72,17 @@ export class AttendanceCommand implements SlashCommand {
   }
 }
 
-function startOfTodayUtc(): Date {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+/**
+ * KST(UTC+9) 자정 기준 오늘 시작. PostgreSQL `tx.created_at`은 UTC로 저장되므로
+ * 반환값은 "KST 오늘 0시"에 해당하는 UTC 시점(= 어제 15:00 UTC).
+ */
+function startOfTodayKst(): Date {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const nowKst = new Date(Date.now() + KST_OFFSET_MS);
+  const kstMidnight = Date.UTC(
+    nowKst.getUTCFullYear(),
+    nowKst.getUTCMonth(),
+    nowKst.getUTCDate(),
   );
+  return new Date(kstMidnight - KST_OFFSET_MS);
 }

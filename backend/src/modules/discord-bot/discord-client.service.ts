@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client, Events, GatewayIntentBits, REST } from 'discord.js';
+import { Client, Events, GatewayIntentBits, MessageFlags, REST } from 'discord.js';
 import { CommandRegistry } from './command-registry';
 import {
   SLASH_COMMAND_TOKEN,
@@ -82,7 +82,7 @@ export class DiscordClientService
       if (guildId && interaction.guildId !== guildId) {
         await interaction.reply({
           content: '이 봇은 등록된 길드에서만 사용 가능합니다.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }

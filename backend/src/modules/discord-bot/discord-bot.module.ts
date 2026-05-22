@@ -11,7 +11,7 @@ import { Match } from '../matches/entities/match.entity';
 import { Team } from '../matches/entities/team.entity';
 import { ShopModule } from '../shop/shop.module';
 import { ShopProduct } from '../shop/entities/shop-product.entity';
-import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
+import { MarketGateModule } from '../../common/services/market-gate.module';
 import { CommandRegistry } from './command-registry';
 import { DiscordClientService } from './discord-client.service';
 import { DiscordMemberService } from './discord-member.service';
@@ -51,12 +51,12 @@ const commandAggregateProvider: Provider = {
       Match,
       Team,
       ShopProduct,
-      AttendanceRecord,
     ]),
     LedgerModule,
     SystemConfigModule,
     BettingModule,
     ShopModule,
+    MarketGateModule,
   ],
   providers: [
     CommandRegistry,

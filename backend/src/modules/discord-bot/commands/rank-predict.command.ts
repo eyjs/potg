@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import { Repository } from 'typeorm';
@@ -51,7 +52,7 @@ export class RankPredictCommand implements SlashCommand {
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const matchId = interaction.options.getString('내전', true);
     const rank = interaction.options.getInteger('등수', true);
     const amount = interaction.options.getInteger('금액', true);

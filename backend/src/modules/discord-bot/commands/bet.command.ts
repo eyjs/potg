@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import { Repository } from 'typeorm';
@@ -52,7 +53,7 @@ export class BetCommand implements SlashCommand {
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const matchId = interaction.options.getString('내전', true);
     const teamId = interaction.options.getString('팀', true);
     const amount = interaction.options.getInteger('금액', true);

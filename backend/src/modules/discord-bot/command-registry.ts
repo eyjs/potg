@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { MessageFlags } from 'discord.js';
 import type {
   ChatInputCommandInteraction,
   REST,
@@ -65,7 +66,7 @@ export class CommandRegistry {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
           content: `등록되지 않은 명령입니다: ${interaction.commandName}`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
       return;
@@ -80,9 +81,9 @@ export class CommandRegistry {
         err instanceof Error ? err.stack : undefined,
       );
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: `오류: ${message}`, ephemeral: true });
+        await interaction.followUp({ content: `오류: ${message}`, flags: MessageFlags.Ephemeral });
       } else {
-        await interaction.reply({ content: `오류: ${message}`, ephemeral: true });
+        await interaction.reply({ content: `오류: ${message}`, flags: MessageFlags.Ephemeral });
       }
     }
   }

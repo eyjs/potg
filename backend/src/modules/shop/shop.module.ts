@@ -14,6 +14,7 @@ import { LedgerModule } from '../ledger/ledger.module';
 import { SystemConfigModule } from '../system-config/system-config.module';
 import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 import { MarketGateGuard } from '../../common/guards/market-gate.guard';
+import { MarketGateModule } from '../../common/services/market-gate.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MarketGateGuard } from '../../common/guards/market-gate.guard';
     ]),
     LedgerModule,
     SystemConfigModule,
+    MarketGateModule,
   ],
   controllers: [ShopController],
   providers: [ShopService, ClanRolesGuard, MarketGateGuard],

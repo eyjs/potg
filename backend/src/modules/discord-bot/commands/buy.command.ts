@@ -1,7 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import { Repository } from 'typeorm';
@@ -13,9 +14,7 @@ import {
   ProductStatus,
   ShopProduct,
 } from '../../shop/entities/shop-product.entity';
-import { SystemConfigService } from '../../system-config/system-config.service';
-import { SYSTEM_CONFIG_KEYS } from '../../system-config/entities/system-config.entity';
-import { AttendanceRecord, AttendanceStatus } from '../../attendance/entities/attendance-record.entity';
+import { MarketGateService } from '../../../common/services/market-gate.service';
 
 @Injectable()
 export class BuyCommand implements SlashCommand {
@@ -37,15 +36,13 @@ export class BuyCommand implements SlashCommand {
     private readonly members: DiscordMemberService,
     private readonly shop: ShopService,
     private readonly ledger: LedgerService,
-    private readonly systemConfig: SystemConfigService,
+    private readonly gate: MarketGateService,
     @InjectRepository(ShopProduct)
     private readonly productRepo: Repository<ShopProduct>,
-    @InjectRepository(AttendanceRecord)
-    private readonly attendanceRepo: Repository<AttendanceRecord>,
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const productId = interaction.options.getString('상품', true);
     const quantity = interaction.options.getInteger('수량') ?? 1;
 
@@ -55,7 +52,7 @@ export class BuyCommand implements SlashCommand {
       avatarUrl: interaction.user.displayAvatarURL({ size: 256 }),
     });
 
-    await this.ensureMarketGate(user.id, user.marketGatePassed);
+    await this.gate.enforce(user.id, user.marketGatePassed);
 
     const product = await this.productRepo.findOne({ where: { id: productId } });
     if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
@@ -76,50 +73,5 @@ export class BuyCommand implements SlashCommand {
         '관리자가 실물 전달 후 알림드릴 예정입니다.',
       ].join('\n'),
     );
-  }
-
-  /**
-   * MarketGateGuard와 동일한 로직을 직접 적용한다.
-   * (디스코드 인터랙션은 HTTP 가드 체인을 거치지 않으므로 별도 검증)
-   */
-  private async ensureMarketGate(userId: string, cached: boolean): Promise<void> {
-    if (cached) return;
-
-    const requiredDays = await this.systemConfig.getNumber(
-      SYSTEM_CONFIG_KEYS.MARKET_GATE_ATTENDANCE_DAYS,
-      7,
-    );
-    const requiredMatches = await this.systemConfig.getNumber(
-      SYSTEM_CONFIG_KEYS.MARKET_GATE_MATCH_COUNT,
-      2,
-    );
-
-    const attendanceDays = await this.attendanceRepo
-      .createQueryBuilder('ar')
-      .innerJoin('clan_members', 'cm', 'cm.id = ar.memberId')
-      .where('cm.userId = :userId', { userId })
-      .andWhere('ar.status IN (:...active)', {
-        active: [AttendanceStatus.PRESENT, AttendanceStatus.LATE],
-      })
-      .andWhere('ar.scrimId IS NULL')
-      .getCount();
-
-    const matchCount = await this.attendanceRepo
-      .createQueryBuilder('ar')
-      .innerJoin('clan_members', 'cm', 'cm.id = ar.memberId')
-      .where('cm.userId = :userId', { userId })
-      .andWhere('ar.status IN (:...active)', {
-        active: [AttendanceStatus.PRESENT, AttendanceStatus.LATE],
-      })
-      .andWhere('ar.scrimId IS NOT NULL')
-      .getCount();
-
-    if (attendanceDays < requiredDays || matchCount < requiredMatches) {
-      throw new ForbiddenException(
-        `마켓 게이트 미통과: 출석 ${attendanceDays}/${requiredDays}일, 내전 ${matchCount}/${requiredMatches}회`,
-      );
-    }
-    // 통과 캐시는 MarketGateGuard와 일관되게 다음 HTTP 호출 또는 별도 작업에서 갱신.
-    // 본 인터랙션에서는 일회성 검증만 수행.
   }
 }

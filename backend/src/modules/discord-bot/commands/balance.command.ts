@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   ChatInputCommandInteraction,
+  MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 import type { SlashCommand } from '../interfaces/slash-command.interface';
@@ -19,7 +20,7 @@ export class BalanceCommand implements SlashCommand {
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { user, isNew } = await this.members.findOrCreate({
       discordId: interaction.user.id,
       username: interaction.user.username,

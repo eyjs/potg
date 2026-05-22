@@ -47,7 +47,11 @@ export class DiscordMemberService {
     if (existing) {
       let dirty = false;
       if (identity.username && existing.username !== identity.username) {
-        existing.username = await this.ensureUniqueUsername(identity.username, existing.id);
+        existing.username = await this.ensureUniqueUsername(
+          identity.username,
+          existing.id,
+          identity.discordId,
+        );
         dirty = true;
       }
       if (identity.avatarUrl && existing.avatarUrl !== identity.avatarUrl) {
@@ -65,7 +69,11 @@ export class DiscordMemberService {
 
     const created = await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
-      const uniqueUsername = await this.ensureUniqueUsername(identity.username);
+      const uniqueUsername = await this.ensureUniqueUsername(
+        identity.username,
+        undefined,
+        identity.discordId,
+      );
       const user = userRepo.create({
         username: uniqueUsername,
         nickname: identity.username,
@@ -110,6 +118,7 @@ export class DiscordMemberService {
   private async ensureUniqueUsername(
     base: string,
     excludeUserId?: string,
+    discordId?: string,
   ): Promise<string> {
     const normalized = (base || 'discord_user').trim().slice(0, 32) || 'discord_user';
     let candidate = normalized;
@@ -125,8 +134,10 @@ export class DiscordMemberService {
       const tail = `_${suffix.toString().padStart(2, '0')}`;
       candidate = (normalized.slice(0, 32 - tail.length) + tail).slice(0, 32);
       if (suffix > 99) {
-        candidate = `discord_${Date.now().toString(36)}`;
-        return candidate;
+        // 결정론적 유일성: discord_id는 UNIQUE 제약으로 충돌 불가능.
+        return discordId
+          ? `discord_${discordId}`.slice(0, 32)
+          : `discord_${Date.now().toString(36)}`;
       }
     }
   }
