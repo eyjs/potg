@@ -11,7 +11,6 @@ import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Checkbox } from "@/common/components/ui/checkbox"
 import { useAuth } from "@/context/auth-context"
-import api from "@/lib/api"
 import { handleApiError } from "@/lib/api-error"
 
 export default function LoginPage() {
@@ -29,11 +28,7 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      const response = await api.post('/auth/login', {
-        username: formData.username,
-        password: formData.password
-      })
-      await login(response.data.access_token)
+      await login({ username: formData.username, password: formData.password })
       router.replace("/")
     } catch (error) {
       handleApiError(error, "로그인 실패: 아이디나 비밀번호를 확인해주세요.")

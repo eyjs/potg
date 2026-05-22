@@ -19,10 +19,15 @@ interface User {
   lockedPoints: number;
 }
 
+interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
 interface AuthContextType {
   user: User | null;
-  login: (token: string) => Promise<void>;
-  logout: () => void;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isAdmin: boolean;
 }
@@ -34,35 +39,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // 마운트 시 쿠키 세션 확인 — HttpOnly 쿠키는 JS에서 읽을 수 없으므로
+  // /auth/profile 호출 성공/실패로 로그인 여부를 판단한다.
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      fetchUser();
-    } else {
-      setIsLoading(false);
-    }
+    fetchUser();
   }, []);
 
   const fetchUser = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get('/auth/profile');
+      const response = await api.get<User>('/auth/profile');
       setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      logout();
+    } catch {
+      // 401 또는 네트워크 오류 — 미로그인 상태로 처리
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (token: string) => {
-    localStorage.setItem('access_token', token);
+  const login = async (credentials: LoginCredentials) => {
+    // POST /auth/login → 백엔드가 HttpOnly 쿠키 set
+    await api.post('/auth/login', credentials);
+    // 쿠키가 설정된 후 프로필 재조회하여 user 상태 갱신
     await fetchUser();
   };
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // 로그아웃 실패해도 클라이언트 상태는 클리어
+    }
     setUser(null);
     setIsLoading(false);
     if (typeof window !== 'undefined' && window.location.pathname !== '/login') {

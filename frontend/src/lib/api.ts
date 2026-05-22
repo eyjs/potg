@@ -5,27 +5,13 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-});
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
+  withCredentials: true,
 });
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        // Do not force reload, let AuthContext handle the state change and redirection
-      }
-    }
+    // 401 시 조용히 전달 — AuthContext가 상태 처리 담당
     return Promise.reject(error);
   }
 );

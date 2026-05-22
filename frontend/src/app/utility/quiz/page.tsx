@@ -37,7 +37,9 @@ export default function QuizBattlePage() {
     clanId,
     displayName,
     avatarUrl,
-    token: typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '',
+    // socket.io는 withCredentials: true로 HttpOnly 쿠키를 자동 전송한다.
+    // token 필드는 인터페이스 호환을 위해 빈 문자열로 전달한다. (Phase 5에서 제거)
+    token: '',
   });
 
   useEffect(() => {

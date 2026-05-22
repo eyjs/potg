@@ -8,21 +8,25 @@ import {
   Get,
   Query,
   UnauthorizedException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service'; // Import UsersService
+import { UsersService } from '../users/users.service';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import type { User } from '../users/entities/user.entity';
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private usersService: UsersService, // Inject UsersService
+    private usersService: UsersService,
     private configService: ConfigService,
   ) {}
 
@@ -58,8 +62,16 @@ export class AuthController {
     res.redirect(redirect);
   }
 
+  /**
+   * 자체 로그인.
+   * 쿠키(HttpOnly) + JSON 응답 듀얼 발급.
+   * JSON은 socket.io 등 기존 Bearer 클라이언트 호환을 위해 유지.
+   */
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ access_token: string }> {
     const user = await this.authService.validateUser(
       loginDto.username,
       loginDto.password,
@@ -67,7 +79,26 @@ export class AuthController {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return this.authService.login(user);
+    const tokens = await this.authService.login(user);
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    res.cookie('access_token', tokens.access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: SEVEN_DAYS_MS,
+      path: '/',
+    });
+    return tokens;
+  }
+
+  /**
+   * 로그아웃. access_token 쿠키를 만료 처리한다.
+   */
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout(@Res({ passthrough: true }) res: Response): { message: string } {
+    res.clearCookie('access_token', { path: '/' });
+    return { message: 'Logged out successfully' };
   }
 
   @Post('register')
