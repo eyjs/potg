@@ -158,7 +158,7 @@ export function useClanManage() {
     [members],
   )
 
-  const totalPoints = useMemo(() => members.reduce((sum, m) => sum + m.totalPoints, 0), [members])
+  const totalPoints = useMemo(() => members.reduce((sum, m) => sum + (m.totalPoints ?? 0), 0), [members])
 
   return {
     user,

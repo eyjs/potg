@@ -29,12 +29,6 @@ export class ClanMember extends BaseEntity {
   role: ClanRole;
 
   @Column({ default: 0 })
-  totalPoints: number;
-
-  @Column({ default: 0 })
-  lockedPoints: number;
-
-  @Column({ default: 0 })
   scrimPoints: number;
 
   @Column({ default: 0 })

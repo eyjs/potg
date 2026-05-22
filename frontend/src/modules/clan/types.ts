@@ -6,7 +6,9 @@ export interface ClanMember {
   id: string
   userId: string
   role: ClanRole
-  totalPoints: number
+  /** Phase 5-C 이후 서버에서 제공되지 않음. scrimPoints가 활동 지표. */
+  totalPoints?: number
+  scrimPoints?: number
   user: {
     id: string
     battleTag: string

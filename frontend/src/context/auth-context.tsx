@@ -15,7 +15,9 @@ interface User {
   clanId?: string;
   clanRole?: 'MASTER' | 'MANAGER' | 'MEMBER';
   bettingFloatingEnabled: boolean;
+  /** User.pointsBalance 기반 잔액. 백엔드 /auth/profile에서 number로 변환 제공. */
   totalPoints: number;
+  /** Phase 5-C 이후 항상 0. 베팅 잠금은 BettingStake에서 추적. */
   lockedPoints: number;
 }
 

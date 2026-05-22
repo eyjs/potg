@@ -61,8 +61,5 @@ export class PurchaseDto {
 
 export class PurchaseProfileItemDto {
   @IsUUID()
-  clanId: string;
-
-  @IsUUID()
   itemId: string;
 }

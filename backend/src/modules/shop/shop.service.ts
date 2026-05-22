@@ -325,11 +325,10 @@ export class ShopService {
 
   /**
    * 프로필 아이템 구매 — 사용자 잔액(LedgerService)에서 소각.
-   * ClanMember 의존은 memberId 식별용으로만 유지.
+   * ClanMember 의존은 memberId로 userId 조회 용도로만 유지.
    */
   async purchaseProfileItem(
     memberId: string,
-    clanId: string,
     itemId: string,
   ): Promise<MemberItem> {
     return this.dataSource.transaction(async (manager) => {
@@ -344,7 +343,7 @@ export class ShopService {
       if (existing) throw new BadRequestException('이미 보유한 아이템입니다.');
 
       const clanMember = await manager.findOne(ClanMember, {
-        where: { id: memberId, clanId },
+        where: { id: memberId },
       });
       if (!clanMember) throw new NotFoundException('클랜 멤버를 찾을 수 없습니다.');
 

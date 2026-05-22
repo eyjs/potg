@@ -64,15 +64,6 @@ const columns: ColumnDef<AdminMember>[] = [
     ),
   },
   {
-    key: 'lockedPoints',
-    header: '잠금',
-    render: (r) => (
-      <span className="tabular-nums text-muted-foreground text-xs">
-        {r.lockedPoints.toLocaleString()}P
-      </span>
-    ),
-  },
-  {
     key: 'marketGatePassed',
     header: '마켓권한',
     render: (r) => (

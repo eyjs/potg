@@ -72,8 +72,12 @@ export function MemberRow({
             <span className={cn(getPositionColor(position))}>
               {POSITION_LABELS[position] || position}
             </span>
-            {' · '}
-            {member.totalPoints.toLocaleString()}P
+            {member.totalPoints !== undefined && (
+              <>
+                {' · '}
+                {member.totalPoints.toLocaleString()}P
+              </>
+            )}
           </p>
         </div>
       </div>

@@ -260,7 +260,6 @@ export class ScrimResultsService {
       battleTag: string;
       avatarUrl: string | null;
       scrimPoints: number;
-      totalPoints: number;
       rank: number;
     }[]
   > {
@@ -279,7 +278,6 @@ export class ScrimResultsService {
       battleTag: m.user?.battleTag ?? '',
       avatarUrl: m.user?.avatarUrl ?? null,
       scrimPoints: m.scrimPoints,
-      totalPoints: m.totalPoints,
       rank: index + 1,
     }));
   }

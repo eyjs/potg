@@ -44,12 +44,9 @@ export class ClansService {
         clanId: savedClan.id,
         userId,
         role: ClanRole.MASTER,
-        totalPoints: 10000,
       });
       await manager.save(member);
 
-      // 클랜 생성 시 마스터 보너스는 ClanMember.totalPoints에만 반영 (legacy).
-      // 전역 잔액은 LedgerService(시드)에서 관리.
       return savedClan;
     });
   }
@@ -186,12 +183,9 @@ export class ClansService {
         clanId,
         userId,
         role: ClanRole.MEMBER,
-        totalPoints: 5000,
       });
       await manager.save(member);
 
-      // 가입 보너스는 ClanMember.totalPoints에만 반영 (legacy).
-      // 전역 잔액은 LedgerService(시드)에서 관리.
       return member;
     });
   }

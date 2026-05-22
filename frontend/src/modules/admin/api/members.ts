@@ -5,8 +5,8 @@ export interface AdminMember {
   username: string
   battleTag: string
   role: 'USER' | 'CAPTAIN' | 'ADMIN'
+  /** User.pointsBalance 기반. */
   totalPoints: number
-  lockedPoints: number
   marketGatePassed: boolean
   avatarUrl?: string
   createdAt: string

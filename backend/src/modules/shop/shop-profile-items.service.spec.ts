@@ -135,7 +135,7 @@ describe('ShopService - Profile Items', () => {
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
 
-      const result = await service.purchaseProfileItem('member-1', 'clan-1', 'item-1');
+      const result = await service.purchaseProfileItem('member-1', 'item-1');
 
       expect(result).toEqual(mockMemberItem);
       expect(ledgerBurn).toHaveBeenCalledWith(
@@ -150,7 +150,7 @@ describe('ShopService - Profile Items', () => {
       const mockManager = { findOne: jest.fn().mockResolvedValue(null) };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
       await expect(
-        service.purchaseProfileItem('m', 'c', 'x'),
+        service.purchaseProfileItem('m', 'x'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -163,7 +163,7 @@ describe('ShopService - Profile Items', () => {
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
       await expect(
-        service.purchaseProfileItem('m', 'c', 'item-1'),
+        service.purchaseProfileItem('m', 'item-1'),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -177,7 +177,7 @@ describe('ShopService - Profile Items', () => {
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
       await expect(
-        service.purchaseProfileItem('m', 'c', 'item-1'),
+        service.purchaseProfileItem('m', 'item-1'),
       ).rejects.toThrow(NotFoundException);
     });
   });

@@ -109,11 +109,8 @@ export class ShopController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('my-items')
-  async getMyItems(
-    @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
-  ) {
-    const member = await this.getMemberByUserId(req.user.userId, clanId);
+  async getMyItems(@Request() req: AuthenticatedRequest) {
+    const member = await this.getMemberByUserId(req.user.userId);
     if (!member) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.shopService.getMemberItems(member.id);
   }
@@ -124,17 +121,14 @@ export class ShopController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: PurchaseProfileItemDto,
   ) {
-    const member = await this.getMemberByUserId(req.user.userId, dto.clanId);
+    const member = await this.getMemberByUserId(req.user.userId);
     if (!member) throw new BadRequestException('클랜 멤버가 아닙니다.');
-    return this.shopService.purchaseProfileItem(member.id, dto.clanId, dto.itemId);
+    return this.shopService.purchaseProfileItem(member.id, dto.itemId);
   }
 
-  private async getMemberByUserId(
-    userId: string,
-    clanId: string,
-  ): Promise<ClanMember | null> {
+  private async getMemberByUserId(userId: string): Promise<ClanMember | null> {
     return this.shopService['dataSource'].manager.findOne(ClanMember, {
-      where: { userId, clanId },
+      where: { userId },
     });
   }
 }

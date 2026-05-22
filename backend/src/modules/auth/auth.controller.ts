@@ -108,12 +108,13 @@ export class AuthController {
     const user = await this.usersService.findByIdWithClan(req.user.userId);
     if (!user) return null;
 
-    // Flatten clanId, clanRole, and points for frontend convenience
+    // Flatten clanId, clanRole for frontend convenience.
+    // 포인트는 User.pointsBalance(PointTx 합산 캐시)가 SSOT.
     const membership = user.clanMembers?.[0];
     const clanId = membership?.clanId || null;
     const clanRole = membership?.role || null;
-    const totalPoints = membership?.totalPoints ?? 0;
-    const lockedPoints = membership?.lockedPoints ?? 0;
+    // pointsBalance는 bigint 컬럼 → string으로 저장됨. 프론트 호환을 위해 number 변환.
+    const totalPoints = Number(user.pointsBalance ?? 0);
 
     return {
       ...user,
@@ -121,7 +122,7 @@ export class AuthController {
       clanId,
       clanRole,
       totalPoints,
-      lockedPoints,
+      lockedPoints: 0,
     };
   }
 
