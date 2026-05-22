@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ShopService } from './shop.service';
 import { ShopController } from './shop.controller';
+import { AdminProductsController } from './admin-products.controller';
 import { ShopProduct } from './entities/shop-product.entity';
 import { MarketOrder } from './entities/market-order.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
@@ -32,7 +33,7 @@ import { MarketGateModule } from '../../common/services/market-gate.module';
     SystemConfigModule,
     MarketGateModule,
   ],
-  controllers: [ShopController],
+  controllers: [ShopController, AdminProductsController],
   providers: [ShopService, ClanRolesGuard, MarketGateGuard],
   exports: [ShopService],
 })
