@@ -4,6 +4,7 @@ import { Match } from './entities/match.entity';
 import { Team } from './entities/team.entity';
 import { TeamMember } from './entities/team-member.entity';
 import { MatchService } from './match.service';
+import { MatchController } from './match.controller';
 import { BettingModule } from '../betting/betting.module';
 
 @Module({
@@ -11,6 +12,7 @@ import { BettingModule } from '../betting/betting.module';
     TypeOrmModule.forFeature([Match, Team, TeamMember]),
     forwardRef(() => BettingModule),
   ],
+  controllers: [MatchController],
   providers: [MatchService],
   exports: [MatchService, TypeOrmModule],
 })

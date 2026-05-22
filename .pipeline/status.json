@@ -3,7 +3,7 @@
   "started_at": "2026-05-22",
   "updated_at": "2026-05-22T-phase3-done",
   "current_phase": "phase-4-admin-web",
-  "current_stage": "pending",
+  "current_stage": "backend_done_frontend_pending",
   "milestones": {
     "phase-1-foundation": {
       "status": "completed",
@@ -98,7 +98,19 @@
         "discord_bot_enabled_default_false": "CI/빌드 호환을 위해 DISCORD_BOT_ENABLED=false 기본. 운영 배포 시 .env 활성화."
       }
     },
-    "phase-4-admin-web": { "status": "pending" },
+    "phase-4-admin-web": {
+      "status": "partial",
+      "subtasks": {
+        "4.1_backend_admin_api": "completed (Matches/Members/Config/Ledger/Attendance upload + BettingMarket 기존)",
+        "4.2_frontend_admin_pages": "pending"
+      },
+      "build": "passing",
+      "decisions": {
+        "reuse_roles_guard": "별도 AdminGuard 미생성. RolesGuard + @Roles(ADMIN) 사용.",
+        "balance_adjust_via_ledger": "admin 잔액 조정은 LedgerService.mint/burn 경유. PointTx 무결성 보장.",
+        "xlsx_parser": "SheetJS(xlsx) 사용. 엑셀 업로드 행별 결과 반환."
+      }
+    },
     "phase-5-cleanup": { "status": "pending" }
   },
   "artifacts": {
@@ -109,7 +121,9 @@
     "report_phase1": ".pipeline/REPORT-phase1.md",
     "report_phase2": ".pipeline/REPORT-phase2.md",
     "plan_phase3": ".pipeline/plan-phase3.md",
-    "report_phase3": ".pipeline/REPORT-phase3.md"
+    "report_phase3": ".pipeline/REPORT-phase3.md",
+    "plan_phase4": ".pipeline/plan-phase4.md",
+    "report_phase4_1": ".pipeline/REPORT-phase4.1.md"
   },
   "decisions": {
     "db_clean_start": true,

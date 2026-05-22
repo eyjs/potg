@@ -70,6 +70,37 @@ export class MatchService {
     return this.findOrFail(matchId);
   }
 
+  async findAll(): Promise<Match[]> {
+    return this.matchRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOneWithTeams(matchId: string): Promise<Match> {
+    const match = await this.matchRepository.findOne({
+      where: { id: matchId },
+      relations: ['teams'],
+    });
+    if (!match) {
+      throw new NotFoundException(`Match not found: ${matchId}`);
+    }
+    return match;
+  }
+
+  async createTeam(
+    matchId: string,
+    name: string,
+    captainId?: string,
+  ): Promise<Team> {
+    const match = await this.findOrFail(matchId);
+    const team = this.teamRepository.create({
+      matchId: match.id,
+      name,
+      captainId: captainId ?? null,
+    });
+    return this.teamRepository.save(team);
+  }
+
   async openBetting(matchId: string): Promise<Match> {
     return this.dataSource.transaction(async (manager) => {
       const match = await this.lockMatchRow(manager, matchId);
