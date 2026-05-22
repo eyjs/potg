@@ -1,25 +1,22 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BettingService } from './betting.service';
 import { BettingController } from './betting.controller';
-import { BettingQuestion } from './entities/betting-question.entity';
-import { BettingTicket } from './entities/betting-ticket.entity';
-import { ClanMember } from '../clans/entities/clan-member.entity';
-import { PointLog } from '../clans/entities/point-log.entity';
+import { BettingMarket } from './entities/betting-market.entity';
+import { BettingStake } from './entities/betting-stake.entity';
+import { Match } from '../matches/entities/match.entity';
+import { LedgerModule } from '../ledger/ledger.module';
+import { MatchesModule } from '../matches/matches.module';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      BettingQuestion,
-      BettingTicket,
-      ClanMember,
-      PointLog,
-    ]),
+    TypeOrmModule.forFeature([BettingMarket, BettingStake, Match]),
+    LedgerModule,
+    forwardRef(() => MatchesModule),
   ],
   controllers: [BettingController],
-  providers: [BettingService, RolesGuard, ClanRolesGuard],
+  providers: [BettingService, RolesGuard],
   exports: [BettingService],
 })
 export class BettingModule {}

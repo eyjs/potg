@@ -160,7 +160,6 @@ export class PostsService {
       if (member) {
         await this.walletService.addPoints(
           member.userId,
-          clanId,
           10,
           `COMMUNITY_POST:${saved.id}`,
         );
@@ -281,7 +280,6 @@ export class PostsService {
       if (member) {
         await this.walletService.addPoints(
           member.userId,
-          post.clanId,
           3,
           `COMMUNITY_COMMENT:${comment.id}`,
         );

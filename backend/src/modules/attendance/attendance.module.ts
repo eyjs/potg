@@ -5,7 +5,6 @@ import { AttendanceController } from './attendance.controller';
 import { PointRule } from './entities/point-rule.entity';
 import { AttendanceRecord } from './entities/attendance-record.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
-import { PointLog } from '../clans/entities/point-log.entity';
 
 @Module({
   imports: [
@@ -13,7 +12,6 @@ import { PointLog } from '../clans/entities/point-log.entity';
       PointRule,
       AttendanceRecord,
       ClanMember,
-      PointLog,
     ]),
   ],
   controllers: [AttendanceController],

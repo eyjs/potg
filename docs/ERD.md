@@ -1,5 +1,37 @@
 # POTG Project ERD
 
+> **Phase 2 (핵심 비즈니스 로직) 변경 요약** — 2026-05-22
+>
+> - 신규 엔티티: `BettingStake` — 패리뮤추얼 사용자 베팅 단위 (market_id, user_id, side, stake, payout, status PLACED/WON/LOST/REFUNDED)
+> - 폐기 (DROP TABLE):
+>   - `point_logs` → `point_tx` (Ledger)
+>   - `betting_questions`, `betting_tickets` → `betting_markets` + `betting_stakes`
+>   - `shop_purchases` → `market_orders`
+> - 서비스 재작성:
+>   - `LedgerService` — transfer/mint/burn 원자적 잔액 갱신 + SELECT FOR UPDATE (작은 id부터 잠금)
+>   - `BettingService` — 패리뮤추얼 정산 `payout = floor(stake * (pool - rake) / winningPool)`, 5% Rake, LOCKED 후 차단
+>   - `ShopService` — 즉시차감 (UPDATE … WHERE stock >= q 원자적 차감 + LedgerService.burn + MarketOrder COMPLETED)
+>   - `MatchService` — DRAFT→BETTING_OPEN→LOCKED→SETTLED 상태머신 + BettingMarket 자동 연동
+>   - `WalletService` — ClanMember 의존 제거, LedgerService 위임 (user.points_balance 기반)
+> - 신규 가드: `MarketGateGuard` — 출석 7일 + 내전 2회 (SystemConfig 키 조정 가능)
+>
+> **Phase 1 (Discord refactor) 변경 요약** — 2026-05-22
+>
+> - `User` 확장: `discord_id` (UNIQUE, nullable), `points_balance` (bigint, PointTx 합 캐시), `market_gate_passed` (bool), `UserRole` enum에 `CAPTAIN` 추가
+> - 신규 엔티티 (8종):
+>   - `PointTx` — 복식부기 원장 (append-only). `from_account`/`to_account`/`amount`/`reason`/`ref_type`/`ref_id`. SINK 계정 ID = `00000000-0000-0000-0000-000000000000`
+>   - `Match`, `Team`, `TeamMember` — 내전 도메인 (상태머신: DRAFT → BETTING_OPEN → LOCKED → SETTLED, CANCELLED)
+>   - `BettingMarket` — 패리뮤추얼 마켓 (WIN | RANK). 개별 stake 엔티티는 Phase 2 추가 예정
+>   - `MarketOrder` — 즉시 차감 마켓 주문 (COMPLETED/DELIVERED/CANCELLED)
+>   - `SystemConfig` — 경제 파라미터 KV (SEED_AMOUNT, MONTHLY_CAP, RAKE_BPS, MARKET_GATE_* 5건 시드)
+> - 폐기 예정 (Phase 2에서 서비스 재작성과 함께 제거):
+>   - `PointLog` (→ `PointTx`), `BettingQuestion`/`BettingTicket` (→ `BettingMarket` + 신규 stake), `ShopPurchase` (→ `MarketOrder`), `ClanMember.totalPoints/lockedPoints` (→ `User.pointsBalance` + Ledger)
+> - 폐기 예정 (Phase 5): `GameRoom`, `GameRoomPlayer`, `GameScore`, 파티게임 관련 엔티티
+> - 인프라:
+>   - TypeORM 마이그레이션 도입 (`backend/src/database/migrations/`, `data-source.ts`)
+>   - `synchronize: false` 기본값 (환경변수 `SYNC_SCHEMA=true` 로컬 한정 임시 허용)
+>   - `npm run migration:run / migration:generate / migration:revert / migration:show` 스크립트 추가
+
 ## Real-time Entity Relationship Diagram
 
 ```mermaid
@@ -21,12 +53,97 @@ erDiagram
         uuid id PK
         string battleTag UK
         string password "Nullable"
-        enum role "USER, ADMIN"
+        string discord_id UK "Phase 1: Discord OAuth 식별자 (UNIQUE, Nullable)"
+        bigint points_balance "Phase 1: PointTx 합 캐시 (default 0)"
+        boolean market_gate_passed "Phase 1: 마켓 게이트 통과 여부 (default false)"
+        enum role "USER, CAPTAIN, ADMIN (Phase 1: CAPTAIN 추가)"
         enum mainRole "TANK, DPS, SUPPORT, FLEX"
         int rating
         string avatarUrl
         boolean bettingFloatingEnabled "베팅 플로팅 버튼 사용 여부 (기본값: false)"
         timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ==========================================
+    %% Phase 1 (Discord refactor) 신규 엔티티
+    %% ==========================================
+    PointTx {
+        uuid id PK
+        uuid from_account "Nullable; SINK=00000000-... 시스템 계정"
+        uuid to_account "Nullable; null=burn"
+        bigint amount "정수 포인트"
+        string reason "SEED|BET_STAKE|BET_PAYOUT|BET_RAKE|MARKET_BUY|MARKET_REFUND|ADMIN_ADJUST 등"
+        string ref_type "Nullable; BettingMarket|MarketOrder|Match"
+        uuid ref_id "Nullable"
+        text memo "Nullable"
+        timestamp created_at
+    }
+
+    Match {
+        uuid id PK
+        string title
+        timestamp scheduled_at "Nullable"
+        enum status "DRAFT, BETTING_OPEN, LOCKED, SETTLED, CANCELLED"
+        uuid winner_team_id "Nullable"
+        timestamp settled_at "Nullable"
+        text description "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    Team {
+        uuid id PK
+        uuid match_id FK
+        string name
+        uuid captain_id "Nullable - User.id"
+        int placement "Nullable - 1~4 등수"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TeamMember {
+        uuid id PK
+        uuid team_id FK
+        uuid user_id "User.id"
+        bigint bid_price "Nullable - 경매 낙찰가"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    BettingMarket {
+        uuid id PK
+        uuid match_id FK
+        enum type "WIN, RANK"
+        enum status "OPEN, LOCKED, SETTLED, CANCELLED"
+        bigint total_pool "default 0"
+        int rake_bps "default 500 (5%)"
+        string winning_option "Nullable; teamId 또는 placement"
+        timestamp locked_at "Nullable"
+        timestamp settled_at "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    MarketOrder {
+        uuid id PK
+        uuid product_id FK
+        uuid buyer_id FK "User.id"
+        int quantity
+        bigint unit_price
+        bigint total_price
+        enum status "COMPLETED, DELIVERED, CANCELLED"
+        timestamp delivered_at "Nullable"
+        timestamp cancelled_at "Nullable"
+        text admin_note "Nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SystemConfig {
+        string key PK
+        text value
+        text description "Nullable"
         timestamp updated_at
     }
 

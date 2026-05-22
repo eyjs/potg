@@ -1,14 +1,14 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
-  Request,
+  Controller,
+  Get,
+  Post,
   Query,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
-import { WalletService } from './wallet.service';
 import { AuthGuard } from '@nestjs/passport';
+import { WalletService } from './wallet.service';
 import { SendPointDto } from './dto/send-point.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
@@ -16,25 +16,16 @@ import type { AuthenticatedRequest } from '../../common/interfaces/authenticated
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  // ==================== 비인증 엔드포인트 ====================
-
   @Get('ranking/activity')
-  getActivityRanking(
-    @Query('clanId') clanId: string,
-    @Query('limit') limit = 20,
-  ) {
-    return this.walletService.getActivityRanking(clanId, +limit);
+  getActivityRanking(@Query('limit') limit = 20) {
+    return this.walletService.getActivityRanking(+limit);
   }
 
-  @Get('ranking/scrim')
-  getScrimRanking(
-    @Query('clanId') clanId: string,
-    @Query('limit') limit = 20,
-  ) {
-    return this.walletService.getScrimRanking(clanId, +limit);
+  @UseGuards(AuthGuard('jwt'))
+  @Get('balance')
+  getBalance(@Request() req: AuthenticatedRequest) {
+    return this.walletService.getBalance(req.user.userId);
   }
-
-  // ==================== 인증 엔드포인트 ====================
 
   @UseGuards(AuthGuard('jwt'))
   @Post('send')
@@ -49,8 +40,8 @@ export class WalletController {
   @Get('history')
   getHistory(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
+    @Query('limit') limit = 100,
   ) {
-    return this.walletService.getHistory(req.user.userId, clanId);
+    return this.walletService.getHistory(req.user.userId, +limit);
   }
 }

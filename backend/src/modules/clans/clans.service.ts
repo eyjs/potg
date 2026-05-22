@@ -6,7 +6,7 @@ import { ClanMember, ClanRole } from './entities/clan-member.entity';
 import { ClanJoinRequest, RequestStatus } from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
-import { PointLog } from './entities/point-log.entity';
+import { PointTx } from '../ledger/entities/point-tx.entity';
 import { ActivityType } from './interfaces/activity.interface';
 import type { ActivityEvent } from './interfaces/activity.interface';
 
@@ -23,8 +23,8 @@ export class ClansService {
     private announcementsRepository: Repository<Announcement>,
     @InjectRepository(HallOfFame)
     private hallOfFameRepository: Repository<HallOfFame>,
-    @InjectRepository(PointLog)
-    private pointLogRepository: Repository<PointLog>,
+    @InjectRepository(PointTx)
+    private pointTxRepository: Repository<PointTx>,
     private dataSource: DataSource,
   ) {}
 
@@ -48,14 +48,8 @@ export class ClansService {
       });
       await manager.save(member);
 
-      const pointLog = manager.create(PointLog, {
-        userId,
-        clanId: savedClan.id,
-        amount: 10000,
-        reason: `CLAN_CREATE_MASTER:${savedClan.id}`,
-      });
-      await manager.save(pointLog);
-
+      // 클랜 생성 시 마스터 보너스는 ClanMember.totalPoints에만 반영 (legacy).
+      // 전역 잔액은 LedgerService(시드)에서 관리.
       return savedClan;
     });
   }
@@ -196,14 +190,8 @@ export class ClansService {
       });
       await manager.save(member);
 
-      const pointLog = manager.create(PointLog, {
-        userId,
-        clanId,
-        amount: 5000,
-        reason: `CLAN_JOIN:${clanId}`,
-      });
-      await manager.save(pointLog);
-
+      // 가입 보너스는 ClanMember.totalPoints에만 반영 (legacy).
+      // 전역 잔액은 LedgerService(시드)에서 관리.
       return member;
     });
   }
@@ -350,8 +338,16 @@ export class ClansService {
       throw new ForbiddenException('클랜 멤버만 활동 피드를 조회할 수 있습니다.');
     }
 
+    // 클랜 멤버 userId 집합 (PointTx 필터링용).
+    const memberUserIds = (
+      await this.clanMembersRepository.find({
+        where: { clanId },
+        select: ['userId'],
+      })
+    ).map((m) => m.userId);
+
     // 3개 테이블 병렬 조회
-    const [members, pointLogs, announcements] = await Promise.all([
+    const [members, pointTxs, announcements] = await Promise.all([
       // 최근 가입 멤버
       this.clanMembersRepository.find({
         where: { clanId },
@@ -359,16 +355,17 @@ export class ClansService {
         order: { createdAt: 'DESC' },
         take: limit,
       }),
-      // 포인트 로그 (CLAN_JOIN, CLAN_CREATE_MASTER는 멤버 가입과 중복되므로 제외)
-      this.pointLogRepository
-        .createQueryBuilder('log')
-        .leftJoinAndSelect('log.user', 'user')
-        .where('log.clanId = :clanId', { clanId })
-        .andWhere('log.reason NOT LIKE :joinPattern', { joinPattern: 'CLAN_JOIN:%' })
-        .andWhere('log.reason NOT LIKE :createPattern', { createPattern: 'CLAN_CREATE_MASTER:%' })
-        .orderBy('log.createdAt', 'DESC')
-        .take(limit)
-        .getMany(),
+      // 클랜 멤버의 PointTx (적립/이체)
+      memberUserIds.length === 0
+        ? Promise.resolve([])
+        : this.pointTxRepository
+            .createQueryBuilder('tx')
+            .where('tx.from_account IN (:...ids) OR tx.to_account IN (:...ids)', {
+              ids: memberUserIds,
+            })
+            .orderBy('tx.created_at', 'DESC')
+            .take(limit)
+            .getMany(),
       // 공지사항
       this.announcementsRepository.find({
         where: { clanId, isActive: true },
@@ -407,18 +404,25 @@ export class ClansService {
       });
     }
 
-    // 포인트 로그 이벤트 변환
-    for (const log of pointLogs) {
-      const type = this.resolvePointLogActivityType(log.reason, log.amount);
+    // PointTx 이벤트 변환 (from/to 한쪽만 클랜 멤버인 경우 모두 포함).
+    const memberUserIdSet = new Set(memberUserIds);
+    for (const tx of pointTxs) {
+      const isInflow =
+        tx.toAccount !== null && memberUserIdSet.has(tx.toAccount);
+      const focusUserId = isInflow
+        ? (tx.toAccount as string)
+        : (tx.fromAccount as string | null) ?? '';
+      if (!focusUserId) continue;
+      const amount = Number(tx.amount);
       events.push({
-        id: log.id,
-        type,
-        userId: log.userId,
-        userBattleTag: log.user?.battleTag ?? '알 수 없음',
-        userAvatarUrl: log.user?.avatarUrl ?? null,
-        message: this.buildPointLogMessage(log),
-        amount: log.amount,
-        createdAt: log.createdAt,
+        id: tx.id,
+        type: this.resolvePointTxActivityType(tx.reason, isInflow),
+        userId: focusUserId,
+        userBattleTag: '',
+        userAvatarUrl: null,
+        message: this.buildPointTxMessage(tx, isInflow),
+        amount: isInflow ? amount : -amount,
+        createdAt: tx.createdAt,
       });
     }
 
@@ -441,34 +445,25 @@ export class ClansService {
     return events.slice(0, limit);
   }
 
-  private resolvePointLogActivityType(reason: string, amount: number): ActivityType {
-    if (reason.startsWith('SEND_TO:')) return ActivityType.POINT_SENT;
-    if (reason.startsWith('RECEIVE_FROM:')) return ActivityType.POINT_RECEIVED;
-    if (reason.startsWith('BET_WIN:')) return ActivityType.BET_WIN;
-    if (reason.startsWith('BET_LOSS:')) return ActivityType.BET_LOSS;
-    return amount >= 0 ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
+  private resolvePointTxActivityType(reason: string, isInflow: boolean): ActivityType {
+    if (reason === 'BET_PAYOUT') return ActivityType.BET_WIN;
+    if (reason === 'BET_STAKE') return ActivityType.BET_LOSS;
+    if (reason === 'P2P_SEND') {
+      return isInflow ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
+    }
+    return isInflow ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
   }
 
-  private buildPointLogMessage(log: PointLog): string {
-    const tag = log.user?.battleTag ?? '알 수 없음';
-    const absAmount = Math.abs(log.amount);
-
-    if (log.reason.startsWith('SEND_TO:')) {
-      return `${tag}님이 ${absAmount}P를 보냈습니다.`;
+  private buildPointTxMessage(tx: PointTx, isInflow: boolean): string {
+    const amount = Number(tx.amount);
+    if (tx.reason === 'BET_PAYOUT') return `베팅 정산으로 ${amount}P를 획득했습니다.`;
+    if (tx.reason === 'BET_STAKE') return `베팅에 ${amount}P를 사용했습니다.`;
+    if (tx.reason === 'MARKET_BUY') return `상점에서 ${amount}P를 사용했습니다.`;
+    if (tx.reason === 'MARKET_REFUND') return `상점 환불로 ${amount}P를 받았습니다.`;
+    if (tx.reason === 'P2P_SEND') {
+      return isInflow ? `${amount}P를 받았습니다.` : `${amount}P를 보냈습니다.`;
     }
-    if (log.reason.startsWith('RECEIVE_FROM:')) {
-      return `${tag}님이 ${absAmount}P를 받았습니다.`;
-    }
-    if (log.reason.startsWith('BET_WIN:')) {
-      return `${tag}님이 베팅에서 ${absAmount}P를 획득했습니다.`;
-    }
-    if (log.reason.startsWith('BET_LOSS:')) {
-      return `${tag}님이 베팅에서 ${absAmount}P를 잃었습니다.`;
-    }
-    if (log.amount >= 0) {
-      return `${tag}님이 ${absAmount}P를 받았습니다.`;
-    }
-    return `${tag}님이 ${absAmount}P를 사용했습니다.`;
+    return isInflow ? `${amount}P를 받았습니다.` : `${amount}P를 사용했습니다.`;
   }
 
   // ========== 공지사항 ==========

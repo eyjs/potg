@@ -1,79 +1,92 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Post,
-  Patch,
-  Body,
   Param,
-  UseGuards,
-  Request,
+  Patch,
+  Post,
   Query,
-  BadRequestException,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
-import { ShopService } from './shop.service';
 import { AuthGuard } from '@nestjs/passport';
-import { CreateProductDto, PurchaseDto, PurchaseProfileItemDto } from './dto/shop.dto';
+import { ShopService } from './shop.service';
+import {
+  CreateProductDto,
+  PurchaseDto,
+  PurchaseProfileItemDto,
+} from './dto/shop.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { ClanRolesGuard } from '../../common/guards/clan-roles.guard';
-import { ClanRoles } from '../../common/decorators/clan-roles.decorator';
+import { MarketGateGuard } from '../../common/guards/market-gate.guard';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import { ProfileItemCategory } from './entities/profile-item.entity';
-
 import { UserRole } from '../users/entities/user.entity';
-import { ClanRole } from '../clans/entities/clan-member.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 
 @Controller('shop')
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
-  @UseGuards(AuthGuard('jwt'), ClanRolesGuard)
-  @ClanRoles(ClanRole.MASTER, ClanRole.MANAGER)
+  // ==================== 상품 ====================
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Post('products')
-  createProduct(@Body() createProductDto: CreateProductDto) {
-    return this.shopService.createProduct(
-      createProductDto,
-      createProductDto.clanId,
-    );
+  createProduct(@Body() dto: CreateProductDto) {
+    return this.shopService.createProduct(dto, dto.clanId);
   }
 
   @Get('products')
-  findAll(@Query('clanId') clanId: string) {
+  findAll(@Query('clanId') clanId?: string) {
     return this.shopService.findAll(clanId);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  // ==================== 마켓 주문 ====================
+
+  /**
+   * 즉시차감 구매.
+   * MarketGateGuard: 출석 7일 + 내전 2회 이상 통과한 사용자만 진입.
+   */
+  @UseGuards(AuthGuard('jwt'), MarketGateGuard)
   @Post('purchase')
-  purchase(
-    @Body() purchaseDto: PurchaseDto,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  purchase(@Body() dto: PurchaseDto, @Request() req: AuthenticatedRequest) {
     return this.shopService.purchase(
       req.user.userId,
-      purchaseDto.productId,
-      purchaseDto.quantity ?? 1,
+      dto.productId,
+      dto.quantity ?? 1,
     );
-  }
-
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN) // Or use ClanRoles.MASTER with clan-specific guard
-  @Patch('purchases/:id/approve')
-  approvePurchase(
-    @Param('id') purchaseId: string,
-    @Body('adminNote') adminNote?: string,
-  ) {
-    return this.shopService.approvePurchase(purchaseId, adminNote);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
-  @Patch('purchases/:id/reject')
-  rejectPurchase(
-    @Param('id') purchaseId: string,
+  @Patch('orders/:id/deliver')
+  deliver(
+    @Param('id') orderId: string,
     @Body('adminNote') adminNote?: string,
   ) {
-    return this.shopService.rejectPurchase(purchaseId, adminNote);
+    return this.shopService.markDelivered(orderId, adminNote);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('orders/:id/cancel')
+  cancel(@Param('id') orderId: string, @Body('adminNote') adminNote?: string) {
+    return this.shopService.cancelOrder(orderId, adminNote);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('orders/my')
+  myOrders(@Request() req: AuthenticatedRequest) {
+    return this.shopService.findOrdersByUser(req.user.userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('orders')
+  allOrders() {
+    return this.shopService.findAllOrders();
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -82,7 +95,7 @@ export class ShopController {
     return this.shopService.getMyCoupons(req.user.userId);
   }
 
-  // ==================== 프로필 아이템 ====================
+  // ==================== 프로필 아이템 (레거시) ====================
 
   @Get('profile-items')
   getProfileItems(@Query('category') category?: ProfileItemCategory) {
@@ -116,12 +129,12 @@ export class ShopController {
     return this.shopService.purchaseProfileItem(member.id, dto.clanId, dto.itemId);
   }
 
-  // 헬퍼: userId로 ClanMember 조회
-  private async getMemberByUserId(userId: string, clanId: string): Promise<ClanMember | null> {
-    // ShopService에 DataSource가 있으므로 직접 쿼리
-    const result = await this.shopService['dataSource'].manager.findOne(ClanMember, {
+  private async getMemberByUserId(
+    userId: string,
+    clanId: string,
+  ): Promise<ClanMember | null> {
+    return this.shopService['dataSource'].manager.findOne(ClanMember, {
       where: { userId, clanId },
     });
-    return result;
   }
 }

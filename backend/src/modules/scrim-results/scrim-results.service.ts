@@ -221,13 +221,15 @@ export class ScrimResultsService {
       // Award points to each participant
       for (const entry of result.entries) {
         try {
-          await this.walletService.addScrimPoints(
-            entry.userId,
-            clanId,
-            entry.earnedActivityPoints,
-            entry.earnedScrimPoints,
-            `SCRIM_RESULT:${id}`,
-          );
+          // Phase 2: scrimPoints 별도 컬럼은 사용하지 않음. 활동+내전 포인트를 통합 mint.
+          const total = entry.earnedActivityPoints + entry.earnedScrimPoints;
+          if (total > 0) {
+            await this.walletService.addPoints(
+              entry.userId,
+              total,
+              `SCRIM_RESULT:${id}`,
+            );
+          }
         } catch (error) {
           this.logger.warn(
             `Failed to award scrim points to user ${entry.userId}: ${error}`,

@@ -1,0 +1,91 @@
+{
+  "pipeline_type": "refactor",
+  "started_at": "2026-05-22",
+  "updated_at": "2026-05-22",
+  "current_phase": "phase-3-discord-bot",
+  "current_stage": "pending",
+  "milestones": {
+    "phase-1-foundation": {
+      "status": "completed",
+      "tasks": 13,
+      "stages": {
+        "planning": "completed",
+        "review": "passed",
+        "implementation": "completed",
+        "code_review": "passed_with_notes",
+        "integration": "passed",
+        "documentation": "completed"
+      },
+      "build": "passing",
+      "tests": {
+        "phase1_added": "no new tests (entities + module skeletons only)",
+        "preexisting_passing_still_passing": true,
+        "preexisting_failures_unchanged": "shop.service.spec, posts-bulk-like.service.spec, several e2e — verified via git stash to be pre-existing"
+      }
+    },
+    "phase-2-core-logic": {
+      "status": "completed",
+      "stages": {
+        "planning": "completed",
+        "implementation": "completed",
+        "code_review": "self_review_passed",
+        "integration": "build_passing",
+        "documentation": "completed"
+      },
+      "subtasks": {
+        "2.1_ledger_service": "completed",
+        "2.2_betting_parimutuel": "completed",
+        "2.3_shop_immediate_burn": "completed",
+        "2.4_match_state_machine": "completed",
+        "2.5_market_gate_guard": "completed",
+        "2.6_wallet_rewrite": "completed",
+        "2.7_deprecated_cleanup": "completed (PointLog/BettingQuestion/BettingTicket/ShopPurchase 4종 제거 + DROP 마이그레이션)",
+        "2.8_tests": "completed (ledger.service.spec 7 + betting.service.spec 5 = 12 신규 테스트 PASS)"
+      },
+      "build": "passing",
+      "tests": {
+        "phase2_added": {
+          "ledger.service.spec.ts": "7 passed",
+          "betting.service.spec.ts": "5 passed",
+          "total_new": 12
+        },
+        "regressions_fixed": [
+          "shop-profile-items.service.spec (ShopPurchase 폐기 반영 + LedgerService 주입)",
+          "clans.service.spec (PointLog → PointTx + DataSource DI 보강)"
+        ],
+        "still_failing_preexisting": [
+          "test/unit/auth/auth.service.spec.ts (JWT 환경변수 미주입 — Phase 1과 동일)",
+          "src/modules/posts/posts-bulk-like.service.spec.ts (ClanMemberRepository DI 누락 — Phase 1과 동일)",
+          "test/app.e2e-spec.ts (uuid ESM 트랜스폼 — Phase 1과 동일)"
+        ]
+      },
+      "decisions": {
+        "RANK_market_settle_simplified": "MatchService.settleMatch에서 RANK 마켓 winningOption은 '1'로 단순화. 추후 RANK 베팅 정책 재정의 필요 (요구사항 §5.1 모호).",
+        "ShopController_legacy_profile_items_kept": "프로필 아이템 API는 ClanMember 식별용 코드만 유지. Phase 5 정리 예정.",
+        "ScrimResultsService_addScrimPoints_merged": "scrimPoints + activityPoints 통합 mint. ClanMember.scrimPoints 컬럼은 보존 (Phase 5 결정).",
+        "ClansService_PointTx_feed": "활동 피드는 PointTx 기반으로 단순화. 사용자 정보는 풍부하지 않음 (Phase 4 관리자 웹에서 보강 예정).",
+        "BettingStakes_no_unique_constraint": "(market_id, user_id, side) UNIQUE는 미적용. 서비스 레이어 합산 로직만으로 충분 (재고 차감과 달리 동시성 충돌 영향 적음). Phase 4 운영 데이터 확인 후 추가 검토."
+      }
+    },
+    "phase-3-discord-bot": { "status": "pending" },
+    "phase-4-admin-web": { "status": "pending" },
+    "phase-5-cleanup": { "status": "pending" }
+  },
+  "artifacts": {
+    "requirement": ".pipeline/requirement.md",
+    "execution_plan": "C:/Users/USER/.claude/plans/refactored-mixing-duckling.md",
+    "plan": ".pipeline/plan.md",
+    "plan_review": ".pipeline/reviews/plan-review.md",
+    "report_phase1": ".pipeline/REPORT-phase1.md",
+    "report_phase2": ".pipeline/REPORT-phase2.md"
+  },
+  "decisions": {
+    "db_clean_start": true,
+    "archive_branch": false,
+    "discord_keys_pending": true,
+    "test_strategy": "operational_server_channel_scoped",
+    "phase1_strategy_note": "신규 엔티티 추가 + User 확장 + 마이그레이션 인프라 + 골격 서비스.",
+    "phase2_strategy_note": "LedgerService 실구현 + BettingService 패리뮤추얼 + ShopService 즉시차감 + MatchService 상태머신 + MarketGateGuard. 폐기 엔티티 4종(PointLog/BettingQuestion/BettingTicket/ShopPurchase) 제거 + DROP TABLE 마이그레이션 추가.",
+    "baseline_migration_strategy": "Baseline placeholder + Phase1DiscordRefactor + Phase2CoreLogic 3-file 체인. 클린 DB 첫 부트는 SYNC_SCHEMA=true 1회 또는 migration:generate로 통합 baseline 재생성 권장."
+  }
+}

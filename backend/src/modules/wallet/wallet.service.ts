@@ -1,270 +1,135 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, Between } from 'typeorm';
-import { ClanMember } from '../clans/entities/clan-member.entity';
-import { PointLog } from '../clans/entities/point-log.entity';
+import { Repository } from 'typeorm';
+import { User } from '../users/entities/user.entity';
+import { PointTx } from '../ledger/entities/point-tx.entity';
+import { LedgerService } from '../ledger/ledger.service';
+import { POINT_TX_REASON, SINK_ACCOUNT_ID } from '../ledger/ledger.constants';
 import { SendPointDto } from './dto/send-point.dto';
 
-/** Daily limits for point rewards by reason prefix */
-const DAILY_LIMITS: Record<string, number> = {
-  COMMUNITY_POST: 5,
-  COMMUNITY_COMMENT: 20,
-};
-
+/**
+ * 사용자 지갑 — LedgerService 위임자.
+ *
+ * - 잔액 = user.points_balance (Ledger가 갱신하는 캐시)
+ * - 이력 = PointTx (from/to 어느 쪽이든 user.id 매치)
+ * - 전송 = LedgerService.transfer 위임
+ *
+ * ClanMember/PointLog 의존은 모두 제거됨.
+ * activity ranking은 user.pointsBalance 기준 단순 정렬로 재구성.
+ */
 @Injectable()
 export class WalletService {
   private readonly logger = new Logger(WalletService.name);
 
   constructor(
-    @InjectRepository(ClanMember)
-    private clanMemberRepository: Repository<ClanMember>,
-    @InjectRepository(PointLog)
-    private pointLogRepository: Repository<PointLog>,
-    private dataSource: DataSource,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(PointTx)
+    private readonly pointTxRepository: Repository<PointTx>,
+    private readonly ledger: LedgerService,
   ) {}
 
-  async sendPoints(senderId: string, sendDto: SendPointDto) {
-    if (senderId === sendDto.recipientId) {
-      throw new BadRequestException('Cannot send points to yourself');
-    }
-
-    return this.dataSource.transaction(async (manager) => {
-      const sender = await manager.findOne(ClanMember, {
-        where: { userId: senderId, clanId: sendDto.clanId },
-      });
-      const recipient = await manager.findOne(ClanMember, {
-        where: { userId: sendDto.recipientId, clanId: sendDto.clanId },
-      });
-
-      if (!sender) throw new BadRequestException('Sender not found in clan');
-      if (!recipient)
-        throw new BadRequestException('Recipient not found in clan');
-      if (sender.totalPoints < sendDto.amount)
-        throw new BadRequestException('Insufficient points');
-
-      // Transfer points
-      sender.totalPoints -= sendDto.amount;
-      recipient.totalPoints += sendDto.amount;
-
-      await manager.save(sender);
-      await manager.save(recipient);
-
-      // Log for sender
-      const senderLog = manager.create(PointLog, {
-        userId: senderId,
-        clanId: sendDto.clanId,
-        amount: -sendDto.amount,
-        reason: `SEND_TO:${sendDto.recipientId}${sendDto.message ? ` - ${sendDto.message}` : ''}`,
-      });
-      await manager.save(senderLog);
-
-      // Log for recipient
-      const recipientLog = manager.create(PointLog, {
-        userId: sendDto.recipientId,
-        clanId: sendDto.clanId,
-        amount: sendDto.amount,
-        reason: `RECEIVE_FROM:${senderId}${sendDto.message ? ` - ${sendDto.message}` : ''}`,
-      });
-      await manager.save(recipientLog);
-
-      return {
-        success: true,
-        amount: sendDto.amount,
-        newBalance: sender.totalPoints,
-      };
-    });
+  async getBalance(userId: string): Promise<{
+    userId: string;
+    balance: string;
+  }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    return { userId: user.id, balance: user.pointsBalance ?? '0' };
   }
 
-  async getHistory(userId: string, clanId: string) {
-    return this.pointLogRepository.find({
-      where: { userId, clanId },
-      order: { createdAt: 'DESC' },
+  async sendPoints(senderId: string, dto: SendPointDto) {
+    if (senderId === dto.recipientId) {
+      throw new BadRequestException('Cannot send points to yourself');
+    }
+    if (!Number.isInteger(dto.amount) || dto.amount <= 0) {
+      throw new BadRequestException('amount must be a positive integer');
+    }
+
+    const recipient = await this.userRepository.findOne({
+      where: { id: dto.recipientId },
     });
+    if (!recipient) throw new BadRequestException('Recipient not found');
+
+    const tx = await this.ledger.transfer({
+      fromAccount: senderId,
+      toAccount: dto.recipientId,
+      amount: BigInt(dto.amount),
+      reason: 'P2P_SEND',
+      refType: 'WalletSend',
+      memo: dto.message,
+    });
+
+    const sender = await this.userRepository.findOne({ where: { id: senderId } });
+    return {
+      success: true,
+      amount: dto.amount,
+      txId: tx.id,
+      newBalance: sender?.pointsBalance ?? '0',
+    };
+  }
+
+  async getHistory(userId: string, limit = 100): Promise<PointTx[]> {
+    return this.pointTxRepository
+      .createQueryBuilder('tx')
+      .where('tx.from_account = :id', { id: userId })
+      .orWhere('tx.to_account = :id', { id: userId })
+      .orderBy('tx.created_at', 'DESC')
+      .limit(limit)
+      .getMany();
   }
 
   /**
-   * Add activity points to a clan member with optional daily limit enforcement.
-   * Used for community post/comment rewards.
+   * 활동 포인트 랭킹 — pointsBalance 기준 상위 N.
+   * SINK 계정은 제외.
+   */
+  async getActivityRanking(limit = 20): Promise<
+    {
+      userId: string;
+      nickname: string | null;
+      battleTag: string;
+      avatarUrl: string | null;
+      pointsBalance: string;
+      rank: number;
+    }[]
+  > {
+    const users = await this.userRepository
+      .createQueryBuilder('u')
+      .where('u.id != :sink', { sink: SINK_ACCOUNT_ID })
+      .orderBy('CAST(u.points_balance AS BIGINT)', 'DESC')
+      .limit(limit)
+      .getMany();
+
+    return users.map((u, idx) => ({
+      userId: u.id,
+      nickname: u.nickname ?? null,
+      battleTag: u.battleTag ?? '',
+      avatarUrl: u.avatarUrl ?? null,
+      pointsBalance: u.pointsBalance ?? '0',
+      rank: idx + 1,
+    }));
+  }
+
+  /**
+   * 적립 (mint). reason 접두사별 일일 상한은 추후 SystemConfig로 이관 (Phase 4).
    */
   async addPoints(
     userId: string,
-    clanId: string,
     amount: number,
     reason: string,
-  ): Promise<{ success: boolean; newBalance: number; message?: string }> {
-    const reasonPrefix = reason.split(':')[0];
-    const dailyLimit = DAILY_LIMITS[reasonPrefix];
-
-    if (dailyLimit !== undefined) {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-
-      const todayCount = await this.pointLogRepository.count({
-        where: {
-          userId,
-          clanId,
-          reason: reason.startsWith(reasonPrefix) ? undefined : reason,
-          createdAt: Between(todayStart, todayEnd),
-        },
-      });
-
-      // Count all logs with the same prefix today
-      const countQuery = await this.pointLogRepository
-        .createQueryBuilder('log')
-        .where('log.userId = :userId', { userId })
-        .andWhere('log.clanId = :clanId', { clanId })
-        .andWhere('log.reason LIKE :prefix', { prefix: `${reasonPrefix}%` })
-        .andWhere('log.createdAt BETWEEN :start AND :end', {
-          start: todayStart,
-          end: todayEnd,
-        })
-        .getCount();
-
-      if (countQuery >= dailyLimit) {
-        this.logger.debug(
-          `Daily limit reached for ${reasonPrefix}: ${countQuery}/${dailyLimit} (user: ${userId})`,
-        );
-        const member = await this.clanMemberRepository.findOne({
-          where: { userId, clanId },
-        });
-        return {
-          success: false,
-          newBalance: member?.totalPoints ?? 0,
-          message: `일일 포인트 획득 상한에 도달했습니다 (${dailyLimit}회/일)`,
-        };
-      }
+  ): Promise<{ success: boolean; newBalance: string }> {
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw new BadRequestException('amount must be a positive integer');
     }
-
-    return this.dataSource.transaction(async (manager) => {
-      const member = await manager.findOne(ClanMember, {
-        where: { userId, clanId },
-      });
-
-      if (!member) {
-        throw new BadRequestException('클랜 멤버를 찾을 수 없습니다.');
-      }
-
-      member.totalPoints += amount;
-      await manager.save(member);
-
-      const log = manager.create(PointLog, {
-        userId,
-        clanId,
-        amount,
-        reason,
-      });
-      await manager.save(log);
-
-      return { success: true, newBalance: member.totalPoints };
+    await this.ledger.mint(userId, BigInt(amount), reason || POINT_TX_REASON.ADMIN_ADJUST, {
+      refType: 'WalletAdd',
     });
-  }
-
-  /**
-   * Add both activity points and scrim points for scrim results.
-   * Used when confirming scrim results.
-   */
-  async addScrimPoints(
-    userId: string,
-    clanId: string,
-    activityPoints: number,
-    scrimPoints: number,
-    reason: string,
-  ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const member = await manager.findOne(ClanMember, {
-        where: { userId, clanId },
-      });
-
-      if (!member) {
-        throw new BadRequestException('클랜 멤버를 찾을 수 없습니다.');
-      }
-
-      member.totalPoints += activityPoints;
-      member.scrimPoints += scrimPoints;
-      await manager.save(member);
-
-      const log = manager.create(PointLog, {
-        userId,
-        clanId,
-        amount: activityPoints,
-        reason,
-      });
-      await manager.save(log);
-    });
-  }
-
-  /**
-   * Get activity points ranking for a clan (ordered by totalPoints).
-   */
-  async getActivityRanking(
-    clanId: string,
-    limit = 20,
-  ): Promise<
-    {
-      userId: string;
-      nickname: string | null;
-      battleTag: string;
-      avatarUrl: string | null;
-      totalPoints: number;
-      scrimPoints: number;
-      rank: number;
-    }[]
-  > {
-    const members = await this.clanMemberRepository
-      .createQueryBuilder('cm')
-      .leftJoinAndSelect('cm.user', 'user')
-      .where('cm.clanId = :clanId', { clanId })
-      .orderBy('cm.totalPoints', 'DESC')
-      .take(limit)
-      .getMany();
-
-    return members.map((m, index) => ({
-      userId: m.userId,
-      nickname: m.user?.nickname ?? null,
-      battleTag: m.user?.battleTag ?? '',
-      avatarUrl: m.user?.avatarUrl ?? null,
-      totalPoints: m.totalPoints,
-      scrimPoints: m.scrimPoints,
-      rank: index + 1,
-    }));
-  }
-
-  /**
-   * Get scrim points ranking for a clan (ordered by scrimPoints).
-   */
-  async getScrimRanking(
-    clanId: string,
-    limit = 20,
-  ): Promise<
-    {
-      userId: string;
-      nickname: string | null;
-      battleTag: string;
-      avatarUrl: string | null;
-      totalPoints: number;
-      scrimPoints: number;
-      rank: number;
-    }[]
-  > {
-    const members = await this.clanMemberRepository
-      .createQueryBuilder('cm')
-      .leftJoinAndSelect('cm.user', 'user')
-      .where('cm.clanId = :clanId', { clanId })
-      .andWhere('cm.scrimPoints > 0')
-      .orderBy('cm.scrimPoints', 'DESC')
-      .take(limit)
-      .getMany();
-
-    return members.map((m, index) => ({
-      userId: m.userId,
-      nickname: m.user?.nickname ?? null,
-      battleTag: m.user?.battleTag ?? '',
-      avatarUrl: m.user?.avatarUrl ?? null,
-      totalPoints: m.totalPoints,
-      scrimPoints: m.scrimPoints,
-      rank: index + 1,
-    }));
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    return { success: true, newBalance: user?.pointsBalance ?? '0' };
   }
 }

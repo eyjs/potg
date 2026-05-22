@@ -29,6 +29,9 @@ import { ProfilesModule } from './modules/profiles/profiles.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { GamesModule } from './modules/games/games.module';
 import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module';
+import { LedgerModule } from './modules/ledger/ledger.module';
+import { MatchesModule } from './modules/matches/matches.module';
+import { SystemConfigModule } from './modules/system-config/system-config.module';
 
 @Module({
   imports: [
@@ -116,7 +119,13 @@ import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module
         password: configService.get<string>('DATABASE_PASSWORD'),
         database: configService.get<string>('DATABASE_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production', // Dev only
+        migrations: [__dirname + '/database/migrations/*.{ts,js}'],
+        migrationsTableName: 'typeorm_migrations',
+        // Phase 1 (Discord refactor): synchronize 비활성. 스키마 변경은 migration으로만.
+        // 로컬 부트스트랩 시에만 SYNC_SCHEMA=true 환경변수로 임시 허용.
+        synchronize: configService.get<string>('SYNC_SCHEMA') === 'true',
+        migrationsRun:
+          configService.get<string>('AUTO_RUN_MIGRATIONS') === 'true',
       }),
       inject: [ConfigService],
     }),
@@ -136,6 +145,10 @@ import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module
     PostsModule,
     GamesModule,
     ScrimResultsModule,
+    // === Phase 1 (Discord refactor) 신규 모듈 ===
+    LedgerModule,
+    MatchesModule,
+    SystemConfigModule,
   ],
   controllers: [AppController],
   providers: [

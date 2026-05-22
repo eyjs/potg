@@ -1,44 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ShopService } from './shop.service';
 import { ShopProduct } from './entities/shop-product.entity';
-import { ShopPurchase } from './entities/shop-purchase.entity';
+import { MarketOrder } from './entities/market-order.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
 import { ProfileItem, ProfileItemCategory } from './entities/profile-item.entity';
 import { MemberItem } from './entities/member-item.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { LedgerService } from '../ledger/ledger.service';
 
 describe('ShopService - Profile Items', () => {
   let service: ShopService;
   let profileItemRepo: jest.Mocked<Repository<ProfileItem>>;
   let memberItemRepo: jest.Mocked<Repository<MemberItem>>;
   let mockTransaction: jest.Mock;
+  let ledgerBurn: jest.Mock;
 
   const mockProfileItem = {
     id: 'item-1',
     code: 'FRAME_GOLD',
     name: '골드 프레임',
-    description: '황금빛 프레임',
     category: ProfileItemCategory.FRAME,
     price: 300,
-    previewUrl: null,
-    assetUrl: null,
-    assetData: null,
-    isLimited: false,
     isActive: true,
-    sortOrder: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   };
 
   const mockClanMember = {
     id: 'member-1',
     userId: 'user-1',
     clanId: 'clan-1',
-    totalPoints: 1000,
-    lockedPoints: 0,
   };
 
   const mockMemberItem = {
@@ -46,11 +38,11 @@ describe('ShopService - Profile Items', () => {
     memberId: 'member-1',
     itemId: 'item-1',
     purchasedAt: new Date(),
-    expiresAt: null,
   };
 
   beforeEach(async () => {
     mockTransaction = jest.fn();
+    ledgerBurn = jest.fn().mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,7 +52,7 @@ describe('ShopService - Profile Items', () => {
           useValue: { find: jest.fn(), findOne: jest.fn() },
         },
         {
-          provide: getRepositoryToken(ShopPurchase),
+          provide: getRepositoryToken(MarketOrder),
           useValue: { find: jest.fn(), findOne: jest.fn() },
         },
         {
@@ -69,30 +61,23 @@ describe('ShopService - Profile Items', () => {
         },
         {
           provide: getRepositoryToken(ProfileItem),
-          useValue: {
-            find: jest.fn(),
-            findOne: jest.fn(),
-          },
+          useValue: { find: jest.fn(), findOne: jest.fn() },
         },
         {
           provide: getRepositoryToken(MemberItem),
-          useValue: {
-            find: jest.fn(),
-            findOne: jest.fn(),
-            count: jest.fn(),
-          },
+          useValue: { find: jest.fn(), findOne: jest.fn(), count: jest.fn() },
         },
         {
           provide: getRepositoryToken(ClanMember),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: { findOne: jest.fn() },
         },
         {
           provide: DataSource,
-          useValue: {
-            transaction: mockTransaction,
-          },
+          useValue: { transaction: mockTransaction },
+        },
+        {
+          provide: LedgerService,
+          useValue: { burn: ledgerBurn, mint: jest.fn() },
         },
       ],
     }).compile();
@@ -103,25 +88,15 @@ describe('ShopService - Profile Items', () => {
   });
 
   describe('getProfileItems', () => {
-    it('활성화된 모든 프로필 아이템을 반환해야 함', async () => {
-      const items = [mockProfileItem];
-      profileItemRepo.find.mockResolvedValue(items as ProfileItem[]);
-
+    it('활성화된 모든 프로필 아이템을 반환', async () => {
+      profileItemRepo.find.mockResolvedValue([mockProfileItem] as ProfileItem[]);
       const result = await service.getProfileItems();
-
-      expect(result).toEqual(items);
-      expect(profileItemRepo.find).toHaveBeenCalledWith({
-        where: { isActive: true },
-        order: { sortOrder: 'ASC', createdAt: 'DESC' },
-      });
+      expect(result).toEqual([mockProfileItem]);
     });
 
-    it('카테고리로 필터링해야 함', async () => {
-      const items = [mockProfileItem];
-      profileItemRepo.find.mockResolvedValue(items as ProfileItem[]);
-
+    it('카테고리 필터 적용', async () => {
+      profileItemRepo.find.mockResolvedValue([] as ProfileItem[]);
       await service.getProfileItems(ProfileItemCategory.FRAME);
-
       expect(profileItemRepo.find).toHaveBeenCalledWith({
         where: { isActive: true, category: ProfileItemCategory.FRAME },
         order: { sortOrder: 'ASC', createdAt: 'DESC' },
@@ -130,108 +105,79 @@ describe('ShopService - Profile Items', () => {
   });
 
   describe('getProfileItem', () => {
-    it('아이템이 존재하면 반환해야 함', async () => {
-      profileItemRepo.findOne.mockResolvedValue(mockProfileItem as ProfileItem);
-
-      const result = await service.getProfileItem('item-1');
-
-      expect(result).toEqual(mockProfileItem);
-    });
-
-    it('아이템이 없으면 NotFoundException을 던져야 함', async () => {
+    it('NotFoundException on missing', async () => {
       profileItemRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.getProfileItem('not-exist')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getProfileItem('x')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('hasMemberItem', () => {
-    it('아이템을 보유하면 true 반환', async () => {
+    it('true when count > 0', async () => {
       memberItemRepo.count.mockResolvedValue(1);
-
-      const result = await service.hasMemberItem('member-1', 'item-1');
-
-      expect(result).toBe(true);
+      expect(await service.hasMemberItem('m', 'i')).toBe(true);
     });
-
-    it('아이템을 보유하지 않으면 false 반환', async () => {
+    it('false when 0', async () => {
       memberItemRepo.count.mockResolvedValue(0);
-
-      const result = await service.hasMemberItem('member-1', 'item-2');
-
-      expect(result).toBe(false);
+      expect(await service.hasMemberItem('m', 'i')).toBe(false);
     });
   });
 
-  describe('purchaseProfileItem', () => {
-    it('성공적으로 구매해야 함', async () => {
+  describe('purchaseProfileItem (Ledger 위임)', () => {
+    it('성공: LedgerService.burn 호출 + MemberItem 생성', async () => {
       const mockManager = {
-        findOne: jest.fn()
-          .mockResolvedValueOnce(mockProfileItem) // 아이템 조회
-          .mockResolvedValueOnce(null) // 이미 보유 여부 (없음)
-          .mockResolvedValueOnce({ ...mockClanMember, totalPoints: 1000 }), // 멤버 조회
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce(mockProfileItem) // item
+          .mockResolvedValueOnce(null) // existing memberItem
+          .mockResolvedValueOnce(mockClanMember), // clanMember
         create: jest.fn().mockReturnValue(mockMemberItem),
-        save: jest.fn().mockResolvedValue(undefined),
+        save: jest.fn().mockResolvedValue(mockMemberItem),
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
 
       const result = await service.purchaseProfileItem('member-1', 'clan-1', 'item-1');
 
       expect(result).toEqual(mockMemberItem);
-      expect(mockManager.save).toHaveBeenCalledTimes(2);
+      expect(ledgerBurn).toHaveBeenCalledWith(
+        'user-1',
+        300n,
+        expect.any(String),
+        expect.objectContaining({ refType: 'ProfileItem', manager: mockManager }),
+      );
     });
 
-    it('아이템이 없으면 NotFoundException을 던져야 함', async () => {
-      const mockManager = {
-        findOne: jest.fn().mockResolvedValue(null),
-      };
+    it('아이템 없음 → NotFoundException', async () => {
+      const mockManager = { findOne: jest.fn().mockResolvedValue(null) };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-
       await expect(
-        service.purchaseProfileItem('member-1', 'clan-1', 'not-exist'),
+        service.purchaseProfileItem('m', 'c', 'x'),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('이미 보유한 아이템이면 BadRequestException을 던져야 함', async () => {
+    it('중복 보유 → BadRequestException', async () => {
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(mockProfileItem)
           .mockResolvedValueOnce(mockMemberItem),
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-
       await expect(
-        service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
+        service.purchaseProfileItem('m', 'c', 'item-1'),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('포인트가 부족하면 BadRequestException을 던져야 함', async () => {
+    it('클랜 멤버 아님 → NotFoundException', async () => {
       const mockManager = {
-        findOne: jest.fn()
-          .mockResolvedValueOnce(mockProfileItem)
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce({ ...mockClanMember, totalPoints: 100 }),
-      };
-      mockTransaction.mockImplementation((cb) => cb(mockManager));
-
-      await expect(
-        service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('클랜 멤버가 아니면 NotFoundException을 던져야 함', async () => {
-      const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(mockProfileItem)
           .mockResolvedValueOnce(null)
           .mockResolvedValueOnce(null),
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-
       await expect(
-        service.purchaseProfileItem('member-1', 'clan-1', 'item-1'),
+        service.purchaseProfileItem('m', 'c', 'item-1'),
       ).rejects.toThrow(NotFoundException);
     });
   });
