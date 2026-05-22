@@ -1,7 +1,7 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
 > 최종 갱신: 2026-05-22
-> 진행 상태: **Phase 1 → 4.1 완료 / Phase 4.2 (프론트엔드 admin) 대기**
+> 진행 상태: **Phase 1 → 4.2 완료 / Phase 5 (정리) 대기**
 
 ---
 
@@ -13,75 +13,84 @@
 | 2. 핵심 로직 (Ledger/Betting/Shop/Match) | ✅ 완료 | `2a0a0e1` |
 | 3. Discord Bot + OAuth2 | ✅ 완료 + 코드리뷰 반영 | `8ab9dd4`, `f81f0eb` |
 | 4.1. 백엔드 admin API | ✅ 완료 | `f226e0d` |
-| 4.2. 프론트엔드 admin 페이지 | ⏳ 대기 | — |
+| 4.2. 프론트엔드 admin 페이지 | ✅ 완료 | `d9ca612`, `b57e078` |
 | 5. 정리 (Games/사용자 페이지 폐기) | ⏳ 대기 | — |
 
-**검증 현황**: 빌드 PASS, 신규 spec 15 PASS, 회귀 없음.
+**검증 현황**: backend build PASS, frontend build PASS (admin 라우트 11개 정상), 회귀 없음, 신규 admin 코드 lint 에러 0.
 
 ---
 
-## 2. 완료된 작업
+## 2. 완료된 작업 (Phase 4.2 추가분)
 
-### Phase 1 — 기반
-- TypeORM 마이그레이션 인프라 (`backend/src/database/`)
-- 신규 엔티티: `PointTx`, `Match/Team/TeamMember`, `BettingMarket/Stake`, `MarketOrder`, `SystemConfig`
-- User 확장: `discordId`, `pointsBalance`, `marketGatePassed`, `CAPTAIN` role
+### Phase 4.2-T1 — 쿠키 기반 인증 통합 (`d9ca612`)
+- **백엔드**
+  - `cookie-parser` + `@types/cookie-parser` 의존성 추가
+  - `main.ts`에 `app.use(cookieParser())`
+  - `JwtStrategy`가 `fromExtractors([cookieExtractor, fromAuthHeaderAsBearerToken()])` — 쿠키 우선, Bearer fallback
+  - `POST /auth/login`이 HttpOnly 쿠키 + JSON 듀얼 발급 (7일)
+  - `POST /auth/logout` 신규 (clearCookie)
+- **프론트엔드**
+  - `axios`에 `withCredentials: true`, Bearer interceptor 제거
+  - `AuthContext`가 `/auth/profile`로 세션 판단, `login(credentials)` / `logout()` async
+  - `localStorage.access_token` 완전 제거
+  - `utility/quiz/page.tsx`의 localStorage 토큰 참조 무해화 (socket.io 인증은 Phase 5에서 통합)
 
-### Phase 2 — 핵심 로직
-- `LedgerService` — 복식부기 mint/burn/transfer + SINK 가상계정 (`00000000-...-000`)
-- `BettingService` — 패리뮤추얼 풀 분배 + 5% rake + LOCKED 강제
-- `ShopService` — 즉시소각 + 재고 원자적 차감
-- `MatchService` — 상태머신 DRAFT → BETTING_OPEN → LOCKED → SETTLED
-- `MarketGateService` (Phase 3 리뷰에서 공통화) — 출석 7일 + 내전 2회
-- `WalletService` 재작성 (pointsBalance 캐시 기반)
-- 폐기 4종 제거 + DROP 마이그레이션: `PointLog`, `BettingQuestion`, `BettingTicket`, `ShopPurchase`
-
-### Phase 3 — Discord Bot
-- `DiscordBotModule` (NestJS 내부, discord.js 14.26)
-- 슬래시 명령 7종: `/잔액 /출석 /리더보드 /베팅 /순위예측 /상점 /구매`
-- `DiscordMemberService.findOrCreate` — discord_id 멱등 가입 + SEED mint
-- Components V2 빌더 (embed fallback, IS_COMPONENTS_V2 상수 보존)
-- `passport-discord` strategy + `/auth/discord`, `/auth/discord/callback`
-- OAuth 콜백은 **HttpOnly Cookie**로 JWT 전달 (Referer 누출 방지)
-
-### Phase 4.1 — 백엔드 admin API
-- `/admin/matches` 상태머신 제어 + 팀 생성
-- `/admin/members` 페이징 + role 변경 + 잔액 조정 (Ledger 경유)
-- `/admin/attendance/upload` xlsx 일괄 (행별 결과)
-- `/admin/config` 경제 파라미터 GET/PATCH
-- `/admin/ledger` PointTx 페이징 + `/summary` (발행/소각/유통량)
-- 전부 `AuthGuard('jwt')` + `RolesGuard` + `@Roles(ADMIN)` 적용
+### Phase 4.2-T2~T12 — 관리자 페이지 11종 (`b57e078`)
+- `frontend/src/app/admin/`
+  - `layout.tsx` — AdminGuard + Sidebar (ADMIN role 가드, 미인증 → /login, USER → /)
+  - `page.tsx` — 대시보드 (mint/burn/circulating 카드 + recharts AreaChart + 최근 PointTx 10건)
+  - `members/page.tsx` — 페이징 목록 + role 변경 + 잔액 조정 (Ledger 경유)
+  - `matches/page.tsx`, `[id]/page.tsx`, `[id]/settle/page.tsx` — DRAFT→OPEN→LOCK→SETTLE 상태머신
+  - `ledger/page.tsx` — 발행/소각/유통량 + 필터 + 페이징
+  - `products/page.tsx` — CRUD + 재고/가격 인라인 편집
+  - `orders/page.tsx` — 전달/취소 액션
+  - `attendance/page.tsx` — xlsx 업로드 + 결과 행별 표시
+  - `config/page.tsx` — KV 인라인 편집
+- `frontend/src/modules/admin/`
+  - `api/{matches,members,attendance,config,ledger,shop}.ts`
+  - `components/{admin-guard,admin-sidebar,data-table,empty-state}.tsx`
+  - `hooks/{use-paged-query,use-admin-mutation}.ts`
+  - `schemas/{match-create,member-adjust,config-update}.schema.ts`
+- **백엔드 추가**: `backend/src/modules/shop/admin-products.controller.ts` (T8 위해 신규)
+- 기술: TanStack Query v5, react-hook-form + zod, recharts, sonner, Shadcn UI 재사용
 
 ---
 
 ## 3. 다음 세션에서 해야 할 일
 
-### 우선순위 1 — Phase 4.2 프론트엔드 admin
+### 우선순위 1 — 수동 검증 (Phase 4.2 자체 점검)
 
-`frontend/src/app/admin/*` 새로 구성. Next.js 16 App Router + 기존 Shadcn UI (`src/common/components/ui/`).
+계획서 `.pipeline/plan-phase4.2.md` §8 시나리오 V1~V10:
 
-페이지 목록:
-| 경로 | 화면 | 백엔드 매핑 |
-|------|------|-------------|
-| `/admin` | 경제 대시보드 (총발행/소각/유통량 그래프) | `GET /admin/ledger/summary` + 시간별 PointTx 집계 |
-| `/admin/matches` | 내전 목록 + 생성 | `GET/POST /admin/matches` |
-| `/admin/matches/[id]` | 내전 상세 + 상태 전이 컨트롤 | `GET /admin/matches/:id`, `POST :id/open/lock/settle/cancel` |
-| `/admin/matches/[id]/auction` | 경매 (기존 AuctionsModule 재활용, 팀장 접근) | 기존 `/auctions/*` |
-| `/admin/matches/[id]/settle` | 결과 입력 (winnerTeamId + placements) | `POST /admin/matches/:id/settle` |
-| `/admin/products` | 상품 등록/수정/재고 | 기존 `/shop/*` 일부 + 신규 admin 라우트 보강 필요 |
-| `/admin/orders` | 주문 목록, 전달/취소 | 기존 `/shop/admin/*` (재확인) |
-| `/admin/members` | 회원 목록, role/잔액 조정 | `GET/PATCH/POST /admin/members/*` |
-| `/admin/attendance` | 엑셀 업로드 + 결과 표시 | `POST /admin/attendance/upload` |
-| `/admin/config` | 경제 파라미터 표 + 인라인 편집 | `GET/PATCH /admin/config/*` |
-| `/admin/ledger` | PointTx 검색 + 페이징 | `GET /admin/ledger?filter` |
+| # | 시나리오 | 자동/수동 |
+|---|---------|----------|
+| V1 | 비로그인 → `/admin` → `/login` 리다이렉트 | 수동 |
+| V2 | ADMIN 로그인 → `/admin` 진입 → 대시보드 카드 표시 | 수동 |
+| V3 | 회원 잔액 +5000 조정 → ledger에서 ADMIN_ADJUST 확인 | 수동 |
+| V4 | 내전 생성 → 팀 2개 → OPEN → LOCK → settle → SETTLED | 수동 |
+| V5 | 출석 xlsx 업로드 (3행 중 1행 잘못된 discord_id) → 1행 fail | 수동 |
+| V6 | config `BET_RAKE_RATE` 변경 후 재조회 시 반영 | 수동 |
+| V7 | 상품 등록 → 사용자 `/shop`에서 노출 (회귀) | 수동 |
+| V8 | USER 권한으로 `/betting`, `/shop`, `/wallet` 진입 시 401 없음 (회귀) | 수동 |
+| V9 | Discord OAuth 로그인 회귀 정상 | 수동 |
+| V10 | logout 호출 → 쿠키 clear + 모든 페이지 미인증 | 수동 |
 
-작업 시 주의:
-- **인증 흐름 통합**: Phase 3에서 OAuth 콜백을 HttpOnly Cookie로 변경했으나 `frontend/src/lib/api.ts`는 여전히 `localStorage` 사용. `withCredentials: true` 추가 + AuthContext에서 쿠키 기반 세션 확인 분기 필요. 또는 admin 페이지는 localStorage 토큰 유지하고 디스코드 사용자만 쿠키 사용 → 결정 필요.
-- **레이아웃 가드**: `/admin/layout.tsx`에서 ADMIN role 확인 후 children 렌더. 미통과는 `/login` 리다이렉트.
-- **오버워치 테마 유지**: `bg-primary` (#f99e1a), skewed buttons, `text-ow-blue` 등. 하드코딩 색상 금지.
-- **상태 관리**: 기존 React Query 사용 여부 확인. 없으면 axios + useState 정도로 시작.
+### 우선순위 2 — Phase 5 정리 (대규모 작업, 별도 계획 권장)
 
-### 우선순위 2 — Discord 봇 실 환경 활성화 (사용자 작업)
+- `GamesModule` 삭제 + 관련 소켓 게이트웨이
+- 프론트엔드 사용자용 페이지 폐기: `/betting`, `/shop`, `/wallet`, `/ranking`, `/utility/quiz`, `/gallery/*`, `/profile/shop`
+- `ClanMember.totalPoints/lockedPoints` 컬럼 DROP (단일 클랜 전환)
+- 자체 회원가입 (`/signup`) 폐기 + Discord OAuth로 통합
+- `/auth/login` JSON 응답 제거 (듀얼 발급 → 쿠키 단일화)
+- `clanId` 의존 코드 제거 (80+ 파일)
+- `passport-discord` deprecated → maintained alternative로 교체
+- `MarketGateGuard` 캐시 무효화 정책 명확화
+- socket.io 인증 쿠키 통일 (`use-auction-socket.ts`, `use-quiz-socket.ts`)
+- admin spec 추가 (현재는 빌드 + 수동 검증만)
+- Swagger 데코레이터 일괄 부착
+- 차트용 `GET /admin/ledger/timeseries?bucket=day&days=30` endpoint 추가 (현재 클라이언트 합산 fallback)
+
+### 우선순위 3 — Discord 봇 실 환경 활성화 (사용자 작업)
 
 `backend/.env`:
 ```
@@ -97,21 +106,6 @@ DISCORD_OAUTH_REDIRECT_URI=https://potg.joonbi.co.kr/auth/discord/callback
 봇 권한 (OAuth2 URL Generator):
 - Scopes: `bot`, `applications.commands`
 - Bot Permissions: `Send Messages`, `Use Slash Commands`
-
-활성화 후:
-1. 길드에 봇 초대
-2. 백엔드 재시작 — 슬래시 명령 자동 등록 (길드 등록은 즉시 반영)
-3. 디스코드에서 `/잔액` 호출 → 자동 가입 + SEED 1000P 확인
-
-### 우선순위 3 — Phase 5 정리 (병행 가능)
-
-- `GamesModule` 삭제 + 관련 소켓 게이트웨이
-- 프론트엔드 사용자용 페이지 폐기: `/betting`, `/shop`, `/wallet`, `/ranking`, `/utility/quiz`, `/gallery/*`, `/profile/shop`
-- `ClanMember.totalPoints/lockedPoints` 컬럼 DROP (단일 클랜 전환)
-- 자체 회원가입 (`/signup`) 폐기 + Discord OAuth로 통합
-- `clanId` 의존 코드 제거 (80+ 파일)
-- `passport-discord` deprecated → maintained alternative로 교체
-- `MarketGateGuard` 캐시 무효화 정책 명확화
 
 ---
 
@@ -129,74 +123,98 @@ DISCORD_OAUTH_REDIRECT_URI=https://potg.joonbi.co.kr/auth/discord/callback
 
 ### 회계 무결성
 - User.pointsBalance 직접 UPDATE 금지. 반드시 `LedgerService.transfer/mint/burn` 경유
-- `LedgerService.computeBalanceFromLedger(userId)` 로 PointTx 합 vs 캐시 일치 검증 가능 (관리자 모니터링)
+- `LedgerService.computeBalanceFromLedger(userId)` 로 PointTx 합 vs 캐시 일치 검증 가능
+
+### 인증 (Phase 4.2 변경)
+- **HTTP 인증은 HttpOnly 쿠키 기반**. localStorage 토큰 코드는 더 이상 없음
+- `/auth/login`은 쿠키 + JSON 듀얼 발급 (Phase 5에서 JSON 제거 예정)
+- Discord OAuth 콜백 쿠키 maxAge는 1시간, 자체 로그인은 7일 — 비대칭. 운영 후 정책 통일 권장
+- AuthContext는 마운트 시 `/auth/profile` 401 여부로 세션 판단
+- socket.io는 여전히 localStorage 의존 패턴이나, 현재 localStorage가 빈 상태라 핸드셰이크는 쿠키만으로 동작 (Phase 5에서 명시적 정리)
 
 ### 알려진 사전 존재 실패 테스트 (Phase 1부터 동일)
-- `test/unit/auth/auth.service.spec.ts` — JWT 환경변수 미주입
+- `test/unit/auth/auth.service.spec.ts` — JWT 환경변수/EmailService DI 미주입
 - `src/modules/posts/posts-bulk-like.service.spec.ts` — ClanMemberRepository DI 누락
 - `test/app.e2e-spec.ts` — uuid ESM 트랜스폼
 - Phase 5 정리에서 수렴 예정. 현 작업과 무관.
 
+### Lint 기존 이슈 (admin 외부)
+- `bottom-nav.tsx`, `image-viewer.tsx`, `participant-panel.tsx`, `quiz-game.tsx`, `use-quiz-socket.ts`, `edit-vote-modal.tsx` — Phase 5 사용자 페이지 폐기 시 자연 해소
+
 ### 결정 사항 누적 (.pipeline/status.json 참조)
 - **RANK 마켓 정산**: `winningOption='1'` 단순화 (정책 모호 — Phase 5에서 재정의)
 - **BettingStake UNIQUE 미적용**: (market_id, user_id, side) — 서비스 합산 로직만 사용
-- **/구매 MarketGate**: 인라인 검증 → 공통 `MarketGateService`로 추출 완료 (Phase 3 리뷰 반영)
+- **/구매 MarketGate**: 공통 `MarketGateService` 추출
 - **passport-discord deprecated**: Phase 5에서 교체
 - **Components V2**: embed fallback, discord.js 정식 지원 시 `buildProductCard`만 교체
+- **DataTable**: 자체 작성 (Shadcn `@tanstack/react-table` 미설치). 단순 페이지네이션만 필요
+- **timeseries endpoint 미구현**: 대시보드 차트는 `/admin/ledger?take=200` 합산 fallback (Phase 5에서 dedicated endpoint 추가)
 
 ---
 
 ## 5. 파일 맵
 
-### 신규 백엔드 모듈
+### Phase 4.2 신규 (관리자)
+```
+backend/src/modules/shop/
+└── admin-products.controller.ts        # Phase 4.2-T8
+
+frontend/src/app/admin/
+├── layout.tsx                          # AdminGuard + Sidebar
+├── page.tsx                            # 대시보드 (recharts)
+├── attendance/page.tsx
+├── config/page.tsx
+├── ledger/page.tsx
+├── matches/page.tsx
+├── matches/[id]/page.tsx
+├── matches/[id]/settle/page.tsx
+├── members/page.tsx
+├── orders/page.tsx
+└── products/page.tsx
+
+frontend/src/modules/admin/
+├── api/                                # axios 클라이언트
+│   ├── attendance.ts
+│   ├── config.ts
+│   ├── ledger.ts
+│   ├── matches.ts
+│   ├── members.ts
+│   └── shop.ts
+├── components/
+│   ├── admin-guard.tsx
+│   ├── admin-sidebar.tsx
+│   ├── data-table.tsx                  # 자체 구현
+│   └── empty-state.tsx
+├── hooks/
+│   ├── use-paged-query.ts
+│   └── use-admin-mutation.ts
+└── schemas/                            # zod
+    ├── config-update.schema.ts
+    ├── match-create.schema.ts
+    └── member-adjust.schema.ts
+```
+
+### 기존 백엔드 모듈
 ```
 backend/src/modules/
-├── ledger/                         # 복식부기 원장
-│   ├── entities/point-tx.entity.ts
-│   ├── ledger.service.ts
-│   ├── ledger.controller.ts        # /admin/ledger
-│   ├── ledger.constants.ts         # SINK_ACCOUNT_ID, REASON
-│   └── ledger.module.ts
-├── matches/                        # 내전 상태머신
-│   ├── entities/{match,team,team-member}.entity.ts
-│   ├── enums/match-status.enum.ts
-│   ├── match.service.ts
-│   ├── match.controller.ts         # /admin/matches
-│   └── matches.module.ts
-├── system-config/                  # 경제 파라미터
-│   └── system-config.{service,controller,module}.ts
-├── discord-bot/                    # Phase 3
-│   ├── discord-{client,member}.service.ts
-│   ├── command-registry.ts
-│   ├── commands/{balance,attendance,leaderboard,bet,rank-predict,shop,buy}.command.ts
-│   ├── builders/components-v2.builder.ts
-│   └── discord-bot.module.ts
-└── ...
-
-backend/src/common/
-├── guards/market-gate.guard.ts     # HTTP 가드 (MarketGateService 위임)
-└── services/market-gate.{service,module}.ts  # 공통 게이트 로직
+├── ledger/                             # 복식부기 원장
+├── matches/                            # 내전 상태머신
+├── system-config/                      # 경제 파라미터
+├── discord-bot/                        # Phase 3
+└── shop/
+    ├── shop.controller.ts              # 사용자용
+    └── admin-products.controller.ts    # Phase 4.2 신규
 ```
-
-### 폐기된 파일 (git history만 남음)
-- `betting/entities/{betting-question,betting-ticket}.entity.ts`
-- `betting/enums/betting.enum.ts`
-- `clans/entities/point-log.entity.ts`
-- `shop/entities/shop-purchase.entity.ts`
-- `shop/shop.service.spec.ts` (재작성 필요)
 
 ### 파이프라인 산출물
 ```
 .pipeline/
-├── requirement.md              # Phase 1~5 요구사항 (consultant 산출)
-├── plan.md                     # Phase 1 계획
-├── plan-phase3.md
-├── plan-phase4.md
-├── status.json                 # SSOT
+├── requirement.md
+├── plan.md, plan-phase3.md, plan-phase4.md
+├── plan-phase4.2.md                    # Phase 4.2 실행계획 (신규)
+├── status.json                         # SSOT
 ├── reviews/plan-review.md
-├── REPORT-phase2.md
-├── REPORT-phase3.md
-└── REPORT-phase4.1.md
+├── REPORT-phase2.md, REPORT-phase3.md, REPORT-phase4.1.md
 ```
 
 ---
@@ -206,18 +224,19 @@ backend/src/common/
 ```bash
 # 1. 현재 상태 확인
 cat .pipeline/status.json | head -50
-git log --oneline -8
+git log --oneline -10
 
 # 2. 빌드 확인
 cd backend && npm run build
+cd frontend && npm run build
 
 # 3. 신규 spec 확인 (15개 PASS 기대)
 cd backend && npx jest --testPathPatterns='ledger.service.spec|betting.service.spec|discord-member.service.spec'
 
-# 4. Phase 4.2 착수
-ls frontend/src/app/                          # 기존 사용자 페이지 확인
-ls frontend/src/common/components/ui/         # Shadcn UI 재활용 컴포넌트
-cat .pipeline/REPORT-phase4.1.md              # 백엔드 API 카탈로그
-```
+# 4. Phase 4.2 수동 검증
+# 브라우저에서 ADMIN 계정으로 로그인 → /admin 진입 → §3 시나리오 V1~V10
 
-진입 시 우선 `.pipeline/REPORT-phase4.1.md`의 §1.2 엔드포인트 카탈로그를 읽고, 그 다음 위 §3 "다음 세션에서 해야 할 일"의 페이지 목록대로 진행.
+# 5. Phase 5 착수 (대규모 정리)
+# 사용자 페이지 폐기 + socket.io 인증 통일 + clanId 제거 등
+# 별도 계획 수립 권장: /plan "Phase 5 정리"
+```

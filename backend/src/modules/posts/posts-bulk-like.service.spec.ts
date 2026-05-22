@@ -6,6 +6,8 @@ import { Post } from './entities/post.entity';
 import { PostLike } from './entities/post-like.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { Follow } from '../profiles/entities/follow.entity';
+import { ClanMember } from '../clans/entities/clan-member.entity';
+import { WalletService } from '../wallet/wallet.service';
 
 describe('PostsService - Bulk Like Status', () => {
   let service: PostsService;
@@ -33,6 +35,16 @@ describe('PostsService - Bulk Like Status', () => {
         {
           provide: getRepositoryToken(Follow),
           useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ClanMember),
+          useValue: {},
+        },
+        {
+          provide: WalletService,
+          useValue: {
+            deductPoints: jest.fn(),
+          },
         },
         {
           provide: DataSource,
