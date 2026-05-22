@@ -4,22 +4,47 @@ import {
   Body,
   UseGuards,
   Request,
+  Res,
   Get,
   Query,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service'; // Import UsersService
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
+import type { User } from '../users/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
     private usersService: UsersService, // Inject UsersService
+    private configService: ConfigService,
   ) {}
+
+  /** Discord OAuth2 진입점 — passport-discord 가드가 리다이렉트 처리. */
+  @Get('discord')
+  @UseGuards(AuthGuard('discord'))
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  discordLogin(): void {}
+
+  /** Discord OAuth2 콜백 — 토큰 발급 후 프론트로 리다이렉트. */
+  @Get('discord/callback')
+  @UseGuards(AuthGuard('discord'))
+  async discordCallback(
+    @Request() req: AuthenticatedRequest & { user: User },
+    @Res() res: Response,
+  ): Promise<void> {
+    const tokens = await this.authService.login(req.user);
+    const redirect =
+      this.configService.get<string>('DISCORD_OAUTH_SUCCESS_REDIRECT') ??
+      `/auth/discord/success?token=${encodeURIComponent(tokens.access_token)}`;
+    res.redirect(redirect);
+  }
 
   @Post('login')
   async login(@Body() loginDto: LoginDto) {

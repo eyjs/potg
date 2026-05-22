@@ -32,6 +32,7 @@ import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { MatchesModule } from './modules/matches/matches.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
+import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
 
 @Module({
   imports: [
@@ -149,6 +150,8 @@ import { SystemConfigModule } from './modules/system-config/system-config.module
     LedgerModule,
     MatchesModule,
     SystemConfigModule,
+    // === Phase 3 (Discord Bot + OAuth) ===
+    DiscordBotModule,
   ],
   controllers: [AppController],
   providers: [

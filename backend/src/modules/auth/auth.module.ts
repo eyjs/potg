@@ -8,7 +8,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { DiscordStrategy } from './discord.strategy';
 import { PasswordReset } from './entities/password-reset.entity';
+import { DiscordBotModule } from '../discord-bot/discord-bot.module';
 
 @Module({
   imports: [
@@ -16,6 +18,7 @@ import { PasswordReset } from './entities/password-reset.entity';
     UsersModule,
     PassportModule,
     ConfigModule,
+    DiscordBotModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -25,7 +28,7 @@ import { PasswordReset } from './entities/password-reset.entity';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, EmailService],
+  providers: [AuthService, JwtStrategy, DiscordStrategy, EmailService],
   controllers: [AuthController],
   exports: [AuthService],
 })
