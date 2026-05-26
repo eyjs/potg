@@ -20,6 +20,3 @@ export const POINT_TX_REASON = {
   MARKET_REFUND: 'MARKET_REFUND',
   ADMIN_ADJUST: 'ADMIN_ADJUST',
 } as const;
-
-export type PointTxReason =
-  (typeof POINT_TX_REASON)[keyof typeof POINT_TX_REASON];
