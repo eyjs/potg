@@ -208,7 +208,7 @@ export class PostsService {
     await this.dataSource.transaction(async (manager) => {
       // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING RETURNING id
       // 실제로 삽입된 경우에만 row가 반환됨
-      const inserted = await manager.query(
+      const inserted: Array<{ id: string }> = await manager.query(
         `INSERT INTO post_likes ("postId", "memberId")
          VALUES ($1, $2)
          ON CONFLICT ("postId", "memberId") DO NOTHING

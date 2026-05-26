@@ -12,6 +12,7 @@ import { BettingService } from '../betting/betting.service';
 import {
   BettingMarket,
   BettingMarketStatus,
+  BettingMarketType,
 } from '../betting/entities/betting-market.entity';
 import { Match } from './entities/match.entity';
 import { Team } from './entities/team.entity';
@@ -191,7 +192,7 @@ export class MatchService {
           continue;
         }
         let winningOption: string;
-        if (market.type === 'WIN') {
+        if (market.type === BettingMarketType.WIN) {
           winningOption = winnerTeamId;
         } else {
           // RANK 마켓: placement가 1인 팀의 placement를 winning_option으로

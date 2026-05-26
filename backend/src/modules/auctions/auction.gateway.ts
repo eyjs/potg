@@ -47,6 +47,10 @@ interface ChatMessagePayload {
   message: string;
 }
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 @Injectable()
 @WebSocketGateway({
   cors: {
@@ -100,7 +104,7 @@ export class AuctionGateway
       }
 
       // Join socket room
-      client.join(auctionId);
+      await client.join(auctionId);
       this.connectedUsers.set(client.id, {
         socketId: client.id,
         auctionId,
@@ -116,18 +120,18 @@ export class AuctionGateway
 
       this.logger.log(`User ${userId} joined auction ${auctionId}`);
     } catch (error) {
-      this.logger.error(`Error joining room: ${error.message}`);
+      this.logger.error(`Error joining room: ${errMsg(error)}`);
       client.emit('error', { message: '방 입장에 실패했습니다.' });
     }
   }
 
   @SubscribeMessage('leaveRoom')
-  async handleLeaveRoom(
+  handleLeaveRoom(
     @MessageBody() payload: { auctionId: string; userId: string },
     @ConnectedSocket() client: Socket,
   ) {
     const { auctionId, userId } = payload;
-    client.leave(auctionId);
+    void client.leave(auctionId);
     this.connectedUsers.delete(client.id);
     client.to(auctionId).emit('userLeft', { userId });
   }
@@ -143,7 +147,7 @@ export class AuctionGateway
       const roomState = await this.auctionsService.getRoomState(auctionId);
       client.emit('roomState', roomState);
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -204,7 +208,7 @@ export class AuctionGateway
         this.resetBiddingTimer(auctionId);
       }
     } catch (error) {
-      client.emit('bidError', { message: error.message });
+      client.emit('bidError', { message: errMsg(error) });
     }
   }
 
@@ -227,7 +231,7 @@ export class AuctionGateway
         roomState,
       });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -255,7 +259,7 @@ export class AuctionGateway
         roomState,
       });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -277,7 +281,7 @@ export class AuctionGateway
         roomState,
       });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -294,7 +298,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('auctionStarted', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -311,7 +315,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('auctionCompleted', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -348,7 +352,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('auctionPaused', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -377,7 +381,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('auctionResumed', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -395,7 +399,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('timerPaused', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -417,7 +421,7 @@ export class AuctionGateway
       const roomState = await this.auctionsService.getRoomState(auctionId);
       this.server.to(auctionId).emit('timerResumed', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -435,7 +439,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('playerUndone', { playerId, roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -452,7 +456,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('readyForNextPlayer', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -469,7 +473,7 @@ export class AuctionGateway
 
       this.server.to(auctionId).emit('assignmentPhaseStarted', { roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -499,7 +503,7 @@ export class AuctionGateway
         .to(auctionId)
         .emit('playerManuallyAssigned', { playerId, captainId, roomState });
     } catch (error) {
-      client.emit('error', { message: error.message });
+      client.emit('error', { message: errMsg(error) });
     }
   }
 
@@ -510,7 +514,7 @@ export class AuctionGateway
     const TIMER_INTERVAL = 1000;
     let remainingTime = 60; // Default time limit, should come from auction settings
 
-    const timer = setInterval(async () => {
+    const timer = setInterval(() => {
       remainingTime--;
 
       // Broadcast timer update
@@ -518,7 +522,7 @@ export class AuctionGateway
 
       if (remainingTime <= 0) {
         this.stopBiddingTimer(auctionId);
-        await this.handleTimerExpired(auctionId);
+        void this.handleTimerExpired(auctionId);
       }
     }, TIMER_INTERVAL);
 
@@ -539,7 +543,7 @@ export class AuctionGateway
     const TIMER_INTERVAL = 1000;
     let timeLeft = remainingTime;
 
-    const timer = setInterval(async () => {
+    const timer = setInterval(() => {
       timeLeft--;
 
       // Broadcast timer update
@@ -549,7 +553,7 @@ export class AuctionGateway
 
       if (timeLeft <= 0) {
         this.stopBiddingTimer(auctionId);
-        await this.handleTimerExpired(auctionId);
+        void this.handleTimerExpired(auctionId);
       }
     }, TIMER_INTERVAL);
 
@@ -586,7 +590,7 @@ export class AuctionGateway
         });
       }
     } catch (error) {
-      this.logger.error(`Error handling timer expiry: ${error.message}`);
+      this.logger.error(`Error handling timer expiry: ${errMsg(error)}`);
     }
   }
 

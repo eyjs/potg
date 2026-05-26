@@ -30,7 +30,7 @@ export class Phase5D3DropClanIdFKs1747900006000 implements MigrationInterface {
 
     for (const { table, column } of targets) {
       // FK 삭제 (있으면)
-      const fks = await queryRunner.query(
+      const fks = (await queryRunner.query(
         `SELECT tc.constraint_name
            FROM information_schema.table_constraints tc
            JOIN information_schema.key_column_usage kcu
@@ -40,20 +40,20 @@ export class Phase5D3DropClanIdFKs1747900006000 implements MigrationInterface {
             AND tc.table_name = $1
             AND kcu.column_name = $2`,
         [table, column],
-      );
-      for (const fk of fks as Array<{ constraint_name: string }>) {
+      )) as Array<{ constraint_name: string }>;
+      for (const fk of fks) {
         await queryRunner.query(
           `ALTER TABLE "${table}" DROP CONSTRAINT "${fk.constraint_name}"`,
         );
       }
 
       // 인덱스 삭제 (있으면 — posts 등은 @Index 부착됨)
-      const idxs = await queryRunner.query(
+      const idxs = (await queryRunner.query(
         `SELECT indexname FROM pg_indexes
           WHERE tablename = $1 AND indexdef ILIKE $2`,
         [table, `%(${column})%`],
-      );
-      for (const idx of idxs as Array<{ indexname: string }>) {
+      )) as Array<{ indexname: string }>;
+      for (const idx of idxs) {
         await queryRunner.query(`DROP INDEX IF EXISTS "${idx.indexname}"`);
       }
 

@@ -83,16 +83,18 @@ export class DiscordClientService
       this.logger.log(`Discord bot ready as ${c.user.tag}`);
     });
 
-    this.client.on(Events.InteractionCreate, async (interaction) => {
-      if (!interaction.isChatInputCommand()) return;
-      if (guildId && interaction.guildId !== guildId) {
-        await interaction.reply({
-          content: '이 봇은 등록된 길드에서만 사용 가능합니다.',
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
-      }
-      await this.registry.dispatch(interaction);
+    this.client.on(Events.InteractionCreate, (interaction) => {
+      void (async () => {
+        if (!interaction.isChatInputCommand()) return;
+        if (guildId && interaction.guildId !== guildId) {
+          await interaction.reply({
+            content: '이 봇은 등록된 길드에서만 사용 가능합니다.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        await this.registry.dispatch(interaction);
+      })();
     });
 
     try {

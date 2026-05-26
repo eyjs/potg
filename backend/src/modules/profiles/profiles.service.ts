@@ -140,7 +140,7 @@ export class ProfilesService {
     await this.dataSource.transaction(async (manager) => {
       // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING RETURNING id
       // 실제로 삽입된 경우에만 row가 반환됨
-      const inserted = await manager.query(
+      const inserted: Array<{ id: string }> = await manager.query(
         `INSERT INTO follows ("followerId", "followingId")
          VALUES ($1, $2)
          ON CONFLICT ("followerId", "followingId") DO NOTHING
@@ -299,7 +299,7 @@ export class ProfilesService {
     today.setHours(0, 0, 0, 0);
 
     // UPSERT로 race condition 방지
-    const result = await this.dataSource.query(
+    const result: Array<{ id: string }> = await this.dataSource.query(
       `INSERT INTO profile_visits ("profileId", "visitorId", "visitDate")
        VALUES ($1, $2, $3)
        ON CONFLICT ("profileId", "visitorId", "visitDate") DO NOTHING
