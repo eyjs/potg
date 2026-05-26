@@ -10,6 +10,7 @@ import { ClanJoinRequest } from '../../../src/modules/clans/entities/clan-join-r
 import { Announcement } from '../../../src/modules/clans/entities/announcement.entity';
 import { HallOfFame } from '../../../src/modules/clans/entities/hall-of-fame.entity';
 import { PointTx } from '../../../src/modules/ledger/entities/point-tx.entity';
+import { ClanActivityFeedService } from '../../../src/modules/clans/services/clan-activity-feed.service';
 import { DataSource, Repository } from 'typeorm';
 
 describe('ClansService - Unit Tests', () => {
@@ -80,6 +81,7 @@ describe('ClansService - Unit Tests', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClansService,
+        ClanActivityFeedService,
         { provide: getRepositoryToken(Clan), useValue: mockClansRepository },
         {
           provide: getRepositoryToken(ClanMember),

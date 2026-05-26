@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ClansService } from './clans.service';
+import { ClanActivityFeedService } from './services/clan-activity-feed.service';
 import { Clan } from './entities/clan.entity';
 import { ClanMember, ClanRole } from './entities/clan-member.entity';
 import {
@@ -72,6 +73,7 @@ describe('ClansService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClansService,
+        ClanActivityFeedService,
         { provide: getRepositoryToken(Clan), useValue: mockClansRepo },
         {
           provide: getRepositoryToken(ClanMember),

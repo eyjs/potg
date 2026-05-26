@@ -14,8 +14,8 @@ import {
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
 import { PointTx } from '../ledger/entities/point-tx.entity';
-import { ActivityType } from './interfaces/activity.interface';
 import type { ActivityEvent } from './interfaces/activity.interface';
+import { ClanActivityFeedService } from './services/clan-activity-feed.service';
 
 @Injectable()
 export class ClansService {
@@ -33,6 +33,7 @@ export class ClansService {
     @InjectRepository(PointTx)
     private pointTxRepository: Repository<PointTx>,
     private dataSource: DataSource,
+    private readonly activityFeedService: ClanActivityFeedService,
   ) {}
 
   async create(createClanDto: Partial<Clan>, userId: string) {
@@ -351,152 +352,7 @@ export class ClansService {
     userId: string,
     limit: number = 20,
   ): Promise<ActivityEvent[]> {
-    // 멤버십 검증
-    const membership = await this.clanMembersRepository.findOne({
-      where: { clanId, userId },
-    });
-    if (!membership) {
-      throw new ForbiddenException(
-        '클랜 멤버만 활동 피드를 조회할 수 있습니다.',
-      );
-    }
-
-    // 클랜 멤버 userId 집합 (PointTx 필터링용).
-    const memberUserIds = (
-      await this.clanMembersRepository.find({
-        where: { clanId },
-        select: ['userId'],
-      })
-    ).map((m) => m.userId);
-
-    // 3개 테이블 병렬 조회
-    const [members, pointTxs, announcements] = await Promise.all([
-      // 최근 가입 멤버
-      this.clanMembersRepository.find({
-        where: { clanId },
-        relations: ['user'],
-        order: { createdAt: 'DESC' },
-        take: limit,
-      }),
-      // 클랜 멤버의 PointTx (적립/이체)
-      memberUserIds.length === 0
-        ? Promise.resolve([])
-        : this.pointTxRepository
-            .createQueryBuilder('tx')
-            .where(
-              'tx.from_account IN (:...ids) OR tx.to_account IN (:...ids)',
-              {
-                ids: memberUserIds,
-              },
-            )
-            .orderBy('tx.created_at', 'DESC')
-            .take(limit)
-            .getMany(),
-      // 공지사항 (단일 클랜 — 전체 활성)
-      this.announcementsRepository.find({
-        where: { isActive: true },
-        relations: ['author'],
-        order: { createdAt: 'DESC' },
-        take: limit,
-      }),
-    ]);
-
-    const events: ActivityEvent[] = [];
-
-    // 멤버 가입 이벤트 변환 (createdAt이 가장 오래된 멤버 = 클랜 생성자)
-    const oldestCreatedAt =
-      members.length > 0
-        ? Math.min(...members.map((m) => m.createdAt.getTime()))
-        : 0;
-
-    for (const member of members) {
-      const isCreator = member.createdAt.getTime() === oldestCreatedAt;
-      const type = isCreator
-        ? ActivityType.CLAN_CREATE
-        : ActivityType.MEMBER_JOIN;
-      const tag = member.user?.battleTag ?? '알 수 없음';
-      const message = isCreator
-        ? `${tag}님이 클랜을 생성했습니다.`
-        : `${tag}님이 클랜에 가입했습니다.`;
-
-      events.push({
-        id: member.id,
-        type,
-        userId: member.userId,
-        userBattleTag: member.user?.battleTag ?? '알 수 없음',
-        userAvatarUrl: member.user?.avatarUrl ?? null,
-        message,
-        amount: null,
-        createdAt: member.createdAt,
-      });
-    }
-
-    // PointTx 이벤트 변환 (from/to 한쪽만 클랜 멤버인 경우 모두 포함).
-    const memberUserIdSet = new Set(memberUserIds);
-    for (const tx of pointTxs) {
-      const isInflow =
-        tx.toAccount !== null && memberUserIdSet.has(tx.toAccount);
-      const focusUserId = isInflow
-        ? (tx.toAccount as string)
-        : (tx.fromAccount ?? '');
-      if (!focusUserId) continue;
-      const amount = Number(tx.amount);
-      events.push({
-        id: tx.id,
-        type: this.resolvePointTxActivityType(tx.reason, isInflow),
-        userId: focusUserId,
-        userBattleTag: '',
-        userAvatarUrl: null,
-        message: this.buildPointTxMessage(tx, isInflow),
-        amount: isInflow ? amount : -amount,
-        createdAt: tx.createdAt,
-      });
-    }
-
-    // 공지사항 이벤트 변환
-    for (const ann of announcements) {
-      events.push({
-        id: ann.id,
-        type: ActivityType.ANNOUNCEMENT,
-        userId: ann.authorId,
-        userBattleTag: ann.author?.battleTag ?? '알 수 없음',
-        userAvatarUrl: ann.author?.avatarUrl ?? null,
-        message: `공지: ${ann.title}`,
-        amount: null,
-        createdAt: ann.createdAt,
-      });
-    }
-
-    // createdAt DESC 정렬 후 limit 적용
-    events.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return events.slice(0, limit);
-  }
-
-  private resolvePointTxActivityType(
-    reason: string,
-    isInflow: boolean,
-  ): ActivityType {
-    if (reason === 'BET_PAYOUT') return ActivityType.BET_WIN;
-    if (reason === 'BET_STAKE') return ActivityType.BET_LOSS;
-    if (reason === 'P2P_SEND') {
-      return isInflow ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
-    }
-    return isInflow ? ActivityType.POINT_RECEIVED : ActivityType.POINT_SENT;
-  }
-
-  private buildPointTxMessage(tx: PointTx, isInflow: boolean): string {
-    const amount = Number(tx.amount);
-    if (tx.reason === 'BET_PAYOUT')
-      return `베팅 정산으로 ${amount}P를 획득했습니다.`;
-    if (tx.reason === 'BET_STAKE') return `베팅에 ${amount}P를 사용했습니다.`;
-    if (tx.reason === 'MARKET_BUY')
-      return `상점에서 ${amount}P를 사용했습니다.`;
-    if (tx.reason === 'MARKET_REFUND')
-      return `상점 환불로 ${amount}P를 받았습니다.`;
-    if (tx.reason === 'P2P_SEND') {
-      return isInflow ? `${amount}P를 받았습니다.` : `${amount}P를 보냈습니다.`;
-    }
-    return isInflow ? `${amount}P를 받았습니다.` : `${amount}P를 사용했습니다.`;
+    return this.activityFeedService.getActivities(clanId, userId, limit);
   }
 
   // ========== 공지사항 ==========
