@@ -71,6 +71,18 @@ export class ShopService {
     return this.productsRepository.find();
   }
 
+  /**
+   * 판매 중인 ACTIVE 상품 목록 (재고 1+, 최신순).
+   * /구매 Step UI 의 후보 표시용.
+   */
+  async findActiveProducts(limit = 25): Promise<ShopProduct[]> {
+    return this.productsRepository.find({
+      where: { status: ProductStatus.ACTIVE },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async updateProduct(
     id: string,
     patch: {

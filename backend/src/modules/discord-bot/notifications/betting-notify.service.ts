@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChannelType, EmbedBuilder } from 'discord.js';
 import { DiscordClientService } from '../discord-client.service';
+import { BettingStakeStatus } from '../../betting/entities/betting-stake.entity';
+import type { BettingStake } from '../../betting/entities/betting-stake.entity';
 
 /**
  * 베팅 마켓 생성/마감/정산 결과를 지정 채널에 임베드로 알림.
@@ -81,6 +83,105 @@ export class BettingNotifyService {
       .setColor(0x00ff66)
       .setTimestamp();
     await this.send(embed);
+  }
+
+  /**
+   * 매치 정산 후 베팅자 각자에게 결과 DM 발송 (best-effort).
+   *
+   * - stakes 는 user 관계가 로드되어 있어야 함 (BettingService.findStakesForMatchSettlement)
+   * - 봇 not ready 또는 DM 차단은 silent fail
+   * - 정산되지 않은 (status === PLACED) stake 는 스킵
+   *
+   * @param stakes 정산 처리가 완료된 BettingStake 행 (user.discordId 포함)
+   * @param matchTitle DM 메시지에 표시할 매치 제목
+   * @param winnerLabel WIN 마켓: 우승 팀명 / RANK 마켓: "1등" 형태
+   */
+  async notifyStakeResultsToBettors(
+    stakes: BettingStake[],
+    matchTitle: string,
+  ): Promise<{ sent: number; skipped: number; failed: number }> {
+    if (!this.discord.isReady()) {
+      this.logger.debug('Discord not ready, skipping stake DM');
+      return { sent: 0, skipped: stakes.length, failed: 0 };
+    }
+    const client = this.discord.getClient();
+    if (!client) return { sent: 0, skipped: stakes.length, failed: 0 };
+
+    let sent = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const stake of stakes) {
+      // 정산 안 된 stake 는 스킵 (이론상 발생 안하지만 방어).
+      if (stake.status === BettingStakeStatus.PLACED) {
+        skipped += 1;
+        continue;
+      }
+      const discordId = stake.user?.discordId;
+      if (!discordId) {
+        skipped += 1;
+        continue;
+      }
+
+      const isWon = stake.status === BettingStakeStatus.WON;
+      const isRefunded = stake.status === BettingStakeStatus.REFUNDED;
+      const payout = BigInt(stake.payout ?? '0');
+      const stakeAmount = BigInt(stake.stake);
+      const profit = payout - stakeAmount;
+
+      const embed = new EmbedBuilder()
+        .setTitle(
+          isWon ? '🎉 베팅 당첨' : isRefunded ? '↩️ 베팅 환불' : '💔 베팅 낙첨',
+        )
+        .setColor(isWon ? 0x00ff66 : isRefunded ? 0xf99e1a : 0x808080)
+        .addFields(
+          { name: '매치', value: matchTitle, inline: false },
+          { name: '선택', value: `\`${stake.side}\``, inline: true },
+          { name: '베팅', value: `${stakeAmount.toString()} P`, inline: true },
+        );
+
+      if (isWon) {
+        embed.addFields(
+          { name: '지급', value: `${payout.toString()} P`, inline: true },
+          {
+            name: '손익',
+            value: `${profit >= 0n ? '+' : ''}${profit.toString()} P`,
+            inline: true,
+          },
+        );
+      } else if (isRefunded) {
+        embed.addFields({
+          name: '환불',
+          value: `${payout.toString()} P`,
+          inline: true,
+        });
+      } else {
+        embed.addFields({
+          name: '손실',
+          value: `-${stakeAmount.toString()} P`,
+          inline: true,
+        });
+      }
+
+      embed.setTimestamp();
+
+      try {
+        const user = await client.users.fetch(discordId);
+        await user.send({ embeds: [embed] });
+        sent += 1;
+      } catch (err) {
+        // DM 차단 / fetch 실패 — silent.
+        this.logger.debug(
+          `Stake DM failed for ${discordId}: ${(err as Error).message}`,
+        );
+        failed += 1;
+      }
+    }
+
+    this.logger.log(
+      `Stake DM result for "${matchTitle}": sent=${sent} skipped=${skipped} failed=${failed}`,
+    );
+    return { sent, skipped, failed };
   }
 
   private async send(embed: EmbedBuilder): Promise<void> {

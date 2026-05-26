@@ -97,20 +97,37 @@ export class BettingService {
 
   /**
    * 현재 진행 중인 OPEN 마켓 목록. Match가 BETTING_OPEN 상태인 것만.
-   * `/최근베팅` 명령 / autocomplete 에서 사용.
+   * `/최근베팅` 명령 / Step UI 에서 사용.
+   *
+   * @param opts.type WIN/RANK 필터 (생략 시 둘 다)
    */
-  async findOpenMarkets(limit = 25): Promise<BettingMarket[]> {
-    return this.marketRepository
+  async findOpenMarkets(
+    limit = 25,
+    opts: { type?: BettingMarketType } = {},
+  ): Promise<BettingMarket[]> {
+    const qb = this.marketRepository
       .createQueryBuilder('market')
       .innerJoin(Match, 'match', 'match.id = market.match_id')
-      .where('market.status = :status', {
-        status: BettingMarketStatus.OPEN,
-      })
+      .where('market.status = :status', { status: BettingMarketStatus.OPEN })
       .andWhere('match.status = :matchStatus', {
         matchStatus: MatchStatus.BETTING_OPEN,
-      })
-      .orderBy('market.created_at', 'DESC')
-      .take(limit)
+      });
+    if (opts.type) {
+      qb.andWhere('market.type = :type', { type: opts.type });
+    }
+    return qb.orderBy('market.created_at', 'DESC').take(limit).getMany();
+  }
+
+  /**
+   * 매치 단위로 정산 완료된 stake 목록을 user 정보와 함께 조회.
+   * 정산 후 개인 DM 발송용. SETTLED/CANCELLED 마켓의 모든 stake row.
+   */
+  async findStakesForMatchSettlement(matchId: string): Promise<BettingStake[]> {
+    return this.stakeRepository
+      .createQueryBuilder('stake')
+      .innerJoinAndSelect('stake.market', 'market')
+      .innerJoinAndSelect('stake.user', 'user')
+      .where('market.match_id = :matchId', { matchId })
       .getMany();
   }
 

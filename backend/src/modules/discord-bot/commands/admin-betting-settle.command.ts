@@ -14,6 +14,7 @@ import {
 import type { SlashCommand } from '../interfaces/slash-command.interface';
 import { UsersService } from '../../users/users.service';
 import { MatchService } from '../../matches/match.service';
+import { BettingService } from '../../betting/betting.service';
 import { assertAdmin } from '../utils/admin-guard';
 import { BettingNotifyService } from '../notifications/betting-notify.service';
 
@@ -40,6 +41,7 @@ export class AdminBettingSettleCommand implements SlashCommand {
   constructor(
     private readonly users: UsersService,
     private readonly matches: MatchService,
+    private readonly betting: BettingService,
     private readonly notify: BettingNotifyService,
   ) {}
 
@@ -275,6 +277,14 @@ export class AdminBettingSettleCommand implements SlashCommand {
                 payoutDistributed: payoutDistributed.toString(),
                 winnersCount,
               });
+              // 베팅자 개인 DM (best-effort).
+              const stakes = await this.betting.findStakesForMatchSettlement(
+                settledMatch.id,
+              );
+              await this.notify.notifyStakeResultsToBettors(
+                stakes,
+                settledMatch.title,
+              );
             } catch {
               // notify 실패는 silent
             }

@@ -104,6 +104,19 @@ export class MatchService {
     });
   }
 
+  /**
+   * 베팅 진행 중인 BETTING_OPEN 매치 목록 (최신순).
+   * `/관리-베팅마감` Step UI 의 첫 단계에서 후보 표시용.
+   */
+  async findBettingOpenMatches(limit = 25): Promise<Match[]> {
+    return this.matchRepository.find({
+      where: { status: MatchStatus.BETTING_OPEN },
+      relations: ['teams'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async findOneWithTeams(matchId: string): Promise<Match> {
     const match = await this.matchRepository.findOne({
       where: { id: matchId },

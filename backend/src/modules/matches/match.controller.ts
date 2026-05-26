@@ -17,6 +17,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { MatchService } from './match.service';
 import { CreateMatchDto, CreateTeamDto, SettleMatchDto } from './dto/match.dto';
 import { BettingNotifyService } from '../discord-bot/notifications/betting-notify.service';
+import { BettingService } from '../betting/betting.service';
 
 @ApiTags('admin-matches')
 @ApiCookieAuth('access_token')
@@ -28,6 +29,8 @@ export class MatchController {
     private readonly matches: MatchService,
     @Inject(forwardRef(() => BettingNotifyService))
     private readonly notify: BettingNotifyService,
+    @Inject(forwardRef(() => BettingService))
+    private readonly betting: BettingService,
   ) {}
 
   @Get()
@@ -114,6 +117,12 @@ export class MatchController {
           payoutDistributed: payoutDistributed.toString(),
           winnersCount,
         });
+
+        // 베팅자 개인 DM (best-effort, 별도 try)
+        const stakes = await this.betting.findStakesForMatchSettlement(
+          match.id,
+        );
+        await this.notify.notifyStakeResultsToBettors(stakes, match.title);
       } catch {
         // notify 실패는 silent
       }

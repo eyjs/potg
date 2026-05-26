@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MatchController } from './match.controller';
 import { MatchService } from './match.service';
 import { BettingNotifyService } from '../discord-bot/notifications/betting-notify.service';
+import { BettingService } from '../betting/betting.service';
 
 describe('MatchController', () => {
   let controller: MatchController;
@@ -15,7 +16,11 @@ describe('MatchController', () => {
     settleMatch: jest.Mock;
     cancelMatch: jest.Mock;
   };
-  let notify: { notifyMarketSettled: jest.Mock };
+  let notify: {
+    notifyMarketSettled: jest.Mock;
+    notifyStakeResultsToBettors: jest.Mock;
+  };
+  let betting: { findStakesForMatchSettlement: jest.Mock };
 
   beforeEach(async () => {
     service = {
@@ -28,13 +33,18 @@ describe('MatchController', () => {
       settleMatch: jest.fn(),
       cancelMatch: jest.fn(),
     };
-    notify = { notifyMarketSettled: jest.fn() };
+    notify = {
+      notifyMarketSettled: jest.fn(),
+      notifyStakeResultsToBettors: jest.fn(),
+    };
+    betting = { findStakesForMatchSettlement: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MatchController],
       providers: [
         { provide: MatchService, useValue: service },
         { provide: BettingNotifyService, useValue: notify },
+        { provide: BettingService, useValue: betting },
       ],
     }).compile();
 
