@@ -230,4 +230,101 @@ export class LedgerService {
     if (account === null) return SINK_ACCOUNT_ID;
     return account;
   }
+
+  // ==================== Admin Queries ====================
+
+  async adminListTx(opts: {
+    userId?: string;
+    reason?: string;
+    from?: string;
+    to?: string;
+    skip: number;
+    take: number;
+  }): Promise<{ rows: PointTx[]; total: number }> {
+    const qb = this.pointTxRepository
+      .createQueryBuilder('tx')
+      .orderBy('tx.created_at', 'DESC')
+      .skip(opts.skip)
+      .take(opts.take);
+
+    if (opts.userId) {
+      qb.andWhere('(tx.from_account = :uid OR tx.to_account = :uid)', {
+        uid: opts.userId,
+      });
+    }
+    if (opts.reason) {
+      qb.andWhere('tx.reason = :reason', { reason: opts.reason });
+    }
+    if (opts.from) {
+      qb.andWhere('tx.created_at >= :from', { from: new Date(opts.from) });
+    }
+    if (opts.to) {
+      qb.andWhere('tx.created_at < :to', { to: new Date(opts.to) });
+    }
+
+    const [rows, total] = await qb.getManyAndCount();
+    return { rows, total };
+  }
+
+  async adminDailyTimeseries(
+    days: number,
+  ): Promise<Array<{ date: string; minted: string; burned: string }>> {
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    since.setUTCDate(since.getUTCDate() - (days - 1));
+
+    const rows = await this.pointTxRepository
+      .createQueryBuilder('tx')
+      .select(
+        `to_char(date_trunc('day', tx.created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD')`,
+        'date',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN tx.from_account = :sink THEN tx.amount ELSE 0 END), 0)`,
+        'minted',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN tx.to_account = :sink THEN tx.amount ELSE 0 END), 0)`,
+        'burned',
+      )
+      .where('tx.created_at >= :since', { since })
+      .setParameter('sink', SINK_ACCOUNT_ID)
+      .groupBy('date')
+      .orderBy('date', 'ASC')
+      .getRawMany<{ date: string; minted: string; burned: string }>();
+
+    const byDate = new Map(rows.map((r) => [r.date, r]));
+    const result: Array<{ date: string; minted: string; burned: string }> = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setUTCDate(since.getUTCDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      result.push(byDate.get(key) ?? { date: key, minted: '0', burned: '0' });
+    }
+    return result;
+  }
+
+  async adminSummary(): Promise<{
+    minted: string;
+    burned: string;
+    circulating: string;
+  }> {
+    const mintedRow = await this.pointTxRepository
+      .createQueryBuilder('tx')
+      .select('COALESCE(SUM(tx.amount), 0)', 'sum')
+      .where('tx.from_account = :sink', { sink: SINK_ACCOUNT_ID })
+      .getRawOne<{ sum: string }>();
+    const burnedRow = await this.pointTxRepository
+      .createQueryBuilder('tx')
+      .select('COALESCE(SUM(tx.amount), 0)', 'sum')
+      .where('tx.to_account = :sink', { sink: SINK_ACCOUNT_ID })
+      .getRawOne<{ sum: string }>();
+    const minted = BigInt(mintedRow?.sum ?? '0');
+    const burned = BigInt(burnedRow?.sum ?? '0');
+    return {
+      minted: minted.toString(),
+      burned: burned.toString(),
+      circulating: (minted - burned).toString(),
+    };
+  }
 }

@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
 import { AdminUsersController } from './admin-users.controller';
+import { UsersService } from './users.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { POINT_TX_REASON } from '../ledger/ledger.constants';
 import { User, UserRole } from './entities/user.entity';
@@ -10,8 +9,8 @@ import { User, UserRole } from './entities/user.entity';
 // 회계 critical — 잔액 조정(mint/burn) 경로 검증
 describe('AdminUsersController', () => {
   let controller: AdminUsersController;
-  let userRepo: jest.Mocked<
-    Pick<Repository<User>, 'findOne' | 'save' | 'findAndCount'>
+  let users: jest.Mocked<
+    Pick<UsersService, 'adminList' | 'adminFindOrFail' | 'adminUpdateRole'>
   >;
   let ledger: jest.Mocked<Pick<LedgerService, 'mint' | 'burn' | 'getBalance'>>;
 
@@ -29,10 +28,10 @@ describe('AdminUsersController', () => {
     }) as unknown as User;
 
   beforeEach(async () => {
-    const mockUserRepo = {
-      findOne: jest.fn(),
-      save: jest.fn(),
-      findAndCount: jest.fn(),
+    const mockUsers = {
+      adminList: jest.fn(),
+      adminFindOrFail: jest.fn(),
+      adminUpdateRole: jest.fn(),
     };
     const mockLedger = {
       mint: jest.fn(),
@@ -43,13 +42,13 @@ describe('AdminUsersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminUsersController],
       providers: [
-        { provide: getRepositoryToken(User), useValue: mockUserRepo },
+        { provide: UsersService, useValue: mockUsers },
         { provide: LedgerService, useValue: mockLedger },
       ],
     }).compile();
 
     controller = module.get<AdminUsersController>(AdminUsersController);
-    userRepo = module.get(getRepositoryToken(User));
+    users = module.get(UsersService);
     ledger = module.get(LedgerService);
   });
 
@@ -60,7 +59,7 @@ describe('AdminUsersController', () => {
   describe('adjust', () => {
     it('delta > 0 이면 LedgerService.mint를 ADMIN_ADJUST reason으로 호출한다', async () => {
       const user = baseUser();
-      (userRepo.findOne as jest.Mock).mockResolvedValue(user);
+      (users.adminFindOrFail as jest.Mock).mockResolvedValue(user);
       (ledger.mint as jest.Mock).mockResolvedValue(undefined);
       (ledger.getBalance as jest.Mock).mockResolvedValue(BigInt(1500));
 
@@ -82,7 +81,7 @@ describe('AdminUsersController', () => {
 
     it('delta < 0 이면 LedgerService.burn을 ADMIN_ADJUST reason으로 호출한다', async () => {
       const user = baseUser();
-      (userRepo.findOne as jest.Mock).mockResolvedValue(user);
+      (users.adminFindOrFail as jest.Mock).mockResolvedValue(user);
       (ledger.burn as jest.Mock).mockResolvedValue(undefined);
       (ledger.getBalance as jest.Mock).mockResolvedValue(BigInt(500));
 
@@ -112,15 +111,15 @@ describe('AdminUsersController', () => {
     });
 
     it('delta가 소수이면 BadRequestException을 던진다', async () => {
-      // class-validator @IsInt()는 런타임에서 number가 1.5이면 거부해야 하지만,
-      // controller 레이어에서는 서비스 레이어 진입 전에 직접 Number.isInteger 체크가 있음.
       await expect(
         controller.adjust('user-uuid-1', { delta: 1.5 }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('존재하지 않는 userId이면 NotFoundException을 던진다', async () => {
-      (userRepo.findOne as jest.Mock).mockResolvedValue(null);
+      (users.adminFindOrFail as jest.Mock).mockRejectedValue(
+        new NotFoundException('Member not found'),
+      );
 
       await expect(
         controller.adjust('non-existent-uuid', { delta: 100 }),
@@ -131,7 +130,7 @@ describe('AdminUsersController', () => {
 
     it('memo 없이도 기본값으로 mint를 호출한다', async () => {
       const user = baseUser();
-      (userRepo.findOne as jest.Mock).mockResolvedValue(user);
+      (users.adminFindOrFail as jest.Mock).mockResolvedValue(user);
       (ledger.mint as jest.Mock).mockResolvedValue(undefined);
       (ledger.getBalance as jest.Mock).mockResolvedValue(BigInt(2000));
 
@@ -150,24 +149,24 @@ describe('AdminUsersController', () => {
 
   describe('updateRole', () => {
     it('user의 role을 변경하고 저장한다', async () => {
-      const user = baseUser({ role: UserRole.USER });
-      (userRepo.findOne as jest.Mock).mockResolvedValue(user);
-      (userRepo.save as jest.Mock).mockImplementation((u: User) =>
-        Promise.resolve(u),
-      );
+      const updated = baseUser({ role: UserRole.ADMIN });
+      (users.adminUpdateRole as jest.Mock).mockResolvedValue(updated);
 
       const result = await controller.updateRole('user-uuid-1', {
         role: UserRole.ADMIN,
       });
 
       expect(result.role).toBe(UserRole.ADMIN);
-      expect(userRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ role: UserRole.ADMIN }),
+      expect(users.adminUpdateRole).toHaveBeenCalledWith(
+        'user-uuid-1',
+        UserRole.ADMIN,
       );
     });
 
     it('존재하지 않는 userId이면 NotFoundException을 던진다', async () => {
-      (userRepo.findOne as jest.Mock).mockResolvedValue(null);
+      (users.adminUpdateRole as jest.Mock).mockRejectedValue(
+        new NotFoundException('Member not found'),
+      );
 
       await expect(
         controller.updateRole('non-existent-uuid', { role: UserRole.ADMIN }),
@@ -180,7 +179,7 @@ describe('AdminUsersController', () => {
   describe('detail', () => {
     it('존재하는 userId이면 user를 반환한다', async () => {
       const user = baseUser();
-      (userRepo.findOne as jest.Mock).mockResolvedValue(user);
+      (users.adminFindOrFail as jest.Mock).mockResolvedValue(user);
 
       const result = await controller.detail('user-uuid-1');
 
@@ -188,7 +187,9 @@ describe('AdminUsersController', () => {
     });
 
     it('존재하지 않는 userId이면 NotFoundException을 던진다', async () => {
-      (userRepo.findOne as jest.Mock).mockResolvedValue(null);
+      (users.adminFindOrFail as jest.Mock).mockRejectedValue(
+        new NotFoundException('Member not found'),
+      );
 
       await expect(controller.detail('no-uuid')).rejects.toThrow(
         NotFoundException,

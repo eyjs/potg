@@ -14,17 +14,12 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { User, UserRole } from '../users/entities/user.entity';
-import {
-  AttendanceRecord,
-  AttendanceStatus,
-} from './entities/attendance-record.entity';
-import { ClanMember } from '../clans/entities/clan-member.entity';
+import { UserRole } from '../users/entities/user.entity';
+import { AttendanceService } from './attendance.service';
+import { AttendanceStatus } from './entities/attendance-record.entity';
 
 interface UploadRow {
   discord_id?: string;
@@ -53,13 +48,7 @@ interface RowResult {
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
 export class AttendanceUploadController {
-  constructor(
-    @InjectRepository(User) private readonly userRepo: Repository<User>,
-    @InjectRepository(ClanMember)
-    private readonly clanMemberRepo: Repository<ClanMember>,
-    @InjectRepository(AttendanceRecord)
-    private readonly attendanceRepo: Repository<AttendanceRecord>,
-  ) {}
+  constructor(private readonly attendance: AttendanceService) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -87,39 +76,22 @@ export class AttendanceUploadController {
         continue;
       }
       try {
-        const user = await this.userRepo.findOne({ where: { discordId } });
-        if (!user) {
+        const outcome = await this.attendance.bulkUploadRecord({
+          discordId,
+          scrimId: (row.scrim_id ?? '').toString().trim() || null,
+          status: this.parseStatus(row.status),
+        });
+        if (outcome.ok) {
+          success += 1;
+          results.push({ index: i, discord_id: discordId, ok: true });
+        } else {
           results.push({
             index: i,
             discord_id: discordId,
             ok: false,
-            reason: 'User 미존재',
+            reason: outcome.reason,
           });
-          continue;
         }
-        const cm = await this.clanMemberRepo.findOne({
-          where: { userId: user.id },
-        });
-        if (!cm) {
-          results.push({
-            index: i,
-            discord_id: discordId,
-            ok: false,
-            reason: 'ClanMember 미존재',
-          });
-          continue;
-        }
-        const status = this.parseStatus(row.status);
-        const scrimId = (row.scrim_id ?? '').toString().trim() || null;
-        const record = this.attendanceRepo.create({
-          memberId: cm.id,
-          scrimId: scrimId ?? undefined,
-          status,
-          checkedInAt: new Date(),
-        });
-        await this.attendanceRepo.save(record);
-        success += 1;
-        results.push({ index: i, discord_id: discordId, ok: true });
       } catch (err) {
         results.push({
           index: i,

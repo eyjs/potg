@@ -12,6 +12,7 @@ import {
 } from './entities/attendance-record.entity';
 import { CreatePointRuleDto, UpdatePointRuleDto } from './dto/point-rule.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
+import { UsersService } from '../users/users.service';
 
 const DEFAULT_RULES: Omit<CreatePointRuleDto, 'category'>[] &
   { category: PointRuleCategory }[] = [
@@ -51,6 +52,7 @@ export class AttendanceService {
     @InjectRepository(ClanMember)
     private clanMemberRepository: Repository<ClanMember>,
     private dataSource: DataSource,
+    private readonly usersService: UsersService,
   ) {}
 
   // ========== PointRule CRUD (단일 클랜 전제) ==========
@@ -175,6 +177,29 @@ export class AttendanceService {
     }
 
     return stats.sort((a, b) => b.attendanceRate - a.attendanceRate);
+  }
+
+  // ========== Bulk Upload (관리자 엑셀) ==========
+
+  async bulkUploadRecord(input: {
+    discordId: string;
+    scrimId?: string | null;
+    status: AttendanceStatus;
+  }): Promise<{ ok: true } | { ok: false; reason: string }> {
+    const user = await this.usersService.findByDiscordId(input.discordId);
+    if (!user) return { ok: false, reason: 'User 미존재' };
+    const member = await this.clanMemberRepository.findOne({
+      where: { userId: user.id },
+    });
+    if (!member) return { ok: false, reason: 'ClanMember 미존재' };
+    const record = this.attendanceRecordRepository.create({
+      memberId: member.id,
+      scrimId: input.scrimId ?? undefined,
+      status: input.status,
+      checkedInAt: new Date(),
+    });
+    await this.attendanceRecordRepository.save(record);
+    return { ok: true };
   }
 
   private calculateCurrentStreak(records: AttendanceRecord[]): number {

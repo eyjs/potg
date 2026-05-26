@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,14 +12,13 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { Repository } from 'typeorm';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { LedgerService } from '../ledger/ledger.service';
 import { POINT_TX_REASON } from '../ledger/ledger.constants';
-import { User, UserRole } from './entities/user.entity';
+import { UserRole } from './entities/user.entity';
+import { UsersService } from './users.service';
 
 class UpdateRoleDto {
   @IsEnum(UserRole)
@@ -44,7 +42,7 @@ class AdjustBalanceDto {
 @Roles(UserRole.ADMIN)
 export class AdminUsersController {
   constructor(
-    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    private readonly users: UsersService,
     private readonly ledger: LedgerService,
   ) {}
 
@@ -56,30 +54,14 @@ export class AdminUsersController {
       100,
       Math.max(1, parseInt(takeRaw ?? '50', 10) || 50),
     );
-    const [rows, total] = await this.userRepo.findAndCount({
-      select: [
-        'id',
-        'username',
-        'nickname',
-        'role',
-        'discordId',
-        'pointsBalance',
-        'marketGatePassed',
-        'createdAt',
-      ],
-      order: { createdAt: 'DESC' },
-      skip,
-      take,
-    });
+    const { rows, total } = await this.users.adminList(skip, take);
     return { total, skip, take, rows };
   }
 
   @Get(':id')
   @ApiOperation({ summary: '회원 상세' })
   async detail(@Param('id', ParseUUIDPipe) id: string) {
-    const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Member not found');
-    return user;
+    return this.users.adminFindOrFail(id);
   }
 
   @Patch(':id/role')
@@ -88,10 +70,7 @@ export class AdminUsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoleDto,
   ) {
-    const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Member not found');
-    user.role = dto.role;
-    return this.userRepo.save(user);
+    return this.users.adminUpdateRole(id, dto.role);
   }
 
   @Post(':id/adjust')
@@ -105,8 +84,7 @@ export class AdminUsersController {
     if (!Number.isInteger(dto.delta) || dto.delta === 0) {
       throw new BadRequestException('delta must be non-zero integer');
     }
-    const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('Member not found');
+    const user = await this.users.adminFindOrFail(id);
 
     const amount = BigInt(Math.abs(dto.delta));
     if (dto.delta > 0) {

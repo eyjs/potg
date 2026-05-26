@@ -1,24 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { SystemConfigController } from './system-config.controller';
 import { SystemConfigService } from './system-config.service';
-import { SystemConfig } from './entities/system-config.entity';
 
 describe('SystemConfigController', () => {
   let controller: SystemConfigController;
-  let repo: { find: jest.Mock };
-  let service: { get: jest.Mock; set: jest.Mock };
+  let service: {
+    listAll: jest.Mock;
+    get: jest.Mock;
+    set: jest.Mock;
+  };
 
   beforeEach(async () => {
-    repo = { find: jest.fn() };
-    service = { get: jest.fn(), set: jest.fn() };
+    service = {
+      listAll: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SystemConfigController],
-      providers: [
-        { provide: getRepositoryToken(SystemConfig), useValue: repo },
-        { provide: SystemConfigService, useValue: service },
-      ],
+      providers: [{ provide: SystemConfigService, useValue: service }],
     }).compile();
 
     controller = module.get(SystemConfigController);
@@ -27,17 +28,17 @@ describe('SystemConfigController', () => {
   afterEach(() => jest.clearAllMocks());
 
   describe('list', () => {
-    it('key ASC 순으로 전체 row 반환', () => {
+    it('service.listAll() 결과 그대로 반환', async () => {
       const rows = [
         { key: 'A', value: '1' },
         { key: 'B', value: '2' },
       ];
-      repo.find.mockResolvedValue(rows);
+      service.listAll.mockResolvedValue(rows);
 
-      const result = controller.list();
+      const result = await controller.list();
 
-      expect(repo.find).toHaveBeenCalledWith({ order: { key: 'ASC' } });
-      return expect(result).resolves.toEqual(rows);
+      expect(service.listAll).toHaveBeenCalled();
+      expect(result).toEqual(rows);
     });
   });
 

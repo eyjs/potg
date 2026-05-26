@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemConfig } from './entities/system-config.entity';
@@ -9,6 +13,10 @@ export class SystemConfigService {
     @InjectRepository(SystemConfig)
     private readonly repo: Repository<SystemConfig>,
   ) {}
+
+  async listAll(): Promise<SystemConfig[]> {
+    return this.repo.find({ order: { key: 'ASC' } });
+  }
 
   /**
    * KV 조회. 미존재 시 defaultValue 반환 (defaultValue가 undefined면 throw).
@@ -27,7 +35,9 @@ export class SystemConfigService {
     );
     const parsed = Number(raw);
     if (Number.isNaN(parsed)) {
-      throw new Error(`SystemConfig value for "${key}" is not numeric: ${raw}`);
+      throw new InternalServerErrorException(
+        `SystemConfig value for "${key}" is not numeric: ${raw}`,
+      );
     }
     return parsed;
   }

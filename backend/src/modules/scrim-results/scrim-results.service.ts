@@ -238,7 +238,7 @@ export class ScrimResultsService {
           }
         } catch (error) {
           this.logger.warn(
-            `Failed to award scrim points to user ${entry.userId}: ${error}`,
+            `Failed to award scrim points to user ${entry.userId}: ${(error as Error).message}`,
           );
         }
       }

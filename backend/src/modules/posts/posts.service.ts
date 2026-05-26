@@ -174,7 +174,9 @@ export class PostsService {
         );
       }
     } catch (error) {
-      this.logger.warn(`Failed to award post points: ${error}`);
+      this.logger.warn(
+        `Failed to award post points: ${(error as Error).message}`,
+      );
     }
 
     return saved;
@@ -314,7 +316,9 @@ export class PostsService {
         );
       }
     } catch (error) {
-      this.logger.warn(`Failed to award comment points: ${error}`);
+      this.logger.warn(
+        `Failed to award comment points: ${(error as Error).message}`,
+      );
     }
 
     return comment;

@@ -71,6 +71,41 @@ export class ShopService {
     return this.productsRepository.find();
   }
 
+  async updateProduct(
+    id: string,
+    patch: {
+      name?: string;
+      description?: string;
+      price?: number;
+      stock?: number;
+      imageUrl?: string;
+      isActive?: boolean;
+    },
+  ): Promise<ShopProduct> {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (patch.name !== undefined) product.name = patch.name;
+    if (patch.description !== undefined)
+      product.description = patch.description;
+    if (patch.price !== undefined) product.price = patch.price;
+    if (patch.stock !== undefined) product.stock = patch.stock;
+    if (patch.imageUrl !== undefined) product.imageUrl = patch.imageUrl;
+    if (patch.isActive !== undefined) {
+      product.status = patch.isActive
+        ? ProductStatus.ACTIVE
+        : ProductStatus.INACTIVE;
+    }
+    return this.productsRepository.save(product);
+  }
+
+  async softDeleteProduct(id: string): Promise<void> {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) throw new NotFoundException('Product not found');
+    product.status = ProductStatus.INACTIVE;
+    await this.productsRepository.save(product);
+  }
+
   // ==================== 마켓 주문 ====================
 
   /**

@@ -6,11 +6,12 @@ import { AttendanceUploadController } from './attendance-upload.controller';
 import { PointRule } from './entities/point-rule.entity';
 import { AttendanceRecord } from './entities/attendance-record.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
-import { User } from '../users/entities/user.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PointRule, AttendanceRecord, ClanMember, User]),
+    TypeOrmModule.forFeature([PointRule, AttendanceRecord, ClanMember]),
+    UsersModule,
   ],
   controllers: [AttendanceController, AttendanceUploadController],
   providers: [AttendanceService],

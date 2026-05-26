@@ -1,7 +1,11 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -70,6 +74,10 @@ export class UsersService {
         'updatedAt',
       ], // Explicitly select password for auth checks
     });
+  }
+
+  async findByDiscordId(discordId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { discordId } });
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -141,5 +149,41 @@ export class UsersService {
 
   async remove(id: string): Promise<void> {
     await this.usersRepository.delete(id);
+  }
+
+  // === Admin (관리자 전용) ===
+
+  async adminList(
+    skip: number,
+    take: number,
+  ): Promise<{ rows: User[]; total: number }> {
+    const [rows, total] = await this.usersRepository.findAndCount({
+      select: [
+        'id',
+        'username',
+        'nickname',
+        'role',
+        'discordId',
+        'pointsBalance',
+        'marketGatePassed',
+        'createdAt',
+      ],
+      order: { createdAt: 'DESC' },
+      skip,
+      take,
+    });
+    return { rows, total };
+  }
+
+  async adminFindOrFail(id: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Member not found');
+    return user;
+  }
+
+  async adminUpdateRole(id: string, role: UserRole): Promise<User> {
+    const user = await this.adminFindOrFail(id);
+    user.role = role;
+    return this.usersRepository.save(user);
   }
 }
