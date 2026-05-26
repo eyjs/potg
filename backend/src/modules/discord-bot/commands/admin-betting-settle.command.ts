@@ -42,7 +42,20 @@ export class AdminBettingSettleCommand implements SlashCommand {
     const matchId = interaction.options.getString('matchid', true);
     const winnerTeamId = interaction.options.getString('승리팀', true);
 
-    const match = await this.matches.settleMatch(matchId, winnerTeamId);
+    const { match, settlements } = await this.matches.settleMatch(
+      matchId,
+      winnerTeamId,
+    );
+
+    const settled = settlements.filter((s) => s.summary !== null);
+    const totalPool = settled.reduce(
+      (sum, s) => sum + (s.summary?.totalPool ?? 0n),
+      0n,
+    );
+    const winnersCount = settled.reduce(
+      (sum, s) => sum + (s.summary?.winnersCount ?? 0),
+      0,
+    );
 
     await interaction.editReply(
       [
@@ -50,7 +63,8 @@ export class AdminBettingSettleCommand implements SlashCommand {
         `Match ID: \`${match.id}\``,
         `Winner Team ID: \`${winnerTeamId}\``,
         '',
-        '베팅 풀 분배 + 사용자 잔액 갱신 완료. 알림은 자동 전송됩니다.',
+        `정산된 마켓: ${settled.length}/${settlements.length}`,
+        `총 풀: ${totalPool.toString()} P / 당첨자: ${winnersCount}명`,
       ].join('\n'),
     );
   }

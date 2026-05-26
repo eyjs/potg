@@ -246,8 +246,10 @@ describe('MatchService', () => {
 
       const result = await service.settleMatch('match-uuid-1', 'team-uuid-1');
 
-      expect(result.status).toBe(MatchStatus.SETTLED);
-      expect(result.winnerTeamId).toBe('team-uuid-1');
+      expect(result.match.status).toBe(MatchStatus.SETTLED);
+      expect(result.match.winnerTeamId).toBe('team-uuid-1');
+      expect(result.settlements).toHaveLength(1);
+      expect(result.settlements[0].marketId).toBe('market-1');
       expect(bettingService.settleMarket).toHaveBeenCalledWith(
         'market-1',
         'team-uuid-1',

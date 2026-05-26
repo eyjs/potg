@@ -140,7 +140,10 @@ describe('MatchController', () => {
 
   describe('settle', () => {
     it('winnerTeamId + placements를 service에 위임', () => {
-      service.settleMatch.mockResolvedValue({});
+      service.settleMatch.mockResolvedValue({
+        match: { id: 'm1', title: 't' },
+        settlements: [],
+      });
       const placements = { 'team-1': 1, 'team-2': 2 };
 
       void controller.settle('m1', {
@@ -156,7 +159,10 @@ describe('MatchController', () => {
     });
 
     it('placements 생략 가능', () => {
-      service.settleMatch.mockResolvedValue({});
+      service.settleMatch.mockResolvedValue({
+        match: { id: 'm1', title: 't' },
+        settlements: [],
+      });
 
       void controller.settle('m1', { winnerTeamId: 'team-1' });
 

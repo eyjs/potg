@@ -10,6 +10,8 @@ import { DiscordClientService } from './discord-client.service';
 import { AttendanceRewardService } from './attendance-reward.service';
 
 const POLL_INTERVAL_MS = 60_000; // 1분 주기로 in-channel 사용자 체크
+const CLIENT_ATTACH_RETRY_INTERVAL_MS = 1_000;
+const CLIENT_ATTACH_MAX_RETRIES = 300; // 1초 × 300 = 5분. 그 이상이면 봇 토큰/네트워크 영구 문제로 판단
 
 interface VoicePresence {
   /** 봇이 인지한 첫 입장 시각 (ms epoch). 봇 재시작 후 또는 새로 입장한 시점. */
@@ -41,6 +43,9 @@ export class VoiceAttendanceService
   private readonly logger = new Logger(VoiceAttendanceService.name);
   private readonly presence = new Map<string, VoicePresence>();
   private pollTimer?: NodeJS.Timeout;
+  private attachTimer?: NodeJS.Timeout;
+  private attachRetries = 0;
+  private voiceListener?: (oldState: VoiceState, newState: VoiceState) => void;
 
   constructor(
     private readonly config: ConfigService,
@@ -65,40 +70,70 @@ export class VoiceAttendanceService
     // DiscordClientService 의 client 가 준비될 때까지 대기.
     // onApplicationBootstrap 시점엔 client.login()이 비동기로 진행 중일 수 있으므로
     // 짧은 polling 으로 client 가 ready 되면 핸들러를 부착한다.
-    const tryAttach = () => {
-      const client = this.discord.getClient();
-      if (!client) {
-        setTimeout(tryAttach, 1000);
-        return;
-      }
-      client.on(Events.VoiceStateUpdate, (oldState, newState) => {
-        this.handleVoiceStateUpdate(oldState, newState).catch((err) => {
-          this.logger.error(
-            `VoiceStateUpdate handler failed: ${(err as Error).message}`,
-            (err as Error).stack,
-          );
-        });
-      });
-      this.logger.log(
-        `Voice attendance tracking enabled (min stay ${this.minStayMs / 60_000} min)`,
-      );
+    // 토큰 무효 등으로 영구 실패 시 CLIENT_ATTACH_MAX_RETRIES 후 포기 (무한 polling 방지).
+    this.scheduleAttach();
+  }
 
-      this.pollTimer = setInterval(() => {
-        this.checkAccumulated().catch((err) => {
-          this.logger.error(
-            `Voice poll failed: ${(err as Error).message}`,
-            (err as Error).stack,
-          );
-        });
-      }, POLL_INTERVAL_MS);
+  private scheduleAttach(): void {
+    const client = this.discord.getClient();
+    if (client) {
+      this.attachListeners(client);
+      return;
+    }
+
+    if (this.attachRetries >= CLIENT_ATTACH_MAX_RETRIES) {
+      this.logger.error(
+        `Discord client not ready after ${CLIENT_ATTACH_MAX_RETRIES} retries — voice attendance disabled. Check DISCORD_BOT_TOKEN.`,
+      );
+      return;
+    }
+    this.attachRetries += 1;
+    this.attachTimer = setTimeout(
+      () => this.scheduleAttach(),
+      CLIENT_ATTACH_RETRY_INTERVAL_MS,
+    );
+  }
+
+  private attachListeners(
+    client: NonNullable<ReturnType<DiscordClientService['getClient']>>,
+  ): void {
+    this.voiceListener = (oldState, newState) => {
+      this.handleVoiceStateUpdate(oldState, newState).catch((err) => {
+        this.logger.error(
+          `VoiceStateUpdate handler failed: ${(err as Error).message}`,
+          (err as Error).stack,
+        );
+      });
     };
-    tryAttach();
+    client.on(Events.VoiceStateUpdate, this.voiceListener);
+    this.logger.log(
+      `Voice attendance tracking enabled (min stay ${this.minStayMs / 60_000} min)`,
+    );
+
+    this.pollTimer = setInterval(() => {
+      this.checkAccumulated().catch((err) => {
+        this.logger.error(
+          `Voice poll failed: ${(err as Error).message}`,
+          (err as Error).stack,
+        );
+      });
+    }, POLL_INTERVAL_MS);
   }
 
   onModuleDestroy(): void {
+    if (this.attachTimer) {
+      clearTimeout(this.attachTimer);
+      this.attachTimer = undefined;
+    }
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = undefined;
+    }
+    // VoiceStateUpdate 리스너 detach (재시작/hot-reload 시 누적 방지)
+    const client = this.discord.getClient();
+    if (client && this.voiceListener) {
+      client.off(Events.VoiceStateUpdate, this.voiceListener);
+      this.voiceListener = undefined;
     }
     this.presence.clear();
   }

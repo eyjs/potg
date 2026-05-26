@@ -79,27 +79,44 @@ export class MatchController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SettleMatchDto,
   ) {
-    const match = await this.matches.settleMatch(
+    const result = await this.matches.settleMatch(
       id,
       dto.winnerTeamId,
       dto.placements,
     );
-    // 정산 후 Discord 알림 (best-effort, 실패해도 응답에 영향 X)
-    try {
-      const withTeams = await this.matches.findOneWithTeams(match.id);
-      const winnerTeam = withTeams.teams.find((t) => t.id === dto.winnerTeamId);
-      await this.notify.notifyMarketSettled({
-        matchId: match.id,
-        title: match.title,
-        winnerName: winnerTeam?.name ?? '?',
-        // Phase 2: 정산 결과 detail (총 풀 / 지급액 / 당첨자 수) — 별도 조회 필요
-        // 현재는 settleMatch 가 매치 객체만 반환하므로 placeholder
-        totalPool: '-',
-        payoutDistributed: '-',
-        winnersCount: 0,
-      });
-    } catch {
-      // notify 실패는 silent
+    const { match, settlements } = result;
+
+    // 정산 결과가 있는 마켓들만 합산하여 Discord 알림 (best-effort)
+    const settled = settlements.filter((s) => s.summary !== null);
+    if (settled.length > 0) {
+      try {
+        const withTeams = await this.matches.findOneWithTeams(match.id);
+        const winnerTeam = withTeams.teams.find(
+          (t) => t.id === dto.winnerTeamId,
+        );
+        const totalPool = settled.reduce(
+          (sum, s) => sum + (s.summary?.totalPool ?? 0n),
+          0n,
+        );
+        const payoutDistributed = settled.reduce(
+          (sum, s) => sum + (s.summary?.payoutDistributed ?? 0n),
+          0n,
+        );
+        const winnersCount = settled.reduce(
+          (sum, s) => sum + (s.summary?.winnersCount ?? 0),
+          0,
+        );
+        await this.notify.notifyMarketSettled({
+          matchId: match.id,
+          title: match.title,
+          winnerName: winnerTeam?.name ?? '?',
+          totalPool: totalPool.toString(),
+          payoutDistributed: payoutDistributed.toString(),
+          winnersCount,
+        });
+      } catch {
+        // notify 실패는 silent
+      }
     }
     return match;
   }

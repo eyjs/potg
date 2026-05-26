@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { BettingService } from '../betting/betting.service';
+import { BettingService, SettleSummary } from '../betting/betting.service';
 import {
   BettingMarket,
   BettingMarketStatus,
@@ -25,6 +25,20 @@ interface CreateMatchPayload {
   title: string;
   scheduledAt?: Date | null;
   description?: string | null;
+}
+
+export interface MarketSettlement {
+  marketId: string;
+  type: BettingMarketType;
+  /** settled 시 SettleSummary, 스킵 시 null */
+  summary: SettleSummary | null;
+  /** 스킵된 경우 사유 (이미 정산되었거나 CANCELLED 등) */
+  skippedReason?: string;
+}
+
+export interface SettleMatchResult {
+  match: Match;
+  settlements: MarketSettlement[];
 }
 
 /**
@@ -139,7 +153,7 @@ export class MatchService {
     matchId: string,
     winnerTeamId: string,
     placements?: Record<string, number>,
-  ): Promise<Match> {
+  ): Promise<SettleMatchResult> {
     return this.dataSource.transaction(async (manager) => {
       const match = await this.lockMatchRow(manager, matchId);
       this.assertTransition(match.status, MatchStatus.SETTLED);
@@ -184,11 +198,18 @@ export class MatchService {
       const markets = await manager.find(BettingMarket, {
         where: { matchId: match.id },
       });
+      const settlements: MarketSettlement[] = [];
       for (const market of markets) {
         if (market.status !== BettingMarketStatus.LOCKED) {
           this.logger.warn(
             `Skipping market ${market.id} in status ${market.status} during settle`,
           );
+          settlements.push({
+            marketId: market.id,
+            type: market.type,
+            summary: null,
+            skippedReason: `status=${market.status}`,
+          });
           continue;
         }
         let winningOption: string;
@@ -209,14 +230,19 @@ export class MatchService {
           // 추후 RANK 마켓 정산 정책 재정의 필요.
           winningOption = '1';
         }
-        await this.bettingService.settleMarket(
+        const summary = await this.bettingService.settleMarket(
           market.id,
           winningOption,
           manager,
         );
+        settlements.push({
+          marketId: market.id,
+          type: market.type,
+          summary,
+        });
       }
 
-      return match;
+      return { match, settlements };
     });
   }
 
