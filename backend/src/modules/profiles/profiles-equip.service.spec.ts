@@ -100,7 +100,9 @@ describe('ProfilesService - equipItems', () => {
 
   describe('equipItems', () => {
     beforeEach(() => {
-      profileRepo.findOne.mockResolvedValue(mockProfile as MemberProfile);
+      profileRepo.findOne.mockResolvedValue(
+        mockProfile as unknown as MemberProfile,
+      );
       profileRepo.save.mockImplementation(
         async (profile) => profile as MemberProfile,
       );
@@ -159,7 +161,9 @@ describe('ProfilesService - equipItems', () => {
 
     it('default로 아이템을 해제할 수 있어야 함', async () => {
       const profileWithItem = { ...mockProfile, petId: 'PET_HAMSTER' };
-      profileRepo.findOne.mockResolvedValue(profileWithItem as MemberProfile);
+      profileRepo.findOne.mockResolvedValue(
+        profileWithItem as unknown as MemberProfile,
+      );
 
       const result = await service.equipItems('member-1', {
         petId: 'default',

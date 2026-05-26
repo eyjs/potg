@@ -84,7 +84,7 @@ describe('MatchController', () => {
     it('scheduledAt/description이 없으면 null로 위임', () => {
       service.create.mockResolvedValue({});
 
-      controller.create({ title: '제목만' });
+      void controller.create({ title: '제목만' });
 
       expect(service.create).toHaveBeenCalledWith({
         title: '제목만',
@@ -98,7 +98,7 @@ describe('MatchController', () => {
     it('id + name + captainId를 service에 위임', () => {
       service.createTeam.mockResolvedValue({ id: 't1' });
 
-      controller.createTeam('m1', { name: '팀A', captainId: 'cap-1' });
+      void controller.createTeam('m1', { name: '팀A', captainId: 'cap-1' });
 
       expect(service.createTeam).toHaveBeenCalledWith('m1', '팀A', 'cap-1');
     });
@@ -106,7 +106,7 @@ describe('MatchController', () => {
     it('captainId optional', () => {
       service.createTeam.mockResolvedValue({});
 
-      controller.createTeam('m1', { name: '팀B' });
+      void controller.createTeam('m1', { name: '팀B' });
 
       expect(service.createTeam).toHaveBeenCalledWith('m1', '팀B', undefined);
     });
@@ -115,19 +115,19 @@ describe('MatchController', () => {
   describe('상태 전이 endpoint', () => {
     it('openBetting → service.openBetting(id)', () => {
       service.openBetting.mockResolvedValue({});
-      controller.openBetting('m1');
+      void controller.openBetting('m1');
       expect(service.openBetting).toHaveBeenCalledWith('m1');
     });
 
     it('lock → service.lockMatch(id)', () => {
       service.lockMatch.mockResolvedValue({});
-      controller.lock('m1');
+      void controller.lock('m1');
       expect(service.lockMatch).toHaveBeenCalledWith('m1');
     });
 
     it('cancel → service.cancelMatch(id)', () => {
       service.cancelMatch.mockResolvedValue({});
-      controller.cancel('m1');
+      void controller.cancel('m1');
       expect(service.cancelMatch).toHaveBeenCalledWith('m1');
     });
   });
@@ -137,7 +137,7 @@ describe('MatchController', () => {
       service.settleMatch.mockResolvedValue({});
       const placements = { 'team-1': 1, 'team-2': 2 };
 
-      controller.settle('m1', {
+      void controller.settle('m1', {
         winnerTeamId: 'team-1',
         placements,
       });
@@ -152,7 +152,7 @@ describe('MatchController', () => {
     it('placements 생략 가능', () => {
       service.settleMatch.mockResolvedValue({});
 
-      controller.settle('m1', { winnerTeamId: 'team-1' });
+      void controller.settle('m1', { winnerTeamId: 'team-1' });
 
       expect(service.settleMatch).toHaveBeenCalledWith(
         'm1',

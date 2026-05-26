@@ -19,12 +19,12 @@ export class ShopCoupon extends BaseEntity {
   isUsed: boolean;
 
   @Column({ nullable: true })
-  assignedToUserId: string;
+  assignedToUserId: string | null;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'assignedToUserId' })
-  assignedToUser: User;
+  assignedToUser: User | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  assignedAt: Date;
+  assignedAt: Date | null;
 }

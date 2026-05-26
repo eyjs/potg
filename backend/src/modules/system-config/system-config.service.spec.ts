@@ -88,9 +88,7 @@ describe('SystemConfigService', () => {
     it('값이 숫자로 파싱 불가하면 throw', async () => {
       repo.findOne.mockResolvedValue({ key: 'BROKEN', value: 'not-a-number' });
 
-      await expect(service.getNumber('BROKEN')).rejects.toThrow(
-        /not numeric/i,
-      );
+      await expect(service.getNumber('BROKEN')).rejects.toThrow(/not numeric/i);
     });
 
     it('row도 없고 defaultValue도 없으면 NotFoundException', async () => {

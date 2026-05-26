@@ -252,7 +252,7 @@ export class ShopService {
         });
         for (const coupon of coupons) {
           coupon.isUsed = false;
-          coupon.assignedToUserId = null as unknown as string;
+          coupon.assignedToUserId = null;
           await manager.save(coupon);
         }
       }

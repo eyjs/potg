@@ -42,7 +42,7 @@ export class User extends BaseEntity {
   rating?: number;
 
   @Column({ nullable: true })
-  avatarUrl: string;
+  avatarUrl: string | null;
 
   @Column({ default: false })
   bettingFloatingEnabled: boolean;

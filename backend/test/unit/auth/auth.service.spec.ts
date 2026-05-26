@@ -26,6 +26,7 @@ describe('AuthService - Unit Tests', () => {
   const mockUser = {
     id: 'user-1',
     username: 'TestPlayer',
+    nickname: 'TestPlayer',
     battleTag: 'TestPlayer#1234',
     password: 'hashedPassword',
     role: UserRole.USER,
@@ -33,6 +34,8 @@ describe('AuthService - Unit Tests', () => {
     rating: 1000,
     avatarUrl: null as string | null,
     bettingFloatingEnabled: false,
+    pointsBalance: '0',
+    marketGatePassed: false,
     clanMembers: [],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -146,7 +149,11 @@ describe('AuthService - Unit Tests', () => {
 
       const userWithClan = {
         ...mockUser,
-        clanMembers: [{ clanId: 'clan-1' }],
+        clanMembers: [
+          {
+            clanId: 'clan-1',
+          } as unknown as (typeof mockUser.clanMembers)[number],
+        ],
       };
       const { password: _p, ...userWithClanWithoutPw } = userWithClan;
       await service.login(userWithClanWithoutPw);
