@@ -1,12 +1,9 @@
 import {
   IsDateString,
-  IsInt,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
-  Max,
-  Min,
 } from 'class-validator';
 
 export class CreateMatchDto {
@@ -39,11 +36,4 @@ export class SettleMatchDto {
   @IsOptional()
   @IsObject()
   placements?: Record<string, number>;
-}
-
-export class PlacementDto {
-  @IsInt()
-  @Min(1)
-  @Max(4)
-  placement: number;
 }

@@ -236,6 +236,3 @@ export class LedgerService {
     return account;
   }
 }
-
-// 외부에서 reason 사용 시 편의 export
-export { POINT_TX_REASON } from './ledger.constants';

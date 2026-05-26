@@ -5,7 +5,7 @@ import type {
   SlashCommandSubcommandsOnlyBuilder,
 } from 'discord.js';
 
-export type SlashCommandDefinition =
+type SlashCommandDefinition =
   | SlashCommandBuilder
   | SlashCommandOptionsOnlyBuilder
   | SlashCommandSubcommandsOnlyBuilder

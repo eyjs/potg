@@ -19,7 +19,7 @@ export interface OverFastPlayerSummary {
   privacy: 'public' | 'private';
 }
 
-export interface CompetitiveInfo {
+interface CompetitiveInfo {
   season: number;
   tank?: RankInfo;
   damage?: RankInfo;
@@ -27,7 +27,7 @@ export interface CompetitiveInfo {
   open?: RankInfo;
 }
 
-export interface RankInfo {
+interface RankInfo {
   division: string;
   tier: number;
   role_icon: string;
@@ -41,13 +41,13 @@ export interface OverFastPlayerStats {
   roles: Record<string, HeroStatsCategory[]>;
 }
 
-export interface HeroStatsCategory {
+interface HeroStatsCategory {
   category: string;
   label: string;
   stats: HeroStat[];
 }
 
-export interface HeroStat {
+interface HeroStat {
   key: string;
   label: string;
   value: number | string;
@@ -83,7 +83,7 @@ export interface OverFastHeroDetail {
   };
 }
 
-export interface OverFastAbility {
+interface OverFastAbility {
   name: string;
   description: string;
   icon: string;

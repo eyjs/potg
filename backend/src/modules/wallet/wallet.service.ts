@@ -2,25 +2,23 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { PointTx } from '../ledger/entities/point-tx.entity';
 import { LedgerService } from '../ledger/ledger.service';
-import { POINT_TX_REASON, SINK_ACCOUNT_ID } from '../ledger/ledger.constants';
-import { SendPointDto } from './dto/send-point.dto';
+import {
+  POINT_TX_REASON,
+  SINK_ACCOUNT_ID,
+} from '../ledger/ledger.constants';
 
 /**
- * 사용자 지갑 — LedgerService 위임자.
+ * 사용자 지갑 — LedgerService 위임자 (잔여 기능: 적립 + 랭킹).
  *
- * - 잔액 = user.points_balance (Ledger가 갱신하는 캐시)
- * - 이력 = PointTx (from/to 어느 쪽이든 user.id 매치)
- * - 전송 = LedgerService.transfer 위임
+ * - addPoints: posts/scrim-results 등 내부 mint 진입점 (LedgerService.mint 위임)
+ * - getActivityRanking: /wallet/ranking/activity 공개 endpoint 백엔드
  *
- * ClanMember/PointLog 의존은 모두 제거됨.
- * activity ranking은 user.pointsBalance 기준 단순 정렬로 재구성.
+ * P2P 송금/잔액 조회/이력 조회는 사용자 페이지 폐기와 함께 제거됨 (Phase 5-A/5-D-cleanup).
  */
 @Injectable()
 export class WalletService {
@@ -29,60 +27,8 @@ export class WalletService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(PointTx)
-    private readonly pointTxRepository: Repository<PointTx>,
     private readonly ledger: LedgerService,
   ) {}
-
-  async getBalance(userId: string): Promise<{
-    userId: string;
-    balance: string;
-  }> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
-    return { userId: user.id, balance: user.pointsBalance ?? '0' };
-  }
-
-  async sendPoints(senderId: string, dto: SendPointDto) {
-    if (senderId === dto.recipientId) {
-      throw new BadRequestException('Cannot send points to yourself');
-    }
-    if (!Number.isInteger(dto.amount) || dto.amount <= 0) {
-      throw new BadRequestException('amount must be a positive integer');
-    }
-
-    const recipient = await this.userRepository.findOne({
-      where: { id: dto.recipientId },
-    });
-    if (!recipient) throw new BadRequestException('Recipient not found');
-
-    const tx = await this.ledger.transfer({
-      fromAccount: senderId,
-      toAccount: dto.recipientId,
-      amount: BigInt(dto.amount),
-      reason: 'P2P_SEND',
-      refType: 'WalletSend',
-      memo: dto.message,
-    });
-
-    const sender = await this.userRepository.findOne({ where: { id: senderId } });
-    return {
-      success: true,
-      amount: dto.amount,
-      txId: tx.id,
-      newBalance: sender?.pointsBalance ?? '0',
-    };
-  }
-
-  async getHistory(userId: string, limit = 100): Promise<PointTx[]> {
-    return this.pointTxRepository
-      .createQueryBuilder('tx')
-      .where('tx.from_account = :id', { id: userId })
-      .orWhere('tx.to_account = :id', { id: userId })
-      .orderBy('tx.created_at', 'DESC')
-      .limit(limit)
-      .getMany();
-  }
 
   /**
    * 활동 포인트 랭킹 — pointsBalance 기준 상위 N.
@@ -116,7 +62,7 @@ export class WalletService {
   }
 
   /**
-   * 적립 (mint). reason 접두사별 일일 상한은 추후 SystemConfig로 이관 (Phase 4).
+   * 적립 (mint). posts/scrim-results의 활동 보상 진입점.
    */
   async addPoints(
     userId: string,
@@ -126,9 +72,14 @@ export class WalletService {
     if (!Number.isInteger(amount) || amount <= 0) {
       throw new BadRequestException('amount must be a positive integer');
     }
-    await this.ledger.mint(userId, BigInt(amount), reason || POINT_TX_REASON.ADMIN_ADJUST, {
-      refType: 'WalletAdd',
-    });
+    await this.ledger.mint(
+      userId,
+      BigInt(amount),
+      reason || POINT_TX_REASON.ADMIN_ADJUST,
+      {
+        refType: 'WalletAdd',
+      },
+    );
     const user = await this.userRepository.findOne({ where: { id: userId } });
     return { success: true, newBalance: user?.pointsBalance ?? '0' };
   }

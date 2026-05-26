@@ -5,14 +5,6 @@ import {
 } from 'discord.js';
 import type { ShopProduct } from '../../shop/entities/shop-product.entity';
 
-/**
- * Components V2 플래그.
- * 메시지 페이로드의 flags에 OR로 결합 (1 << 15 = 32768).
- *
- * 참고: discord.js 14.16+ 의 MessageFlags.IsComponentsV2 와 동일.
- */
-export const IS_COMPONENTS_V2 = 1 << 15;
-
 export interface ProductCardOptions {
   /** 구매 버튼 customId 생성기. 기본: `buy:${productId}` */
   buyCustomId?: (productId: string) => string;

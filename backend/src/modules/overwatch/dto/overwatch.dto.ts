@@ -14,16 +14,6 @@ import {
 import { Type } from 'class-transformer';
 import { ReplayResult } from '../entities/replay.entity';
 
-export class SyncProfileDto {
-  @IsOptional()
-  @IsString()
-  battleTag?: string;
-
-  @IsOptional()
-  @IsString()
-  platform?: string;
-}
-
 export class UpdateSyncSettingsDto {
   @IsOptional()
   @IsBoolean()
