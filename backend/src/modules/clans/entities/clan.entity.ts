@@ -11,7 +11,7 @@ export class Clan extends BaseEntity {
   tag: string;
 
   @Column({ nullable: true })
-  description: string;
+  description: string | null;
 
   @OneToMany(() => ClanMember, (member) => member.clan)
   members: ClanMember[];

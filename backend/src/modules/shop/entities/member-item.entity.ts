@@ -17,7 +17,7 @@ export class MemberItem extends BaseEntity {
   purchasedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  expiresAt: Date; // 기간제 아이템
+  expiresAt: Date | null; // 기간제 아이템
 
   @ManyToOne(() => ClanMember)
   @JoinColumn({ name: 'memberId' })

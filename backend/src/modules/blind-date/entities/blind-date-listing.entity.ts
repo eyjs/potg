@@ -37,32 +37,32 @@ export class BlindDateListing extends BaseEntity {
   location: string;
 
   @Column({ nullable: true })
-  desiredLocation: string;
+  desiredLocation: string | null;
 
   @Column({ nullable: true })
-  height: number;
+  height: number | null;
 
   @Column()
   job: string;
 
   @Column({ nullable: true })
-  education: string;
+  education: string | null;
 
   @Column({ type: 'text' })
   description: string;
 
   @Column({ type: 'text', nullable: true })
-  idealType: string;
+  idealType: string | null;
 
   @Column({ nullable: true })
-  mbti: string;
+  mbti: string | null;
 
   @Column({ default: false })
   smoking: boolean;
 
   @Column({ type: 'jsonb', nullable: true })
-  photos: string[];
+  photos: string[] | null;
 
   @Column({ nullable: true })
-  contactInfo: string;
+  contactInfo: string | null;
 }

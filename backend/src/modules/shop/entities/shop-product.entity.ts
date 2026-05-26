@@ -24,7 +24,7 @@ export class ShopProduct extends BaseEntity {
   name: string;
 
   @Column({ nullable: true })
-  description: string;
+  description: string | null;
 
   @Column()
   price: number;
@@ -36,7 +36,7 @@ export class ShopProduct extends BaseEntity {
   purchaseLimit: number;
 
   @Column({ nullable: true })
-  imageUrl: string;
+  imageUrl: string | null;
 
   @Column({ type: 'enum', enum: ProductStatus, default: ProductStatus.ACTIVE })
   status: ProductStatus;

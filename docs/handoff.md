@@ -1,7 +1,7 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
-> 최종 갱신: 2026-05-26
-> 진행 상태: **Phase 1 → 5-D 완료 + 단일 클랜 흐름 정리 완료**
+> 최종 갱신: 2026-05-26 (Phase 6 + nullability 감사 완료)
+> 진행 상태: **Phase 1 → 5-D 완료 + Phase 6 (lint/strict/nullability) 완료**
 > 운영 배포 환경 없음 → **테스트 커버리지 + knip으로 회귀/잔재 방어**
 
 ---
@@ -25,13 +25,20 @@
 | **5-D.3. Track B-1** | ✅ | `e05aff1` | ws-jwt.guard 제거, ClanRolesGuard 단일 클랜 전제 |
 | **5-D.4. Track B-3** | ✅ | `c7d97b6` | Entity clanId 9개 컬럼 DROP + 마이그레이션 + Service/Controller 단순화 |
 | **5-D.5. Frontend 정리** | ✅ | `e24d7dd` | hooks/pages ?clanId= cosmetic cleanup |
+| **6.1. lint config 확장** | ✅ | `506d314` | 잔여 unused/redundant-type 정리 |
+| **6.2. lint error 0** | ✅ | `3050d6a` | unsafe-* / misused-promises / enum 비교 |
+| **6.3. controller spec 추가** | ✅ | `70bd4ee` | system-config + match controller spec |
+| **6.4. TS strict 강화** | ✅ | `10a1e5e` | noImplicitAny + strictBindCallApply + nullability 1차 |
+| **6.5. Entity nullability 감사** | ✅ | (예정 커밋) | 15 entity, 38 필드를 `T \| null`로 정정 |
 
 **현재 검증 상태**:
 - backend build ✅
 - frontend build ✅
-- **unit test 118/119 PASS + 1 skipped** (16 suites)
-- integration/e2e 8 suite 실패 — DB 미연결 환경 이슈 (회귀 아님)
-- lint: 잔여 3 error (Phase 6 처리)
+- **unit test 146 PASS + 1 skipped** (19 suites, +28 from baseline)
+- integration/e2e 7 suite 실패 — DB 미연결 환경 이슈 (회귀 아님)
+- lint: 0 error / 0 warning
+- TS strict: `noImplicitAny + strictBindCallApply + strictNullChecks` 모두 true, 0 error
+- Entity nullability: 15 파일 38 필드 `T | null` 정정 완료 (overwatch/replay/user는 `?:` 컨벤션 유지)
 - knip: false positive 외 0건 (Shadcn UI 보존, MainRole enum 보존 결정)
 
 ---

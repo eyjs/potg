@@ -17,7 +17,7 @@ export class PointRule extends BaseEntity {
   name: string;
 
   @Column({ nullable: true })
-  description: string;
+  description: string | null;
 
   @Column({
     type: 'enum',

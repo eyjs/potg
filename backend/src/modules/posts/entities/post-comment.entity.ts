@@ -16,7 +16,7 @@ export class PostComment extends BaseEntity {
   content: string;
 
   @Column({ type: 'uuid', nullable: true })
-  parentId: string; // 대댓글
+  parentId: string | null; // 대댓글
 
   @Column({ type: 'int', default: 0 })
   likeCount: number;
@@ -31,5 +31,5 @@ export class PostComment extends BaseEntity {
 
   @ManyToOne(() => PostComment, { nullable: true })
   @JoinColumn({ name: 'parentId' })
-  parent: PostComment;
+  parent: PostComment | null;
 }

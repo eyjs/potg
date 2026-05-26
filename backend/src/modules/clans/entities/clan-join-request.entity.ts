@@ -17,7 +17,7 @@ export class ClanJoinRequest extends BaseEntity {
   status: RequestStatus;
 
   @Column({ nullable: true })
-  message: string;
+  message: string | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

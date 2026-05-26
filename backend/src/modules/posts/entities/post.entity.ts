@@ -40,13 +40,13 @@ export class Post extends BaseEntity {
   type: PostType;
 
   @Column({ type: 'text', nullable: true })
-  content: string; // 텍스트 내용
+  content: string | null; // 텍스트 내용
 
   @Column({ type: 'jsonb', nullable: true })
-  media: string[]; // 이미지 URL 배열 (최대 4개)
+  media: string[] | null; // 이미지 URL 배열 (최대 4개)
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
   // type별 메타데이터:
   // CLIP: { videoUrl, platform, thumbnailUrl }
   // SCRIM_RESULT: { scrimId, teamAScore, teamBScore, mvpId }

@@ -19,7 +19,7 @@ export class AttendanceRecord extends BaseEntity {
   member: ClanMember;
 
   @Column({ nullable: true })
-  scrimId: string;
+  scrimId: string | null;
 
   @Column({
     type: 'enum',
@@ -35,8 +35,8 @@ export class AttendanceRecord extends BaseEntity {
   bonusPoints: number;
 
   @Column({ nullable: true })
-  bonusReason: string;
+  bonusReason: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  checkedInAt: Date;
+  checkedInAt: Date | null;
 }

@@ -10,7 +10,7 @@ export class ProfileVisit extends BaseEntity {
   profileId: string;
 
   @Column({ nullable: true })
-  visitorId: string; // null이면 비로그인 방문
+  visitorId: string | null; // null이면 비로그인 방문
 
   @Column({ type: 'date' })
   visitDate: Date;

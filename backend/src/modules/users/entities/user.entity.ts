@@ -21,7 +21,7 @@ export class User extends BaseEntity {
   username: string;
 
   @Column({ nullable: true })
-  nickname: string;
+  nickname: string | null;
 
   @Column({ unique: true, nullable: true })
   battleTag?: string;

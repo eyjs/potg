@@ -27,7 +27,7 @@ export class Auction extends BaseEntity {
   status: AuctionStatus;
 
   @Column({ nullable: true })
-  accessCode: string;
+  accessCode: string | null;
 
   @Column()
   creatorId: string;
@@ -60,7 +60,7 @@ export class Auction extends BaseEntity {
   pausedTimeRemaining: number | null; // seconds remaining when paused
 
   @Column({ type: 'varchar', nullable: true })
-  linkedScrimId: string;
+  linkedScrimId: string | null;
 
   @OneToMany(() => AuctionParticipant, (participant) => participant.auction)
   participants: AuctionParticipant[];

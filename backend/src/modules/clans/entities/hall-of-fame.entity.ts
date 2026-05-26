@@ -11,11 +11,11 @@ export enum HallOfFameType {
 @Entity('hall_of_fame')
 export class HallOfFame extends BaseEntity {
   @Column({ nullable: true })
-  userId: string;
+  userId: string | null;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user: User | null;
 
   @Column({ type: 'enum', enum: HallOfFameType })
   type: HallOfFameType;
@@ -24,13 +24,13 @@ export class HallOfFame extends BaseEntity {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string | null;
 
   @Column({ default: 0 })
   amount: number; // 포인트, 기부금액, 현상금 등
 
   @Column({ nullable: true })
-  imageUrl: string;
+  imageUrl: string | null;
 
   @Column({ default: true })
   isActive: boolean;
