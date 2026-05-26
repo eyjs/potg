@@ -13,29 +13,27 @@ export function useScrimResult(auctionId: string | undefined) {
   })
 }
 
-export function useScrimRanking(clanId: string | undefined, limit = 50) {
+export function useScrimRanking(limit = 50) {
   return useQuery<ScrimRankingEntry[]>({
-    queryKey: ["scrim-ranking", clanId, limit],
+    queryKey: ["scrim-ranking", limit],
     queryFn: async () => {
       const res = await api.get("/scrim-results/ranking", {
-        params: { clanId, limit },
+        params: { limit },
       })
       return res.data
     },
-    enabled: !!clanId,
   })
 }
 
-export function useActivityRanking(clanId: string | undefined, limit = 50) {
+export function useActivityRanking(limit = 50) {
   return useQuery<ScrimRankingEntry[]>({
-    queryKey: ["activity-ranking", clanId, limit],
+    queryKey: ["activity-ranking", limit],
     queryFn: async () => {
       const res = await api.get("/wallet/ranking/activity", {
-        params: { clanId, limit },
+        params: { limit },
       })
       return res.data
     },
-    enabled: !!clanId,
   })
 }
 

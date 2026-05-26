@@ -14,7 +14,7 @@ import Image from "next/image"
 export function PostWriteForm() {
   const router = useRouter();
   const { user } = useAuth();
-  const createPost = useCreatePost(user?.clanId);
+  const createPost = useCreatePost();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");

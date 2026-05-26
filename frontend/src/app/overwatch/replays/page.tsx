@@ -26,14 +26,14 @@ export default function ReplaysPage() {
   const [mapFilter, setMapFilter] = useState<string>('all')
   const [resultFilter, setResultFilter] = useState<string>('all')
 
-  const { replays, total, isLoading, refetch } = useReplays(user?.clanId, {
+  const { replays, total, isLoading, refetch } = useReplays({
     search: search || undefined,
     mapName: mapFilter !== 'all' ? mapFilter : undefined,
     result: resultFilter !== 'all' ? (resultFilter as ReplayResult) : undefined,
     limit: 20,
   })
 
-  const { stats, isLoading: statsLoading } = useReplayStats(user?.clanId)
+  const { stats, isLoading: statsLoading } = useReplayStats()
   const { createReplay, deleteReplay, likeReplay, isSubmitting } = useReplayMutations(() => {
     setShowCreateModal(false)
     refetch()

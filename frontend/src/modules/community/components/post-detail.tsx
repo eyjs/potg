@@ -31,9 +31,9 @@ export function PostDetail({ postId }: PostDetailProps) {
   const { user } = useAuth();
   const { data: post, isLoading: isPostLoading } = usePublicPost(postId);
   const { data: commentsData } = useComments(postId);
-  const createComment = useCreateComment(postId, user?.clanId);
-  const likePost = useLikePost(user?.clanId);
-  const unlikePost = useUnlikePost(user?.clanId);
+  const createComment = useCreateComment(postId);
+  const likePost = useLikePost();
+  const unlikePost = useUnlikePost();
 
   const [isLiked, setIsLiked] = useState(false);
 

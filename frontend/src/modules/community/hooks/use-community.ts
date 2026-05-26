@@ -6,16 +6,15 @@ import type {
   CommentsResponse,
 } from "../types";
 
-export function useCommunityFeed(clanId: string | undefined, page = 1) {
+export function useCommunityFeed(page = 1) {
   return useQuery<CommunityFeedResponse>({
-    queryKey: ["community-feed", clanId, page],
+    queryKey: ["community-feed", page],
     queryFn: async () => {
       const res = await api.get("/posts/community", {
-        params: { clanId, page, limit: 20 },
+        params: { page, limit: 20 },
       });
       return res.data;
     },
-    enabled: !!clanId,
   });
 }
 
@@ -43,7 +42,7 @@ export function useComments(postId: string, page = 1) {
   });
 }
 
-export function useCreatePost(clanId: string | undefined) {
+export function useCreatePost() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -52,9 +51,7 @@ export function useCreatePost(clanId: string | undefined) {
       content?: string;
       media?: string[];
     }) => {
-      const res = await api.post("/posts", data, {
-        params: { clanId },
-      });
+      const res = await api.post("/posts", data);
       return res.data;
     },
     onSuccess: () => {
@@ -63,14 +60,12 @@ export function useCreatePost(clanId: string | undefined) {
   });
 }
 
-export function useCreateComment(postId: string, clanId: string | undefined) {
+export function useCreateComment(postId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: { content: string; parentId?: string }) => {
-      const res = await api.post(`/posts/${postId}/comments`, data, {
-        params: { clanId },
-      });
+      const res = await api.post(`/posts/${postId}/comments`, data);
       return res.data;
     },
     onSuccess: () => {
@@ -80,14 +75,12 @@ export function useCreateComment(postId: string, clanId: string | undefined) {
   });
 }
 
-export function useLikePost(clanId: string | undefined) {
+export function useLikePost() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      await api.post(`/posts/${postId}/like`, null, {
-        params: { clanId },
-      });
+      await api.post(`/posts/${postId}/like`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["community-feed"] });
@@ -96,14 +89,12 @@ export function useLikePost(clanId: string | undefined) {
   });
 }
 
-export function useUnlikePost(clanId: string | undefined) {
+export function useUnlikePost() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      await api.delete(`/posts/${postId}/like`, {
-        params: { clanId },
-      });
+      await api.delete(`/posts/${postId}/like`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["community-feed"] });

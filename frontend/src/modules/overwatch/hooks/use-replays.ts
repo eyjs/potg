@@ -15,13 +15,12 @@ interface ReplaysQuery {
   offset?: number
 }
 
-export function useReplays(clanId?: string, query?: ReplaysQuery) {
+export function useReplays(query?: ReplaysQuery) {
   const [replays, setReplays] = useState<Replay[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchReplays = useCallback(async () => {
-    if (!clanId) return
     try {
       setIsLoading(true)
       const params = new URLSearchParams()
@@ -33,7 +32,7 @@ export function useReplays(clanId?: string, query?: ReplaysQuery) {
       if (query?.offset) params.set('offset', String(query.offset))
 
       const res = await api.get<{ data: Replay[]; total: number }>(
-        `/replays/clan/${clanId}?${params.toString()}`
+        `/replays?${params.toString()}`
       )
       setReplays(res.data.data)
       setTotal(res.data.total)
@@ -42,7 +41,7 @@ export function useReplays(clanId?: string, query?: ReplaysQuery) {
     } finally {
       setIsLoading(false)
     }
-  }, [clanId, query?.mapName, query?.result, query?.tag, query?.search, query?.limit, query?.offset])
+  }, [query?.mapName, query?.result, query?.tag, query?.search, query?.limit, query?.offset])
 
   useEffect(() => {
     fetchReplays()
@@ -74,16 +73,14 @@ export function useMyReplays() {
   return { replays, isLoading, refetch: fetchReplays }
 }
 
-export function useReplayStats(clanId?: string) {
+export function useReplayStats() {
   const [stats, setStats] = useState<ReplayStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!clanId) return
-
     const fetchStats = async () => {
       try {
-        const res = await api.get<ReplayStats>(`/replays/stats/${clanId}`)
+        const res = await api.get<ReplayStats>('/replays/stats')
         setStats(res.data)
       } catch (error) {
         handleApiError(error, '통계 조회 실패')
@@ -92,7 +89,7 @@ export function useReplayStats(clanId?: string) {
       }
     }
     fetchStats()
-  }, [clanId])
+  }, [])
 
   return { stats, isLoading }
 }

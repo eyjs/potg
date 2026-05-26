@@ -12,7 +12,7 @@ import { PostCard } from "@/modules/community/components/post-card"
 export default function CommunityPage() {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useCommunityFeed(user?.clanId, page);
+  const { data, isLoading } = useCommunityFeed(page);
 
   const totalPages = data ? Math.ceil(data.total / 20) : 0;
 

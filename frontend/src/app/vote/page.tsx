@@ -75,7 +75,7 @@ export default function StatisticsPage() {
   const fetchData = async () => {
     try {
       const [scrimsRes, statsRes] = await Promise.all([
-        api.get(`/scrims?clanId=${user?.clanId}`),
+        api.get(`/scrims`),
         api.get(`/clans/${user?.clanId}/members`).catch(() => ({ data: [] })),
       ])
 
