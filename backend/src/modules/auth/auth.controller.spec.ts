@@ -6,6 +6,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/entities/user.entity';
+import { DiscordOAuthService } from './discord-oauth.service';
+import { DiscordOAuthGuard } from './discord-oauth.guard';
+import { DiscordMemberService } from '../discord-bot/discord-member.service';
 
 // auth.controller.ts의 쿠키 기반 로그인/로그아웃 검증
 describe('AuthController', () => {
@@ -39,14 +42,24 @@ describe('AuthController', () => {
       get: jest.fn(),
     };
 
+    const mockDiscordOAuth = {
+      generateState: jest.fn(() => 'state-xyz'),
+      getAuthUrl: jest.fn((s: string) => `https://discord.test/auth?state=${s}`),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: UsersService, useValue: mockUsersService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: DiscordOAuthService, useValue: mockDiscordOAuth },
+        { provide: DiscordMemberService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(DiscordOAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
     authService = module.get(AuthService);
@@ -144,6 +157,72 @@ describe('AuthController', () => {
       ).rejects.toThrow(UnauthorizedException);
 
       expect(res.cookie).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==================== GET /auth/discord ====================
+
+  describe('discordLogin', () => {
+    it('state 쿠키를 설정하고 Discord auth URL로 리다이렉트한다', () => {
+      (configService.get as jest.Mock).mockReturnValue('development');
+      const res = {
+        cookie: jest.fn(),
+        redirect: jest.fn(),
+      } as unknown as Response;
+
+      controller.discordLogin(res);
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'discord_oauth_state',
+        'state-xyz',
+        expect.objectContaining({
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 5 * 60 * 1000,
+        }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith(
+        'https://discord.test/auth?state=state-xyz',
+      );
+    });
+  });
+
+  // ==================== GET /auth/discord/callback ====================
+
+  describe('discordCallback', () => {
+    it('Discord 콜백도 자체 로그인과 동일한 7일 maxAge 쿠키를 설정한다', async () => {
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const user = baseUser();
+      (authService.login as jest.Mock).mockResolvedValue({ access_token: 'd-tok' });
+      (configService.get as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'DISCORD_OAUTH_SUCCESS_REDIRECT') return '/';
+        return undefined;
+      });
+
+      const res = {
+        cookie: jest.fn(),
+        redirect: jest.fn(),
+      } as unknown as Response;
+
+      await controller.discordCallback(
+        { user } as unknown as Parameters<typeof controller.discordCallback>[0],
+        res,
+      );
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'd-tok',
+        expect.objectContaining({
+          maxAge: SEVEN_DAYS_MS,
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/');
     });
   });
 

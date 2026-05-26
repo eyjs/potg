@@ -47,34 +47,10 @@ export class WsJwtGuard implements CanActivate {
   }
 
   private extractToken(client: Socket): string | undefined {
-    // 1순위: HttpOnly 쿠키 (브라우저 기반 withCredentials)
     const cookieHeader = client.handshake.headers.cookie;
-    if (cookieHeader) {
-      const match = cookieHeader.match(/(?:^|;\s*)access_token=([^;]+)/);
-      if (match) {
-        return decodeURIComponent(match[1]);
-      }
-    }
-
-    // 2순위: Authorization Bearer (레거시/API 클라이언트 호환)
-    const authHeader = client.handshake.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return authHeader.substring(7);
-    }
-
-    // 3순위: 쿼리 파라미터
-    const queryToken = client.handshake.query.token;
-    if (typeof queryToken === 'string') {
-      return queryToken;
-    }
-
-    // 4순위: auth 핸드셰이크 데이터
-    const authData = client.handshake.auth;
-    if (authData?.token) {
-      return authData.token;
-    }
-
-    return undefined;
+    if (!cookieHeader) return undefined;
+    const match = cookieHeader.match(/(?:^|;\s*)access_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
   }
 }
 

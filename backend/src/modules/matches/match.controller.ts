@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -18,6 +19,8 @@ import {
   SettleMatchDto,
 } from './dto/match.dto';
 
+@ApiTags('admin-matches')
+@ApiCookieAuth('access_token')
 @Controller('admin/matches')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -25,16 +28,19 @@ export class MatchController {
   constructor(private readonly matches: MatchService) {}
 
   @Get()
+  @ApiOperation({ summary: '내전 목록 조회' })
   list() {
     return this.matches.findAll();
   }
 
   @Get(':id')
+  @ApiOperation({ summary: '내전 상세 + 팀 조회' })
   detail(@Param('id', ParseUUIDPipe) id: string) {
     return this.matches.findOneWithTeams(id);
   }
 
   @Post()
+  @ApiOperation({ summary: '내전 생성 (DRAFT 상태)' })
   create(@Body() dto: CreateMatchDto) {
     return this.matches.create({
       title: dto.title,
@@ -44,6 +50,7 @@ export class MatchController {
   }
 
   @Post(':id/teams')
+  @ApiOperation({ summary: '내전에 팀 추가' })
   createTeam(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateTeamDto,
@@ -52,16 +59,19 @@ export class MatchController {
   }
 
   @Post(':id/open')
+  @ApiOperation({ summary: '베팅 오픈 (DRAFT → BETTING_OPEN)' })
   openBetting(@Param('id', ParseUUIDPipe) id: string) {
     return this.matches.openBetting(id);
   }
 
   @Post(':id/lock')
+  @ApiOperation({ summary: '베팅 락 (BETTING_OPEN → LOCKED)' })
   lock(@Param('id', ParseUUIDPipe) id: string) {
     return this.matches.lockMatch(id);
   }
 
   @Post(':id/settle')
+  @ApiOperation({ summary: '내전 정산 (LOCKED → SETTLED, 베팅 페이아웃)' })
   settle(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SettleMatchDto,
@@ -70,6 +80,7 @@ export class MatchController {
   }
 
   @Post(':id/cancel')
+  @ApiOperation({ summary: '내전 취소 (스테이크 환불)' })
   cancel(@Param('id', ParseUUIDPipe) id: string) {
     return this.matches.cancelMatch(id);
   }

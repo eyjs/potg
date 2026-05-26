@@ -23,16 +23,16 @@ async function bootstrap() {
     .setTitle('POTG Auction API')
     .setDescription('오버워치 클랜 경매 시스템 API 문서')
     .setVersion('1.0')
-    .addBearerAuth(
+    .addCookieAuth(
+      'access_token',
       {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'JWT 토큰을 입력하세요',
-        in: 'header',
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'access_token',
+        description:
+          'HttpOnly 쿠키 (브라우저 자동 전송). Swagger UI에서 직접 입력 불가 — 자체 로그인 후 쿠키 인계됨.',
       },
-      'access-token',
+      'access_token',
     )
     .addTag('auth', '인증')
     .addTag('users', '사용자')
@@ -45,6 +45,12 @@ async function bootstrap() {
     .addTag('wallet', '지갑')
     .addTag('blind-date', '소개팅')
     .addTag('uploads', '파일 업로드')
+    .addTag('admin-matches', '관리자 — 내전 운영')
+    .addTag('admin-members', '관리자 — 회원/잔액')
+    .addTag('admin-ledger', '관리자 — 포인트 원장')
+    .addTag('admin-products', '관리자 — 상점')
+    .addTag('admin-attendance', '관리자 — 출석 업로드')
+    .addTag('admin-config', '관리자 — 시스템 설정')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

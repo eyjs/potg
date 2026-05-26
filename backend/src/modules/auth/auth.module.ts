@@ -8,7 +8,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
-import { DiscordStrategy } from './discord.strategy';
+import { DiscordOAuthService } from './discord-oauth.service';
+import { DiscordOAuthGuard } from './discord-oauth.guard';
 import { PasswordReset } from './entities/password-reset.entity';
 import { DiscordBotModule } from '../discord-bot/discord-bot.module';
 
@@ -28,7 +29,13 @@ import { DiscordBotModule } from '../discord-bot/discord-bot.module';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, DiscordStrategy, EmailService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    DiscordOAuthService,
+    DiscordOAuthGuard,
+    EmailService,
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })

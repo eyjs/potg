@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiConsumes, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
@@ -41,6 +42,8 @@ interface RowResult {
  * - scrim_id: 내전 id (없으면 일일 출석)
  * - status: PRESENT | LATE | ABSENT | EXCUSED (없으면 PRESENT)
  */
+@ApiTags('admin-attendance')
+@ApiCookieAuth('access_token')
 @Controller('admin/attendance')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -55,6 +58,10 @@ export class AttendanceUploadController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '출석 xlsx 일괄 업로드 (헤더: discord_id | scrim_id | status)',
+  })
   async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file is required');
 

@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { Repository } from 'typeorm';
@@ -36,6 +37,8 @@ class AdjustBalanceDto {
   memo?: string;
 }
 
+@ApiTags('admin-members')
+@ApiCookieAuth('access_token')
 @Controller('admin/members')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -46,6 +49,7 @@ export class AdminUsersController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: '회원 페이징 목록' })
   async list(
     @Query('skip') skipRaw?: string,
     @Query('take') takeRaw?: string,
@@ -71,6 +75,7 @@ export class AdminUsersController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: '회원 상세' })
   async detail(@Param('id', ParseUUIDPipe) id: string) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Member not found');
@@ -78,6 +83,7 @@ export class AdminUsersController {
   }
 
   @Patch(':id/role')
+  @ApiOperation({ summary: '회원 role 변경' })
   async updateRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoleDto,
@@ -89,6 +95,9 @@ export class AdminUsersController {
   }
 
   @Post(':id/adjust')
+  @ApiOperation({
+    summary: '잔액 조정 (delta>0=mint, <0=burn, LedgerService 경유)',
+  })
   async adjust(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdjustBalanceDto,

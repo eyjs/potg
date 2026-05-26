@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsNumber,
@@ -61,6 +62,8 @@ export class UpdateProductDto {
   isActive?: boolean;
 }
 
+@ApiTags('admin-products')
+@ApiCookieAuth('access_token')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
 @Controller('admin/products')
@@ -72,16 +75,19 @@ export class AdminProductsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: '상품 전체 조회' })
   findAll(@Query('clanId') clanId?: string) {
     return this.shopService.findAll(clanId);
   }
 
   @Post()
+  @ApiOperation({ summary: '상품 생성' })
   create(@Body() dto: CreateProductDto) {
     return this.shopService.createProduct(dto, dto.clanId);
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: '상품 부분 수정 (가격/재고/활성 등)' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     const product = await this.productsRepo.findOne({ where: { id } });
     if (!product) throw new NotFoundException('Product not found');
@@ -100,6 +106,7 @@ export class AdminProductsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '상품 소프트 삭제 (INACTIVE)' })
   async remove(@Param('id') id: string) {
     const product = await this.productsRepo.findOne({ where: { id } });
     if (!product) throw new NotFoundException('Product not found');

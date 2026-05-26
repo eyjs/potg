@@ -11,7 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { ledgerApi, type PointTx } from '@/modules/admin/api/ledger'
+import { ledgerApi } from '@/modules/admin/api/ledger'
 import { Skeleton } from '@/common/components/ui/skeleton'
 import { Button } from '@/common/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -24,37 +24,6 @@ function formatDate(dateStr: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-interface DayBucket {
-  date: string
-  minted: number
-  burned: number
-}
-
-function buildChartData(txList: PointTx[]): DayBucket[] {
-  const buckets = new Map<string, DayBucket>()
-
-  const now = new Date()
-  for (let i = CHART_DAYS - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
-    buckets.set(key, { date: formatDate(key), minted: 0, burned: 0 })
-  }
-
-  for (const tx of txList) {
-    const key = tx.createdAt.slice(0, 10)
-    const bucket = buckets.get(key)
-    if (!bucket) continue
-    if (tx.amount > 0) {
-      bucket.minted += tx.amount
-    } else {
-      bucket.burned += Math.abs(tx.amount)
-    }
-  }
-
-  return Array.from(buckets.values())
-}
-
 export default function AdminDashboardPage() {
   const router = useRouter()
 
@@ -65,12 +34,19 @@ export default function AdminDashboardPage() {
 
   const { data: recentTxs = [], isLoading: txLoading } = useQuery({
     queryKey: ['admin', 'ledger', 'recent'],
-    queryFn: () =>
-      ledgerApi.list({ take: 200, skip: 0 }),
+    queryFn: () => ledgerApi.list({ take: RECENT_TX_TAKE, skip: 0 }),
   })
 
-  const chartData = useMemo(() => buildChartData(recentTxs), [recentTxs])
-  const latestTxs = useMemo(() => recentTxs.slice(0, RECENT_TX_TAKE), [recentTxs])
+  const { data: timeseries = [], isLoading: chartLoading } = useQuery({
+    queryKey: ['admin', 'ledger', 'timeseries', CHART_DAYS],
+    queryFn: () => ledgerApi.timeseries({ bucket: 'day', days: CHART_DAYS }),
+  })
+
+  const chartData = useMemo(
+    () => timeseries.map((p) => ({ ...p, date: formatDate(p.date) })),
+    [timeseries],
+  )
+  const latestTxs = recentTxs
 
   return (
     <div className="space-y-6">
@@ -107,7 +83,7 @@ export default function AdminDashboardPage() {
         <h2 className="text-sm font-bold text-muted-foreground uppercase">
           최근 {CHART_DAYS}일 발행/소각 추이
         </h2>
-        {txLoading ? (
+        {chartLoading ? (
           <Skeleton className="h-48 w-full rounded-sm" />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
