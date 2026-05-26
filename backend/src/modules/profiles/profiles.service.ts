@@ -30,15 +30,8 @@ export class ProfilesService {
 
   // ==================== 헬퍼 ====================
 
-  async getMemberIdByUserId(userId: string, clanId?: string): Promise<string | null> {
-    const query = this.memberRepo.createQueryBuilder('member')
-      .where('member.userId = :userId', { userId });
-    
-    if (clanId) {
-      query.andWhere('member.clanId = :clanId', { clanId });
-    }
-    
-    const member = await query.getOne();
+  async getMemberIdByUserId(userId: string): Promise<string | null> {
+    const member = await this.memberRepo.findOne({ where: { userId } });
     return member?.id || null;
   }
 

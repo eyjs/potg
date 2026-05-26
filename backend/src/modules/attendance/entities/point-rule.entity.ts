@@ -1,6 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
-import { Clan } from '../../clans/entities/clan.entity';
 
 export enum PointRuleCategory {
   ATTENDANCE = 'ATTENDANCE',
@@ -11,13 +10,6 @@ export enum PointRuleCategory {
 
 @Entity('point_rules')
 export class PointRule extends BaseEntity {
-  @Column()
-  clanId: string;
-
-  @ManyToOne(() => Clan)
-  @JoinColumn({ name: 'clanId' })
-  clan: Clan;
-
   @Column()
   code: string;
 

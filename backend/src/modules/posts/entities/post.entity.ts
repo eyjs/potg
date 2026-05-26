@@ -33,10 +33,6 @@ export class Post extends BaseEntity {
   @Index()
   authorId: string; // ClanMember.id
 
-  @Column()
-  @Index()
-  clanId: string;
-
   @Column({ type: 'varchar', length: 200, nullable: true })
   title: string | null;
 

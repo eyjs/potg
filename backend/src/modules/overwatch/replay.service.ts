@@ -19,21 +19,20 @@ export class ReplayService {
   /**
    * 리플레이 생성
    */
-  async create(userId: string, clanId: string, dto: CreateReplayDto): Promise<Replay> {
+  async create(userId: string, dto: CreateReplayDto): Promise<Replay> {
     const replay = this.replayRepo.create({
       ...dto,
       userId,
-      clanId,
       code: dto.code.toUpperCase(),
     });
     return this.replayRepo.save(replay);
   }
 
   /**
-   * 클랜 리플레이 목록 조회
+   * 리플레이 목록 조회 (단일 클랜 전제 — 전체)
    */
-  async findByClan(clanId: string, query: GetReplaysQueryDto): Promise<{ data: Replay[]; total: number }> {
-    const where: FindOptionsWhere<Replay> = { clanId };
+  async findAll(query: GetReplaysQueryDto): Promise<{ data: Replay[]; total: number }> {
+    const where: FindOptionsWhere<Replay> = {};
 
     if (query.mapName) {
       where.mapName = query.mapName;
@@ -149,9 +148,9 @@ export class ReplayService {
   }
 
   /**
-   * 클랜 통계
+   * 전체 리플레이 통계 (단일 클랜)
    */
-  async getClanStats(clanId: string): Promise<{
+  async getStats(): Promise<{
     total: number;
     wins: number;
     losses: number;
@@ -160,7 +159,7 @@ export class ReplayService {
     topMaps: { mapName: string; count: number }[];
     topHeroes: { hero: string; count: number }[];
   }> {
-    const replays = await this.replayRepo.find({ where: { clanId } });
+    const replays = await this.replayRepo.find();
 
     const total = replays.length;
     const wins = replays.filter((r) => r.result === ReplayResult.WIN).length;

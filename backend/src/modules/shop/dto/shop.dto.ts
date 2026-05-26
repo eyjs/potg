@@ -13,9 +13,6 @@ import {
 } from '../entities/shop-product.entity';
 
 export class CreateProductDto {
-  @IsUUID()
-  clanId: string;
-
   @IsOptional()
   @IsEnum(ProductCategory)
   category?: ProductCategory;

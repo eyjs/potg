@@ -34,9 +34,8 @@ export class VotesService {
     return this.votesRepository.save(vote);
   }
 
-  async findAll(clanId: string, userId?: string) {
+  async findAll(userId?: string) {
     const votes = await this.votesRepository.find({
-      where: { clanId },
       relations: ['options'],
       order: { createdAt: 'DESC' }
     });

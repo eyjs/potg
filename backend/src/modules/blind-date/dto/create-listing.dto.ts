@@ -10,9 +10,6 @@ import { Gender } from '../entities/blind-date-listing.entity';
 
 export class CreateListingDto {
   @IsString()
-  clanId: string;
-
-  @IsString()
   name: string;
 
   @IsInt()

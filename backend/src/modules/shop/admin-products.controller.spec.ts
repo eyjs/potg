@@ -15,7 +15,6 @@ describe('AdminProductsController', () => {
   const baseProduct = (overrides: Partial<ShopProduct> = {}): ShopProduct =>
     ({
       id: 'product-uuid-1',
-      clanId: 'clan-uuid-1',
       name: '테스트 상품',
       description: '상품 설명',
       price: 1000,
@@ -62,7 +61,6 @@ describe('AdminProductsController', () => {
     it('ShopService.createProduct를 호출하고 결과를 반환한다', async () => {
       const product = baseProduct();
       const createDto = {
-        clanId: 'clan-uuid-1',
         name: '테스트 상품',
         description: '상품 설명',
         price: 1000,
@@ -74,7 +72,7 @@ describe('AdminProductsController', () => {
 
       const result = await controller.create(createDto);
 
-      expect(shopService.createProduct).toHaveBeenCalledWith(createDto, createDto.clanId);
+      expect(shopService.createProduct).toHaveBeenCalledWith(createDto);
       expect(result).toEqual(product);
     });
   });
@@ -168,22 +166,20 @@ describe('AdminProductsController', () => {
   // ==================== findAll ====================
 
   describe('findAll', () => {
-    it('clanId 필터를 ShopService에 전달한다', async () => {
+    it.skip('clanId 필터를 ShopService에 전달한다 (단일 클랜 전환으로 제거)', async () => {
       const products = [baseProduct()];
       (shopService.findAll as jest.Mock).mockResolvedValue(products);
 
-      const result = await controller.findAll('clan-uuid-1');
-
-      expect(shopService.findAll).toHaveBeenCalledWith('clan-uuid-1');
-      expect(result).toEqual(products);
+      await controller.findAll();
+      expect(shopService.findAll).toHaveBeenCalled();
     });
 
-    it('clanId 없이 전체 조회한다', async () => {
+    it('파라미터 없이 전체 조회한다', async () => {
       (shopService.findAll as jest.Mock).mockResolvedValue([]);
 
       await controller.findAll();
 
-      expect(shopService.findAll).toHaveBeenCalledWith(undefined);
+      expect(shopService.findAll).toHaveBeenCalledWith();
     });
   });
 });

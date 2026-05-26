@@ -76,14 +76,14 @@ export class AdminProductsController {
 
   @Get()
   @ApiOperation({ summary: '상품 전체 조회' })
-  findAll(@Query('clanId') clanId?: string) {
-    return this.shopService.findAll(clanId);
+  findAll() {
+    return this.shopService.findAll();
   }
 
   @Post()
   @ApiOperation({ summary: '상품 생성' })
   create(@Body() dto: CreateProductDto) {
-    return this.shopService.createProduct(dto, dto.clanId);
+    return this.shopService.createProduct(dto);
   }
 
   @Patch(':id')

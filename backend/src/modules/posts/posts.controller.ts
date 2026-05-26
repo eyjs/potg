@@ -29,11 +29,10 @@ export class PostsController {
 
   @Get('community')
   async getCommunityFeed(
-    @Query('clanId') clanId: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return this.postsService.getCommunityFeed(clanId, +page, +limit);
+    return this.postsService.getCommunityFeed(+page, +limit);
   }
 
   @Get('community/:id')
@@ -47,14 +46,13 @@ export class PostsController {
   @Get()
   async getFeed(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Query('authorId') authorId?: string,
     @Query('type') type?: PostType,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
-    return this.postsService.getFeed(clanId, memberId || '', {
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    return this.postsService.getFeed(memberId || '', {
       authorId,
       type,
       page: +page,
@@ -67,10 +65,9 @@ export class PostsController {
   @Get('bulk/like-status')
   async getLikeStatusBulk(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Query('postIds') postIds: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) return { likeStatus: {} };
 
     const ids = postIds.split(',').filter(Boolean);
@@ -83,9 +80,8 @@ export class PostsController {
   async getPost(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId?: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     return this.postsService.getPost(id, memberId || '');
   }
 
@@ -93,12 +89,11 @@ export class PostsController {
   @Post()
   async createPost(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: CreatePostDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
-    return this.postsService.createPost(memberId, clanId, dto);
+    return this.postsService.createPost(memberId, dto);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -106,10 +101,9 @@ export class PostsController {
   async updatePost(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: UpdatePostDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.postsService.updatePost(id, memberId, dto);
   }
@@ -119,9 +113,8 @@ export class PostsController {
   async deletePost(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.postsService.deletePost(id, memberId);
     return { success: true };
@@ -134,9 +127,8 @@ export class PostsController {
   async like(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.postsService.like(id, memberId);
     return { success: true };
@@ -147,9 +139,8 @@ export class PostsController {
   async unlike(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.postsService.unlike(id, memberId);
     return { success: true };
@@ -160,9 +151,8 @@ export class PostsController {
   async getLikeStatus(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId?: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) return { isLiked: false };
     const isLiked = await this.postsService.isLiked(id, memberId);
     return { isLiked };
@@ -189,10 +179,9 @@ export class PostsController {
   async createComment(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: CreateCommentDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.postsService.createComment(id, memberId, dto);
   }
@@ -202,9 +191,8 @@ export class PostsController {
   async deleteComment(
     @Param('commentId') commentId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.postsService.deleteComment(commentId, memberId);
     return { success: true };

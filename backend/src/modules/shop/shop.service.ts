@@ -65,18 +65,12 @@ export class ShopService {
 
   // ==================== 상품 ====================
 
-  async createProduct(dto: CreateProductDto, clanId: string) {
-    const product = this.productsRepository.create({
-      ...dto,
-      clanId,
-    });
+  async createProduct(dto: CreateProductDto) {
+    const product = this.productsRepository.create(dto);
     return this.productsRepository.save(product);
   }
 
-  async findAll(clanId?: string) {
-    if (clanId) {
-      return this.productsRepository.find({ where: { clanId } });
-    }
+  async findAll() {
     return this.productsRepository.find();
   }
 

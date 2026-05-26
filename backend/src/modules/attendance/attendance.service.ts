@@ -25,36 +25,33 @@ export class AttendanceService {
     private dataSource: DataSource,
   ) {}
 
-  // ========== PointRule CRUD ==========
+  // ========== PointRule CRUD (단일 클랜 전제) ==========
 
-  async findRules(clanId: string): Promise<PointRule[]> {
+  async findRules(): Promise<PointRule[]> {
     return this.pointRuleRepository.find({
-      where: { clanId },
       order: { category: 'ASC', code: 'ASC' },
     });
   }
 
-  async createRule(clanId: string, dto: CreatePointRuleDto): Promise<PointRule> {
+  async createRule(dto: CreatePointRuleDto): Promise<PointRule> {
     const existing = await this.pointRuleRepository.findOne({
-      where: { clanId, code: dto.code },
+      where: { code: dto.code },
     });
     if (existing) {
       throw new BadRequestException(`이미 존재하는 규칙 코드입니다: ${dto.code}`);
     }
 
-    const rule = this.pointRuleRepository.create({ ...dto, clanId });
+    const rule = this.pointRuleRepository.create(dto);
     return this.pointRuleRepository.save(rule);
   }
 
-  async updateRule(clanId: string, id: string, dto: UpdatePointRuleDto): Promise<PointRule> {
-    const rule = await this.pointRuleRepository.findOne({
-      where: { id, clanId },
-    });
+  async updateRule(id: string, dto: UpdatePointRuleDto): Promise<PointRule> {
+    const rule = await this.pointRuleRepository.findOne({ where: { id } });
     if (!rule) throw new NotFoundException('규칙을 찾을 수 없습니다.');
 
     if (dto.code && dto.code !== rule.code) {
       const existing = await this.pointRuleRepository.findOne({
-        where: { clanId, code: dto.code },
+        where: { code: dto.code },
       });
       if (existing) {
         throw new BadRequestException(`이미 존재하는 규칙 코드입니다: ${dto.code}`);
@@ -65,18 +62,16 @@ export class AttendanceService {
     return this.pointRuleRepository.save(rule);
   }
 
-  async deleteRule(clanId: string, id: string): Promise<{ message: string }> {
-    const rule = await this.pointRuleRepository.findOne({
-      where: { id, clanId },
-    });
+  async deleteRule(id: string): Promise<{ message: string }> {
+    const rule = await this.pointRuleRepository.findOne({ where: { id } });
     if (!rule) throw new NotFoundException('규칙을 찾을 수 없습니다.');
 
     await this.pointRuleRepository.remove(rule);
     return { message: '규칙이 삭제되었습니다.' };
   }
 
-  async seedDefaultRules(clanId: string): Promise<PointRule[]> {
-    const existing = await this.pointRuleRepository.find({ where: { clanId } });
+  async seedDefaultRules(): Promise<PointRule[]> {
+    const existing = await this.pointRuleRepository.find();
     const existingCodes = new Set(existing.map((r) => r.code));
 
     const toCreate = DEFAULT_RULES.filter((r) => !existingCodes.has(r.code));
@@ -84,21 +79,17 @@ export class AttendanceService {
       throw new BadRequestException('모든 기본 규칙이 이미 존재합니다.');
     }
 
-    const rules = toCreate.map((r) =>
-      this.pointRuleRepository.create({ ...r, clanId }),
-    );
+    const rules = toCreate.map((r) => this.pointRuleRepository.create(r));
     return this.pointRuleRepository.save(rules);
   }
 
   // ========== Attendance ==========
 
   async getAttendanceHistory(
-    clanId: string,
     limit = 50,
     offset = 0,
   ): Promise<{ records: AttendanceRecord[]; total: number }> {
     const [records, total] = await this.attendanceRecordRepository.findAndCount({
-      where: { member: { clanId } },
       relations: ['member', 'member.user'],
       order: { createdAt: 'DESC' },
       take: limit,
@@ -108,9 +99,8 @@ export class AttendanceService {
     return { records, total };
   }
 
-  async getAttendanceStats(clanId: string): Promise<AttendanceStatsResult[]> {
+  async getAttendanceStats(): Promise<AttendanceStatsResult[]> {
     const members = await this.clanMemberRepository.find({
-      where: { clanId },
       relations: ['user'],
     });
 

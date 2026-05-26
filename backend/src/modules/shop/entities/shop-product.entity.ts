@@ -17,9 +17,6 @@ export enum ProductCategory {
 
 @Entity('shop_products')
 export class ShopProduct extends BaseEntity {
-  @Column()
-  clanId: string;
-
   @Column({ type: 'enum', enum: ProductCategory, default: ProductCategory.ETC })
   category: ProductCategory;
 

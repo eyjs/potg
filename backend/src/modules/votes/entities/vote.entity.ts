@@ -15,9 +15,6 @@ export enum ScrimType {
 @Entity('votes')
 export class Vote extends BaseEntity {
   @Column()
-  clanId: string;
-
-  @Column()
   creatorId: string;
 
   @Column()

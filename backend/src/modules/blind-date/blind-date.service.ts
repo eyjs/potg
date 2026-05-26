@@ -13,7 +13,6 @@ import {
 import { CreateListingDto, UpdateListingDto } from './dto/create-listing.dto';
 
 interface FindAllOptions {
-  clanId: string;
   status?: string;
   gender?: string;
   ageMin?: number;
@@ -52,8 +51,7 @@ export class BlindDateService {
 
     const qb = this.listingsRepository
       .createQueryBuilder('listing')
-      .leftJoinAndSelect('listing.register', 'register')
-      .where('listing.clanId = :clanId', { clanId: options.clanId });
+      .leftJoinAndSelect('listing.register', 'register');
 
     if (options.status) {
       qb.andWhere('listing.status = :status', { status: options.status });

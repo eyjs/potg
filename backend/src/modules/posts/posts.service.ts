@@ -34,7 +34,6 @@ export class PostsService {
    * Get community feed - public posts only, no auth required.
    */
   async getCommunityFeed(
-    clanId: string,
     page = 1,
     limit = 20,
   ): Promise<{ data: Post[]; total: number }> {
@@ -42,8 +41,7 @@ export class PostsService {
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .leftJoinAndSelect('author.user', 'user')
-      .where('post.clanId = :clanId', { clanId })
-      .andWhere('post.visibility = :visibility', { visibility: PostVisibility.PUBLIC })
+      .where('post.visibility = :visibility', { visibility: PostVisibility.PUBLIC })
       .orderBy('post.isPinned', 'DESC')
       .addOrderBy('post.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -72,7 +70,6 @@ export class PostsService {
   // ==================== 게시물 ====================
 
   async getFeed(
-    clanId: string,
     viewerId: string,
     options: {
       authorId?: string;
@@ -86,7 +83,6 @@ export class PostsService {
     const query = this.postRepo.createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .leftJoinAndSelect('author.user', 'user')
-      .where('post.clanId = :clanId', { clanId })
       .orderBy('post.isPinned', 'DESC')
       .addOrderBy('post.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -139,10 +135,9 @@ export class PostsService {
     return post;
   }
 
-  async createPost(authorId: string, clanId: string, dto: CreatePostDto): Promise<Post> {
+  async createPost(authorId: string, dto: CreatePostDto): Promise<Post> {
     const post = this.postRepo.create({
       authorId,
-      clanId,
       title: dto.title ?? null,
       type: dto.type || PostType.TEXT,
       content: dto.content,

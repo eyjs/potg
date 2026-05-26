@@ -33,7 +33,6 @@ export class BlindDateController {
 
   @Get('listings')
   findAll(
-    @Query('clanId') clanId: string,
     @Query('status') status?: string,
     @Query('gender') gender?: string,
     @Query('ageMin') ageMin?: string,
@@ -45,7 +44,6 @@ export class BlindDateController {
     @Query('limit') limit?: string,
   ) {
     return this.blindDateService.findAll({
-      clanId,
       status,
       gender,
       ageMin: ageMin ? Number(ageMin) : undefined,

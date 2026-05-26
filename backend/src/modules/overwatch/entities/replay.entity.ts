@@ -1,7 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { User } from '../../users/entities/user.entity';
-import { Clan } from '../../clans/entities/clan.entity';
 
 export enum ReplayResult {
   WIN = 'WIN',
@@ -20,13 +19,6 @@ export class Replay extends BaseEntity {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'userId' })
   user: User;
-
-  @Column()
-  clanId: string;
-
-  @ManyToOne(() => Clan)
-  @JoinColumn({ name: 'clanId' })
-  clan: Clan;
 
   @Column()
   mapName: string;

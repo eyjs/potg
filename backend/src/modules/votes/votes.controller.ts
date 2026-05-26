@@ -8,7 +8,6 @@ import {
   Param,
   UseGuards,
   Request,
-  Query,
 } from '@nestjs/common';
 import { VotesService } from './votes.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -30,8 +29,8 @@ export class VotesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get()
-  findAll(@Query('clanId') clanId: string, @Request() req: AuthenticatedRequest) {
-    return this.votesService.findAll(clanId, req.user.userId);
+  findAll(@Request() req: AuthenticatedRequest) {
+    return this.votesService.findAll(req.user.userId);
   }
 
   @Get(':id')

@@ -17,9 +17,6 @@ export class VoteOptionDto {
 }
 
 export class CreateVoteDto {
-  @IsUUID()
-  clanId: string;
-
   @IsString()
   title: string;
 

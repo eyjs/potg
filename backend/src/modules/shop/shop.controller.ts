@@ -35,12 +35,12 @@ export class ShopController {
   @Roles(UserRole.ADMIN)
   @Post('products')
   createProduct(@Body() dto: CreateProductDto) {
-    return this.shopService.createProduct(dto, dto.clanId);
+    return this.shopService.createProduct(dto);
   }
 
   @Get('products')
-  findAll(@Query('clanId') clanId?: string) {
-    return this.shopService.findAll(clanId);
+  findAll() {
+    return this.shopService.findAll();
   }
 
   // ==================== 마켓 주문 ====================

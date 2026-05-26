@@ -51,17 +51,16 @@ export class ClansService {
     });
   }
 
-  async requestJoin(clanId: string, userId: string, message?: string) {
+  async requestJoin(_clanId: string, userId: string, message?: string) {
     const existingMember = await this.clanMembersRepository.findOne({ where: { userId } });
     if (existingMember) throw new BadRequestException('Already in a clan');
 
     const existingRequest = await this.joinRequestsRepository.findOne({
-      where: { clanId, userId, status: RequestStatus.PENDING },
+      where: { userId, status: RequestStatus.PENDING },
     });
     if (existingRequest) throw new BadRequestException('Join request already pending');
 
     const request = this.joinRequestsRepository.create({
-      clanId,
       userId,
       message,
     });
@@ -75,16 +74,14 @@ export class ClansService {
     });
   }
 
-  async getClanRequests(clanId: string, userId: string) {
-    const member = await this.clanMembersRepository.findOne({
-      where: { clanId, userId },
-    });
+  async getClanRequests(_clanId: string, userId: string) {
+    const member = await this.clanMembersRepository.findOne({ where: { userId } });
     if (!member || member.role === ClanRole.MEMBER) {
       throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 조회할 수 있습니다.');
     }
 
     return this.joinRequestsRepository.find({
-      where: { clanId, status: RequestStatus.PENDING },
+      where: { status: RequestStatus.PENDING },
       relations: ['user'],
     });
   }
@@ -92,13 +89,10 @@ export class ClansService {
   async approveRequest(requestId: string, adminId: string) {
     const request = await this.joinRequestsRepository.findOne({
       where: { id: requestId },
-      relations: ['clan'],
     });
     if (!request) throw new BadRequestException('Request not found');
 
-    const admin = await this.clanMembersRepository.findOne({
-      where: { clanId: request.clanId, userId: adminId },
-    });
+    const admin = await this.clanMembersRepository.findOne({ where: { userId: adminId } });
     if (!admin || admin.role === ClanRole.MEMBER) {
       throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 승인할 수 있습니다.');
     }
@@ -106,7 +100,7 @@ export class ClansService {
     request.status = RequestStatus.APPROVED;
     await this.joinRequestsRepository.save(request);
 
-    await this.addMember(request.clanId, request.userId);
+    await this.addMember(admin.clanId, request.userId);
 
     return request;
   }
@@ -117,9 +111,7 @@ export class ClansService {
     });
     if (!request) throw new BadRequestException('Request not found');
 
-    const admin = await this.clanMembersRepository.findOne({
-      where: { clanId: request.clanId, userId },
-    });
+    const admin = await this.clanMembersRepository.findOne({ where: { userId } });
     if (!admin || admin.role === ClanRole.MEMBER) {
       throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 거절할 수 있습니다.');
     }
@@ -360,9 +352,9 @@ export class ClansService {
             .orderBy('tx.created_at', 'DESC')
             .take(limit)
             .getMany(),
-      // 공지사항
+      // 공지사항 (단일 클랜 — 전체 활성)
       this.announcementsRepository.find({
-        where: { clanId, isActive: true },
+        where: { isActive: true },
         relations: ['author'],
         order: { createdAt: 'DESC' },
         take: limit,
@@ -462,21 +454,20 @@ export class ClansService {
 
   // ========== 공지사항 ==========
 
-  async getAnnouncements(clanId: string) {
+  async getAnnouncements(_clanId: string) {
     return this.announcementsRepository.find({
-      where: { clanId, isActive: true },
+      where: { isActive: true },
       relations: ['author'],
       order: { isPinned: 'DESC', createdAt: 'DESC' },
     });
   }
 
   async createAnnouncement(
-    clanId: string,
+    _clanId: string,
     authorId: string,
     data: { title: string; content: string; isPinned?: boolean },
   ) {
     const announcement = this.announcementsRepository.create({
-      clanId,
       authorId,
       title: data.title,
       content: data.content,
@@ -495,10 +486,7 @@ export class ClansService {
     });
     if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
 
-    // 작성자 또는 마스터만 수정 가능
-    const member = await this.clanMembersRepository.findOne({
-      where: { clanId: announcement.clanId, userId },
-    });
+    const member = await this.clanMembersRepository.findOne({ where: { userId } });
     if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
       throw new ForbiddenException('작성자 또는 마스터만 수정할 수 있습니다.');
     }
@@ -516,10 +504,7 @@ export class ClansService {
     });
     if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
 
-    // 작성자 또는 마스터만 삭제 가능
-    const member = await this.clanMembersRepository.findOne({
-      where: { clanId: announcement.clanId, userId },
-    });
+    const member = await this.clanMembersRepository.findOne({ where: { userId } });
     if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
       throw new ForbiddenException('작성자 또는 마스터만 삭제할 수 있습니다.');
     }
@@ -530,11 +515,8 @@ export class ClansService {
 
   // ========== 명예의전당/기부자/현상수배 ==========
 
-  async getHallOfFame(clanId: string, type?: HallOfFameType) {
-    const where: { clanId: string; isActive: boolean; type?: HallOfFameType } = {
-      clanId,
-      isActive: true,
-    };
+  async getHallOfFame(_clanId: string, type?: HallOfFameType) {
+    const where: { isActive: boolean; type?: HallOfFameType } = { isActive: true };
     if (type) where.type = type;
 
     return this.hallOfFameRepository.find({
@@ -545,7 +527,7 @@ export class ClansService {
   }
 
   async createHallOfFameEntry(
-    clanId: string,
+    _clanId: string,
     data: {
       type: HallOfFameType;
       title: string;
@@ -556,7 +538,6 @@ export class ClansService {
     },
   ) {
     const entry = this.hallOfFameRepository.create({
-      clanId,
       type: data.type,
       title: data.title,
       description: data.description,

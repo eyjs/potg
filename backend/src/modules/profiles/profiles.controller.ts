@@ -27,19 +27,17 @@ export class ProfilesController {
   async getProfile(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId?: string,
   ) {
-    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     return this.profilesService.getProfile(memberId, viewerMemberId || undefined);
   }
 
   @Patch('me')
   async updateProfile(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: UpdateProfileDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.updateProfile(memberId, dto);
   }
@@ -47,10 +45,9 @@ export class ProfilesController {
   @Post('me/equip')
   async equipItems(
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: EquipItemsDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.equipItems(memberId, dto);
   }
@@ -79,9 +76,8 @@ export class ProfilesController {
   async getFollowStatus(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId?: string,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!myMemberId) return { isFollowing: false };
     const isFollowing = await this.profilesService.isFollowing(myMemberId, memberId);
     return { isFollowing };
@@ -91,9 +87,8 @@ export class ProfilesController {
   async follow(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.follow(myMemberId, memberId);
     return { success: true };
@@ -103,9 +98,8 @@ export class ProfilesController {
   async unfollow(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.unfollow(myMemberId, memberId);
     return { success: true };
@@ -117,12 +111,11 @@ export class ProfilesController {
   async getGuestbook(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
-    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     return this.profilesService.getGuestbook(profile.id, viewerMemberId || undefined, +page, +limit);
   }
 
@@ -130,11 +123,10 @@ export class ProfilesController {
   async createGuestbook(
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
     @Body() dto: CreateGuestbookDto,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.createGuestbook(profile.id, myMemberId, dto);
   }
@@ -143,9 +135,8 @@ export class ProfilesController {
   async deleteGuestbook(
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
-    @Query('clanId') clanId: string,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId, clanId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.deleteGuestbook(id, myMemberId);
     return { success: true };

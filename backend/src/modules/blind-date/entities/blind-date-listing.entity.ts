@@ -15,9 +15,6 @@ export enum Gender {
 @Entity('blind_date_listings')
 export class BlindDateListing extends BaseEntity {
   @Column()
-  clanId: string;
-
-  @Column()
   registerId: string;
 
   @ManyToOne(() => User)
