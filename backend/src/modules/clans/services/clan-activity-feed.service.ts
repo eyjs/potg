@@ -6,6 +6,7 @@ import { Announcement } from '../entities/announcement.entity';
 import { PointTx } from '../../ledger/entities/point-tx.entity';
 import { ActivityType } from '../interfaces/activity.interface';
 import type { ActivityEvent } from '../interfaces/activity.interface';
+import { DEFAULT_PAGE_SIZE } from '../../../common/constants/pagination';
 
 /**
  * 클랜 활동 피드 조립 서비스.
@@ -29,7 +30,7 @@ export class ClanActivityFeedService {
   async getActivities(
     clanId: string,
     userId: string,
-    limit: number = 20,
+    limit: number = DEFAULT_PAGE_SIZE,
   ): Promise<ActivityEvent[]> {
     const membership = await this.clanMembersRepository.findOne({
       where: { clanId, userId },

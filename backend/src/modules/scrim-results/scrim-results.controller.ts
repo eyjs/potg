@@ -13,6 +13,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { DEFAULT_PAGE_SIZE } from '../../common/constants/pagination';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import { ScrimResultsService } from './scrim-results.service';
 import { CreateScrimResultDto } from './dto/create-scrim-result.dto';
@@ -32,7 +33,7 @@ export class ScrimResultsController {
   @Get('ranking')
   async getRanking(
     @Query('clanId') clanId: string,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     return this.scrimResultsService.getRanking(clanId, +limit);
   }

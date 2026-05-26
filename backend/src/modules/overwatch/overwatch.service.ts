@@ -13,6 +13,8 @@ import {
 import { OverwatchApiService } from './overwatch-api.service';
 import { User } from '../users/entities/user.entity';
 
+const OVERWATCH_SNAPSHOT_DEFAULT_LIMIT = 30;
+
 @Injectable()
 export class OverwatchService {
   private readonly logger = new Logger(OverwatchService.name);
@@ -194,7 +196,7 @@ export class OverwatchService {
    */
   async getSnapshots(
     userId: string,
-    limit = 30,
+    limit = OVERWATCH_SNAPSHOT_DEFAULT_LIMIT,
   ): Promise<OverwatchStatsSnapshot[]> {
     const profile = await this.profileRepo.findOne({ where: { userId } });
     if (!profile) return [];

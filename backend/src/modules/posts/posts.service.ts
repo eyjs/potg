@@ -13,6 +13,10 @@ import { CreatePostDto, UpdatePostDto, CreateCommentDto } from './dto/post.dto';
 import { Follow } from '../profiles/entities/follow.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { ClanMember } from '../clans/entities/clan-member.entity';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+} from '../../common/constants/pagination';
 
 @Injectable()
 export class PostsService {
@@ -39,8 +43,8 @@ export class PostsService {
    * Get community feed - public posts only, no auth required.
    */
   async getCommunityFeed(
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: Post[]; total: number }> {
     const [data, total] = await this.postRepo
       .createQueryBuilder('post')
@@ -85,7 +89,12 @@ export class PostsService {
       limit?: number;
     } = {},
   ): Promise<{ data: Post[]; total: number }> {
-    const { authorId, type, page = 1, limit = 20 } = options;
+    const {
+      authorId,
+      type,
+      page = DEFAULT_PAGE,
+      limit = DEFAULT_PAGE_SIZE,
+    } = options;
 
     const query = this.postRepo
       .createQueryBuilder('post')
@@ -265,8 +274,8 @@ export class PostsService {
 
   async getComments(
     postId: string,
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: PostComment[]; total: number }> {
     const [data, total] = await this.commentRepo.findAndCount({
       where: { postId, parentId: undefined },

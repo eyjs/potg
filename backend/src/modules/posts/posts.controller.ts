@@ -17,6 +17,7 @@ import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto, CreateCommentDto } from './dto/post.dto';
 import { PostType } from './entities/post.entity';
 import { ProfilesService } from '../profiles/profiles.service';
+import { DEFAULT_PAGE_SIZE } from '../../common/constants/pagination';
 
 @Controller('posts')
 export class PostsController {
@@ -28,7 +29,10 @@ export class PostsController {
   // ==================== 커뮤니티 (비인증) ====================
 
   @Get('community')
-  async getCommunityFeed(@Query('page') page = 1, @Query('limit') limit = 20) {
+  async getCommunityFeed(
+    @Query('page') page = 1,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
+  ) {
     return this.postsService.getCommunityFeed(+page, +limit);
   }
 
@@ -46,7 +50,7 @@ export class PostsController {
     @Query('authorId') authorId?: string,
     @Query('type') type?: PostType,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     const memberId = await this.profilesService.getMemberIdByUserId(
       req.user.userId,
@@ -170,7 +174,7 @@ export class PostsController {
   async getComments(
     @Param('id') id: string,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     return this.postsService.getComments(id, +page, +limit);
   }

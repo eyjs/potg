@@ -19,6 +19,10 @@ import {
 } from './dto/profile.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { MemberItem } from '../shop/entities/member-item.entity';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+} from '../../common/constants/pagination';
 
 @Injectable()
 export class ProfilesService {
@@ -189,8 +193,8 @@ export class ProfilesService {
 
   async getFollowers(
     memberId: string,
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: Follow[]; total: number }> {
     const [data, total] = await this.followRepo.findAndCount({
       where: { followingId: memberId },
@@ -204,8 +208,8 @@ export class ProfilesService {
 
   async getFollowing(
     memberId: string,
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: Follow[]; total: number }> {
     const [data, total] = await this.followRepo.findAndCount({
       where: { followerId: memberId },
@@ -229,8 +233,8 @@ export class ProfilesService {
   async getGuestbook(
     profileId: string,
     viewerId?: string,
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: Guestbook[]; total: number }> {
     const profile = await this.profileRepo.findOne({
       where: { id: profileId },
@@ -316,8 +320,8 @@ export class ProfilesService {
 
   async getVisitors(
     profileId: string,
-    page = 1,
-    limit = 20,
+    page = DEFAULT_PAGE,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<{ data: ProfileVisit[]; total: number }> {
     const [data, total] = await this.visitRepo.findAndCount({
       where: { profileId },

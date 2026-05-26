@@ -16,6 +16,7 @@ import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
 import { PointTx } from '../ledger/entities/point-tx.entity';
 import type { ActivityEvent } from './interfaces/activity.interface';
 import { ClanActivityFeedService } from './services/clan-activity-feed.service';
+import { DEFAULT_PAGE_SIZE } from '../../common/constants/pagination';
 
 @Injectable()
 export class ClansService {
@@ -350,7 +351,7 @@ export class ClansService {
   async getActivities(
     clanId: string,
     userId: string,
-    limit: number = 20,
+    limit: number = DEFAULT_PAGE_SIZE,
   ): Promise<ActivityEvent[]> {
     return this.activityFeedService.getActivities(clanId, userId, limit);
   }

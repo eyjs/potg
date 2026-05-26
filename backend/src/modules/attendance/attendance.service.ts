@@ -14,6 +14,8 @@ import { CreatePointRuleDto, UpdatePointRuleDto } from './dto/point-rule.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { UsersService } from '../users/users.service';
 
+const ATTENDANCE_DEFAULT_LIMIT = 50;
+
 const DEFAULT_RULES: Omit<CreatePointRuleDto, 'category'>[] &
   { category: PointRuleCategory }[] = [
   {
@@ -120,7 +122,7 @@ export class AttendanceService {
   // ========== Attendance ==========
 
   async getAttendanceHistory(
-    limit = 50,
+    limit = ATTENDANCE_DEFAULT_LIMIT,
     offset = 0,
   ): Promise<{ records: AttendanceRecord[]; total: number }> {
     const [records, total] = await this.attendanceRecordRepository.findAndCount(

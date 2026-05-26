@@ -19,6 +19,7 @@ import {
   EquipItemsDto,
   CreateGuestbookDto,
 } from './dto/profile.dto';
+import { DEFAULT_PAGE_SIZE } from '../../common/constants/pagination';
 
 @Controller('profiles')
 @UseGuards(AuthGuard('jwt'))
@@ -71,7 +72,7 @@ export class ProfilesController {
   async getFollowers(
     @Param('memberId') memberId: string,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     return this.profilesService.getFollowers(memberId, +page, +limit);
   }
@@ -80,7 +81,7 @@ export class ProfilesController {
   async getFollowing(
     @Param('memberId') memberId: string,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     return this.profilesService.getFollowing(memberId, +page, +limit);
   }
@@ -134,7 +135,7 @@ export class ProfilesController {
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
     const viewerMemberId = await this.profilesService.getMemberIdByUserId(
@@ -181,7 +182,7 @@ export class ProfilesController {
   async getVisitors(
     @Param('memberId') memberId: string,
     @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('limit') limit = DEFAULT_PAGE_SIZE,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
     return this.profilesService.getVisitors(profile.id, +page, +limit);

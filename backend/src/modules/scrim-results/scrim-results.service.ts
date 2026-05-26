@@ -17,6 +17,7 @@ import { ClanMember } from '../clans/entities/clan-member.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateScrimResultDto } from './dto/create-scrim-result.dto';
 import { UpdateScrimResultDto } from './dto/update-scrim-result.dto';
+import { DEFAULT_PAGE_SIZE } from '../../common/constants/pagination';
 
 @Injectable()
 export class ScrimResultsService {
@@ -258,7 +259,7 @@ export class ScrimResultsService {
    */
   async getRanking(
     clanId: string,
-    limit = 20,
+    limit = DEFAULT_PAGE_SIZE,
   ): Promise<
     {
       userId: string;
