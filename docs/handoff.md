@@ -1,7 +1,7 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
-> 최종 갱신: 2026-05-26 (Phase 6 + nullability 감사 완료)
-> 진행 상태: **Phase 1 → 5-D 완료 + Phase 6 (lint/strict/nullability) 완료**
+> 최종 갱신: 2026-05-26 (Phase 7 클린 아키텍처 + 리팩토링 완료)
+> 진행 상태: **Phase 1 → 7 완료 (auctions/clans 분할 + 권한 helper + 페이지네이션 상수)**
 > 운영 배포 환경 없음 → **테스트 커버리지 + knip으로 회귀/잔재 방어**
 
 ---
@@ -29,17 +29,35 @@
 | **6.2. lint error 0** | ✅ | `3050d6a` | unsafe-* / misused-promises / enum 비교 |
 | **6.3. controller spec 추가** | ✅ | `70bd4ee` | system-config + match controller spec |
 | **6.4. TS strict 강화** | ✅ | `10a1e5e` | noImplicitAny + strictBindCallApply + nullability 1차 |
-| **6.5. Entity nullability 감사** | ✅ | (예정 커밋) | 15 entity, 38 필드를 `T \| null`로 정정 |
+| **6.5. Entity nullability 감사** | ✅ | `912657d` | 15 entity, 38 필드를 `T \| null`로 정정 |
+| **7-A. Controller InjectRepository 제거** | ✅ | `367c611` | 5 controller → Service 위임, strict:true 활성, /context 통합 |
+| **7-B5. 핵심 service spec 추가** | ✅ | `1e6fbd7` | auctions 24 tests + clans 26 tests (+50) |
+| **7-B1. AuctionsService 분할** | ✅ | `0c51e4f` | 1168 → 626줄, BiddingService(435) + RoomStateService(202) |
+| **7-B2. ClansService.getActivities 분리** | ✅ | `eca7e8a` | 130줄 → ClanActivityFeedService (180줄) |
+| **7-A보강. 권한 helper 추출** | ✅ | `9ff79a8` | creatorId 체크 17건 → loadAsCreator(Tx) 통합 |
+| **7-B3. 페이지네이션 상수화** | ✅ | `3f4b6cb` | DEFAULT_PAGE/PAGE_SIZE 공통 + 도메인 특화 2건 |
+| **7-C5. knip dead code** | ✅ | `aa7eefc` | PointTxReason / SystemConfigKey 미사용 타입 제거 |
 
 **현재 검증 상태**:
 - backend build ✅
 - frontend build ✅
-- **unit test 146 PASS + 1 skipped** (19 suites, +28 from baseline)
+- **unit test 194 PASS + 1 skipped** (21 suites, +76 from baseline 118)
 - integration/e2e 7 suite 실패 — DB 미연결 환경 이슈 (회귀 아님)
 - lint: 0 error / 0 warning
-- TS strict: `noImplicitAny + strictBindCallApply + strictNullChecks` 모두 true, 0 error
-- Entity nullability: 15 파일 38 필드 `T | null` 정정 완료 (overwatch/replay/user는 `?:` 컨벤션 유지)
-- knip: false positive 외 0건 (Shadcn UI 보존, MainRole enum 보존 결정)
+- TS `strict: true` 전면 활성 (strictPropertyInitialization만 false — TypeORM 보호)
+- Controller `@InjectRepository` 0건 / `throw new Error` 0건 / `any` 0건
+- Entity nullability: 15 파일 38 필드 `T | null` (overwatch/replay/user는 `?:` 컨벤션 유지)
+- knip: 의도적 false positive 외 0건 (마이그레이션/e2e/Shadcn UI/MainRole 보존)
+
+**Phase 7 핵심 변경 요약**:
+| Service | Before | After | Helper 신설 |
+|---------|--------|-------|------------|
+| auctions.service.ts | 1168줄 | 626줄 (∆ -542) | AuctionsBiddingService (435), AuctionsRoomStateService (202) |
+| clans.service.ts | 641줄 | 497줄 (∆ -144) | ClanActivityFeedService (180) |
+
+- facade 패턴 유지 — 외부 API 변경 0건 (gateway, controller, 다른 모듈 import 무영향)
+- 권한 helper: `loadAsCreator` / `loadAsCreatorTx` (4줄 분기 → 1번 호출)
+- 페이지네이션 매직넘버: `DEFAULT_PAGE` / `DEFAULT_PAGE_SIZE` 공통 상수
 
 ---
 
@@ -292,20 +310,21 @@ DISCORD_OAUTH_SUCCESS_REDIRECT=/
 2. `.env` 채우기 + Discord 봇 활성화
 3. **V1~V10 수동 검증** (`.pipeline/plan-phase4.2.md` §8 참조)
 
-### 우선순위 2 — Phase 6 (테스트/품질)
-1. `system-config.controller/service.spec` 신규
-2. `match.controller.spec` 신규
-3. **프론트엔드 vitest + RTL** 인프라 도입
-4. admin 페이지 컴포넌트 테스트
-5. 잔여 lint 3 error 처리
+### 우선순위 2 — 프론트엔드 일관성 (Phase 7-C)
+1. **C1. 폼 표준화**: zod + react-hook-form 적용 (reset-password, clan/create, community/write — 현재 수동 정규식)
+2. **C2. ClanSettingsFormProps 12 props 분해** → 객체 그룹 + custom hook
+3. **C3. `/app/auction/[id]/page.tsx` 746줄** → custom hooks 분리 (`useAuctionRoom`, `useAuctionBidding`)
+4. **C4. inline 색상/임의값** → tailwind 토큰 (`teamColors`, `max-w-[200px]` 등)
+5. **프론트엔드 vitest + RTL** 인프라 도입
+6. admin 페이지 컴포넌트 테스트
 
 ### 우선순위 3 — 잔여 정리 (선택)
-1. **dashboard/clan-manage/attendance hooks** 프론트 ?clanId= 추가 cleanup (cosmetic)
-2. **MainRole.TANK/SUPPORT/FLEX enum 결정** — DB 컬럼 영향 확인 후 정리
-3. **Bearer Swagger 흔적 정리** — `addBearerAuth` 미사용 (이미 cookie로 교체됨)
-4. **MarketGateGuard 캐시 무효화** 정책 명확화
-5. **BettingStake UNIQUE 적용** 검토
-6. **RANK 마켓 정산 정책** 재정의 (`winningOption='1'` 단순화 → 정책 합의 필요)
+1. **MainRole.TANK/SUPPORT/FLEX enum 결정** — DB 컬럼 영향 확인 후 정리
+2. **Bearer Swagger 흔적 정리** — `addBearerAuth` 미사용 (이미 cookie로 교체됨)
+3. **MarketGateGuard 캐시 무효화** 정책 명확화
+4. **BettingStake UNIQUE 적용** 검토
+5. **RANK 마켓 정산 정책** 재정의 (`winningOption='1'` 단순화 → 정책 합의 필요)
+6. **B4 모듈 경계 DTO**: clans/posts → ledger.PointTx 직접 import 등 cross-module entity 누출 (38건) — over-engineering 위험 평가 후 선택적 진행
 
 ---
 
@@ -332,7 +351,14 @@ DISCORD_OAUTH_SUCCESS_REDIRECT=/
 - 프론트 `user.clanId`는 URL 생성용으로 계속 사용 가능
 
 ### lint
-- 폐기 외 잔여 3 error (Phase 6)
+- 0 error / 0 warning (Phase 7 완료)
+
+### 코드 구조 (Phase 7 이후)
+- AuctionsService는 **facade** — 입찰/RoomState는 helper service로 위임 (services/ 디렉토리)
+- 외부에서 `AuctionsService` 그대로 import (호환성). 새 입찰 로직은 `AuctionsBiddingService`에 직접 추가
+- ClansService도 동일 — getActivities는 `ClanActivityFeedService`에 위임
+- 경매 권한 체크: `loadAsCreator` / `loadAsCreatorTx` helper 사용 (creator + status 패턴)
+- 페이지네이션 default: `common/constants/pagination.ts` 임포트 (도메인 특화는 모듈 내부 상수)
 
 ### 결정 사항 누적
 - RANK 마켓 정산: `winningOption='1'` 단순화 (정책 모호)
