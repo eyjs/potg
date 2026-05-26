@@ -23,6 +23,14 @@ import { BetCommand } from './commands/bet.command';
 import { RankPredictCommand } from './commands/rank-predict.command';
 import { ShopCommand } from './commands/shop.command';
 import { BuyCommand } from './commands/buy.command';
+import { AdminBettingStartCommand } from './commands/admin-betting-start.command';
+import { AdminBettingLockCommand } from './commands/admin-betting-lock.command';
+import { AdminBettingSettleCommand } from './commands/admin-betting-settle.command';
+import { AdminPointsCommand } from './commands/admin-points.command';
+import { HelpCommand } from './commands/help.command';
+import { BettingNotifyService } from './notifications/betting-notify.service';
+import { UsersModule } from '../users/users.module';
+import { MatchesModule } from '../matches/matches.module';
 
 const COMMAND_PROVIDERS = [
   BalanceCommand,
@@ -32,6 +40,12 @@ const COMMAND_PROVIDERS = [
   RankPredictCommand,
   ShopCommand,
   BuyCommand,
+  // Admin
+  AdminBettingStartCommand,
+  AdminBettingLockCommand,
+  AdminBettingSettleCommand,
+  AdminPointsCommand,
+  HelpCommand,
 ];
 
 /** 멀티 프로바이더 토큰 (배열로 주입). */
@@ -57,14 +71,17 @@ const commandAggregateProvider: Provider = {
     BettingModule,
     ShopModule,
     MarketGateModule,
+    UsersModule,
+    MatchesModule,
   ],
   providers: [
     CommandRegistry,
     DiscordMemberService,
     DiscordClientService,
+    BettingNotifyService,
     ...COMMAND_PROVIDERS,
     commandAggregateProvider,
   ],
-  exports: [DiscordMemberService, DiscordClientService],
+  exports: [DiscordMemberService, DiscordClientService, BettingNotifyService],
 })
 export class DiscordBotModule {}

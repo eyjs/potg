@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MessageFlags } from 'discord.js';
+import { ConfigService } from '@nestjs/config';
+import { ChannelType, MessageFlags } from 'discord.js';
 import type {
   ChatInputCommandInteraction,
   REST,
@@ -15,6 +16,40 @@ import type { SlashCommand } from './interfaces/slash-command.interface';
 export class CommandRegistry {
   private readonly logger = new Logger(CommandRegistry.name);
   private readonly commands = new Map<string, SlashCommand>();
+  private readonly allowedChannelIds: ReadonlySet<string>;
+
+  constructor(private readonly config: ConfigService) {
+    const raw = this.config.get<string>('DISCORD_COMMAND_CHANNEL_IDS') ?? '';
+    const ids = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    this.allowedChannelIds = new Set(ids);
+    if (this.allowedChannelIds.size === 0) {
+      this.logger.warn(
+        'DISCORD_COMMAND_CHANNEL_IDS not set — all channels allowed (development mode)',
+      );
+    } else {
+      this.logger.log(
+        `Slash commands allowed in ${this.allowedChannelIds.size} channel(s) + DM`,
+      );
+    }
+  }
+
+  /**
+   * 채널 화이트리스트 검증.
+   * DM은 항상 허용. 텍스트 채널은 DISCORD_COMMAND_CHANNEL_IDS에 포함되어야 허용.
+   * env 미설정 시 모든 채널 허용 (개발 환경).
+   */
+  private isChannelAllowed(interaction: ChatInputCommandInteraction): boolean {
+    // env 미설정 시 모든 채널 허용
+    if (this.allowedChannelIds.size === 0) return true;
+
+    const channel = interaction.channel;
+    if (!channel) return false;
+    if (channel.type === ChannelType.DM) return true;
+    return this.allowedChannelIds.has(channel.id);
+  }
 
   register(command: SlashCommand): void {
     const name = command.definition.name;
@@ -60,6 +95,20 @@ export class CommandRegistry {
   }
 
   async dispatch(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!this.isChannelAllowed(interaction)) {
+      const hint =
+        this.allowedChannelIds.size > 0
+          ? Array.from(this.allowedChannelIds)
+              .map((id) => `<#${id}>`)
+              .join(', ')
+          : '';
+      await interaction.reply({
+        content: `이 채널에서는 봇 명령을 사용할 수 없습니다.${hint ? ` 허용 채널: ${hint} (또는 봇과 DM)` : ''}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     const handler = this.get(interaction.commandName);
     if (!handler) {
       this.logger.warn(`Unknown slash command: ${interaction.commandName}`);
