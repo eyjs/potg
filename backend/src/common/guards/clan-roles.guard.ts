@@ -10,6 +10,10 @@ import { Repository } from 'typeorm';
 import { ClanMember } from '../../modules/clans/entities/clan-member.entity';
 import { CLAN_ROLES_KEY } from '../decorators/clan-roles.decorator';
 
+/**
+ * 단일 클랜 환경 — 요청 파라미터의 clanId는 무시하고
+ * (userId, 임의 ClanMember)로 role 검증. 가입자가 아니면 403.
+ */
 @Injectable()
 export class ClanRolesGuard implements CanActivate {
   constructor(
@@ -29,32 +33,21 @@ export class ClanRolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<{
       user: { userId: string };
-      params: Record<string, any>;
-      body: Record<string, any>;
-      query: Record<string, any>;
     }>();
-    const { user, params, body, query } = request;
-
-    const clanId =
-      (params.clanId as string) ||
-      (body.clanId as string) ||
-      (query.clanId as string) ||
-      (params.id as string);
-
-    if (!clanId) {
-      throw new ForbiddenException('Clan ID not provided for role check');
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new ForbiddenException('Authenticated user required');
     }
 
     const member = await this.clanMemberRepository.findOne({
-      where: { userId: user.userId, clanId },
+      where: { userId },
     });
 
     if (!member) {
-      throw new ForbiddenException('User is not a member of this clan');
+      throw new ForbiddenException('User is not a clan member');
     }
 
-    const hasRole = requiredRoles.includes(member.role);
-    if (!hasRole) {
+    if (!requiredRoles.includes(member.role)) {
       throw new ForbiddenException(
         `Requires clan roles: ${requiredRoles.join(', ')}`,
       );
