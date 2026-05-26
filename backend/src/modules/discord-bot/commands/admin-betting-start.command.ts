@@ -7,8 +7,6 @@ import {
 import type { SlashCommand } from '../interfaces/slash-command.interface';
 import { UsersService } from '../../users/users.service';
 import { MatchService } from '../../matches/match.service';
-import { BettingService } from '../../betting/betting.service';
-import { BettingMarketType } from '../../betting/entities/betting-market.entity';
 import { assertAdmin } from '../utils/admin-guard';
 import { BettingNotifyService } from '../notifications/betting-notify.service';
 
@@ -48,7 +46,6 @@ export class AdminBettingStartCommand implements SlashCommand {
   constructor(
     private readonly users: UsersService,
     private readonly matches: MatchService,
-    private readonly betting: BettingService,
     private readonly notify: BettingNotifyService,
   ) {}
 
@@ -64,19 +61,11 @@ export class AdminBettingStartCommand implements SlashCommand {
       interaction.options.getString('옵션4') ?? null,
     ].filter((o): o is string => !!o);
 
-    if (options.length < 2) {
-      await interaction.editReply('옵션은 최소 2개 이상이어야 합니다.');
-      return;
-    }
-
-    const match = await this.matches.create({ title });
-    const teams = await Promise.all(
-      options.map((name) => this.matches.createTeam(match.id, name)),
-    );
-    await this.matches.openBetting(match.id);
-    const market = await this.betting.createMarket({
-      matchId: match.id,
-      type: BettingMarketType.WIN,
+    // 단일 트랜잭션: Match + Teams + BETTING_OPEN + Market.
+    // 중간 실패 시 전체 롤백되어 orphan 데이터 잔존 없음.
+    const { match, teams, market } = await this.matches.createBettingScenario({
+      title,
+      options,
     });
 
     await this.notify.notifyMarketCreated({

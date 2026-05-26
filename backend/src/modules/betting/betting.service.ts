@@ -60,29 +60,35 @@ export class BettingService {
 
   // ==================== 마켓 ====================
 
-  async createMarket(dto: CreateMarketDto): Promise<BettingMarket> {
-    const match = await this.matchRepository.findOne({
-      where: { id: dto.matchId },
-    });
-    if (!match) throw new NotFoundException(`Match not found: ${dto.matchId}`);
+  async createMarket(
+    dto: CreateMarketDto,
+    manager?: EntityManager,
+  ): Promise<BettingMarket> {
+    const run = async (m: EntityManager): Promise<BettingMarket> => {
+      const match = await m.findOne(Match, { where: { id: dto.matchId } });
+      if (!match) {
+        throw new NotFoundException(`Match not found: ${dto.matchId}`);
+      }
 
-    const existing = await this.marketRepository.findOne({
-      where: { matchId: dto.matchId, type: dto.type },
-    });
-    if (existing) {
-      throw new BadRequestException(
-        `Market already exists for match ${dto.matchId} type ${dto.type}`,
-      );
-    }
+      const existing = await m.findOne(BettingMarket, {
+        where: { matchId: dto.matchId, type: dto.type },
+      });
+      if (existing) {
+        throw new BadRequestException(
+          `Market already exists for match ${dto.matchId} type ${dto.type}`,
+        );
+      }
 
-    const market = this.marketRepository.create({
-      matchId: dto.matchId,
-      type: dto.type,
-      status: BettingMarketStatus.OPEN,
-      totalPool: '0',
-      rakeBps: dto.rakeBps ?? 500,
-    });
-    return this.marketRepository.save(market);
+      const market = m.create(BettingMarket, {
+        matchId: dto.matchId,
+        type: dto.type,
+        status: BettingMarketStatus.OPEN,
+        totalPool: '0',
+        rakeBps: dto.rakeBps ?? 500,
+      });
+      return m.save(market);
+    };
+    return manager ? run(manager) : this.dataSource.transaction(run);
   }
 
   async findMarketsByMatch(matchId: string): Promise<BettingMarket[]> {

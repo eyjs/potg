@@ -125,6 +125,65 @@ export class MatchService {
     });
   }
 
+  /**
+   * 자유 베팅 시나리오 생성 — Match + Teams + WIN 마켓 까지 한 트랜잭션.
+   *
+   * `/관리-베팅시작` 슬래시 명령 등에서 사용. 중간 실패 시 전체 롤백.
+   * Match는 DRAFT → BETTING_OPEN 정상 전이 경로를 따른다.
+   */
+  async createBettingScenario(input: {
+    title: string;
+    options: string[];
+    marketType?: BettingMarketType;
+    rakeBps?: number;
+  }): Promise<{ match: Match; teams: Team[]; market: BettingMarket }> {
+    if (!input.title?.trim()) {
+      throw new BadRequestException('title is required');
+    }
+    if (!Array.isArray(input.options) || input.options.length < 2) {
+      throw new BadRequestException('options must have at least 2 entries');
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      // 1. Match 생성 (DRAFT)
+      const match = manager.create(Match, {
+        title: input.title,
+        scheduledAt: null,
+        description: null,
+        status: MatchStatus.DRAFT,
+      });
+      const savedMatch = await manager.save(match);
+
+      // 2. Teams 생성
+      const teams: Team[] = [];
+      for (const name of input.options) {
+        const team = manager.create(Team, {
+          matchId: savedMatch.id,
+          name,
+          captainId: null,
+        });
+        teams.push(await manager.save(team));
+      }
+
+      // 3. DRAFT → BETTING_OPEN 전이
+      this.assertTransition(savedMatch.status, MatchStatus.BETTING_OPEN);
+      savedMatch.status = MatchStatus.BETTING_OPEN;
+      await manager.save(savedMatch);
+
+      // 4. BettingMarket 생성 (같은 manager)
+      const market = await this.bettingService.createMarket(
+        {
+          matchId: savedMatch.id,
+          type: input.marketType ?? BettingMarketType.WIN,
+          rakeBps: input.rakeBps,
+        },
+        manager,
+      );
+
+      return { match: savedMatch, teams, market };
+    });
+  }
+
   async lockMatch(matchId: string): Promise<Match> {
     return this.dataSource.transaction(async (manager) => {
       const match = await this.lockMatchRow(manager, matchId);
