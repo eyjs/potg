@@ -91,6 +91,19 @@ export class MatchService {
     });
   }
 
+  /**
+   * 정산 대기 중인 LOCKED 매치 목록 (최신순).
+   * `/관리-정산` Step UI 의 첫 단계에서 후보 표시용.
+   */
+  async findLockedMatches(limit = 25): Promise<Match[]> {
+    return this.matchRepository.find({
+      where: { status: MatchStatus.LOCKED },
+      relations: ['teams'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async findOneWithTeams(matchId: string): Promise<Match> {
     const match = await this.matchRepository.findOne({
       where: { id: matchId },

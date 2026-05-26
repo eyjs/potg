@@ -48,8 +48,8 @@ export class HelpCommand implements SlashCommand {
         {
           name: '🎲 베팅',
           value: [
-            '`/최근베팅` — 진행 중 베팅 목록 (Match/Team ID 확인)',
-            '`/베팅 <내전ID> <팀ID> <금액>` — 승패 베팅',
+            '`/최근베팅` — 진행 중 베팅 목록',
+            '`/베팅` — 마켓 → 팀 → 금액 단계별 선택 (인자 없음)',
             '`/순위예측 <내전ID> <등수> <금액>` — 등수 베팅',
           ].join('\n'),
         },
@@ -71,7 +71,7 @@ export class HelpCommand implements SlashCommand {
         value: [
           '`/관리-베팅시작 <이름> <옵션1> <옵션2> [옵션3] [옵션4]`',
           '`/관리-베팅마감 <matchId>`',
-          '`/관리-정산 <matchId> <승리팀ID>`',
+          '`/관리-정산` — 매치 → 우승팀 → 확인 단계별 선택 (인자 없음)',
           '`/관리-포인트조정 <대상> <수량> [사유]`',
         ].join('\n'),
       });
