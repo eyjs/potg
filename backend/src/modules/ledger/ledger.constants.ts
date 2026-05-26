@@ -19,4 +19,6 @@ export const POINT_TX_REASON = {
   MARKET_BUY: 'MARKET_BUY',
   MARKET_REFUND: 'MARKET_REFUND',
   ADMIN_ADJUST: 'ADMIN_ADJUST',
+  /** 사용자 ↔ 사용자 송금 (P2P). */
+  P2P_SEND: 'P2P_SEND',
 } as const;

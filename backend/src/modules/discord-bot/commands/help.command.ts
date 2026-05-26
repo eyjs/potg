@@ -34,6 +34,7 @@ export class HelpCommand implements SlashCommand {
           name: '💰 포인트 / 잔액',
           value: [
             '`/잔액` — 내 포인트 잔액 확인',
+            '`/송금 <대상> <금액>` — 다른 사용자에게 송금',
             '`/리더보드` — 포인트 상위 랭킹',
           ].join('\n'),
         },
@@ -47,6 +48,7 @@ export class HelpCommand implements SlashCommand {
         {
           name: '🎲 베팅',
           value: [
+            '`/최근베팅` — 진행 중 베팅 목록 (Match/Team ID 확인)',
             '`/베팅 <내전ID> <팀ID> <금액>` — 승패 베팅',
             '`/순위예측 <내전ID> <등수> <금액>` — 등수 베팅',
           ].join('\n'),
@@ -54,6 +56,12 @@ export class HelpCommand implements SlashCommand {
         {
           name: '🛒 상점',
           value: ['`/상점` — 상품 둘러보기', '`/구매` — 상품 구매'].join('\n'),
+        },
+        {
+          name: '🎯 음성채널',
+          value: [
+            '`/팀나누기 [그룹수] [이동1] [이동2] ...` — 음성채널 인원 무작위 분할',
+          ].join('\n'),
         },
       );
 

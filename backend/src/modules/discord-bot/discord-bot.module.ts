@@ -31,6 +31,9 @@ import { HelpCommand } from './commands/help.command';
 import { BettingNotifyService } from './notifications/betting-notify.service';
 import { AttendanceRewardService } from './attendance-reward.service';
 import { VoiceAttendanceService } from './voice-attendance.service';
+import { TransferCommand } from './commands/transfer.command';
+import { OpenMarketsCommand } from './commands/open-markets.command';
+import { TeamSplitCommand } from './commands/team-split.command';
 import { UsersModule } from '../users/users.module';
 import { MatchesModule } from '../matches/matches.module';
 
@@ -42,6 +45,10 @@ const COMMAND_PROVIDERS = [
   RankPredictCommand,
   ShopCommand,
   BuyCommand,
+  // P2P / 조회
+  TransferCommand,
+  OpenMarketsCommand,
+  TeamSplitCommand,
   // Admin
   AdminBettingStartCommand,
   AdminBettingLockCommand,

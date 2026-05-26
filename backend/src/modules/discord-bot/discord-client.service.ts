@@ -76,8 +76,13 @@ export class DiscordClientService
     }
 
     this.client = new Client({
-      // GuildVoiceStates: VoiceStateUpdate 이벤트 수신 (음성채널 출석)
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+      // GuildVoiceStates: 음성채널 상태 변화 (음성 출석 + 팀나누기 멤버 fetch)
+      // GuildMembers: 음성채널의 GuildMember 객체 풀(privileged) — 봇 설정에서 활성 필요
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMembers,
+      ],
     });
 
     this.client.once(Events.ClientReady, (c) => {

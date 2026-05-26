@@ -95,6 +95,25 @@ export class BettingService {
     return this.marketRepository.find({ where: { matchId } });
   }
 
+  /**
+   * 현재 진행 중인 OPEN 마켓 목록. Match가 BETTING_OPEN 상태인 것만.
+   * `/최근베팅` 명령 / autocomplete 에서 사용.
+   */
+  async findOpenMarkets(limit = 25): Promise<BettingMarket[]> {
+    return this.marketRepository
+      .createQueryBuilder('market')
+      .innerJoin(Match, 'match', 'match.id = market.match_id')
+      .where('market.status = :status', {
+        status: BettingMarketStatus.OPEN,
+      })
+      .andWhere('match.status = :matchStatus', {
+        matchStatus: MatchStatus.BETTING_OPEN,
+      })
+      .orderBy('market.created_at', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
   async findMarketById(marketId: string): Promise<BettingMarket> {
     const market = await this.marketRepository.findOne({
       where: { id: marketId },

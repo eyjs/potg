@@ -9,13 +9,19 @@ POTG를 운영 환경에 배포 / 운영 / 롤백하는 절차.
 1. https://discord.com/developers/applications → "New Application"
 2. **Bot** 탭:
    - "Add Bot" → `Reset Token` 으로 토큰 발급 → `.env`의 `DISCORD_BOT_TOKEN`
-   - **Privileged Gateway Intents** — 모두 OFF (POTG는 음성채널 상태만 사용 → privileged 불필요)
+   - **Privileged Gateway Intents**:
+     - `SERVER MEMBERS INTENT` **ON** — 음성채널 멤버 목록 조회 (팀나누기 명령)
+     - `MESSAGE CONTENT INTENT` — OFF (사용 안함)
+     - `PRESENCE INTENT` — OFF (사용 안함)
 3. **OAuth2** 탭:
    - `Client ID` → `DISCORD_CLIENT_ID`
    - `Client Secret` → `DISCORD_CLIENT_SECRET` (OAuth 활성화 시)
 4. **OAuth2 → URL Generator**:
    - Scopes: `bot`, `applications.commands`
-   - Bot Permissions: `Send Messages`, `Embed Links`, `Use Slash Commands`, `View Channels`, `Connect`(음성채널 상태 보기에 충분)
+   - Bot Permissions:
+     - `Send Messages`, `Embed Links`, `Use Slash Commands` — 일반 응답
+     - `View Channels`, `Connect` — 음성채널 상태 보기
+     - `Move Members` — `/팀나누기` 강제 이동 (없으면 결과만 표시)
    - 생성된 URL을 길드 마스터에게 전달하여 초대
 5. 길드 ID 복사 → `DISCORD_GUILD_ID` (개발자 모드 ON 후 길드 우클릭)
 
