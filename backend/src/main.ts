@@ -3,9 +3,19 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // contentSecurityPolicy는 Swagger UI와 충돌하므로 dev/api-docs에서는 완화
+  // crossOriginEmbedderPolicy도 같은 이유. 운영에서는 fronend에서 별도 CSP 적용 권장.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   app.use(cookieParser());
 
@@ -51,6 +61,7 @@ async function bootstrap() {
     .addTag('admin-products', '관리자 — 상점')
     .addTag('admin-attendance', '관리자 — 출석 업로드')
     .addTag('admin-config', '관리자 — 시스템 설정')
+    .addTag('health', '운영 헬스 체크')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -65,6 +65,6 @@ const commandAggregateProvider: Provider = {
     ...COMMAND_PROVIDERS,
     commandAggregateProvider,
   ],
-  exports: [DiscordMemberService],
+  exports: [DiscordMemberService, DiscordClientService],
 })
 export class DiscordBotModule {}

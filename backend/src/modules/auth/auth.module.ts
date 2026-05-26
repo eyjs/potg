@@ -22,10 +22,15 @@ import { DiscordBotModule } from '../discord-bot/discord-bot.module';
     DiscordBotModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'dev_secret_key',
-        signOptions: { expiresIn: '60m' },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret || secret.length < 16) {
+          throw new Error(
+            'JWT_SECRET is required and must be at least 16 chars. See .env.example.',
+          );
+        }
+        return { secret, signOptions: { expiresIn: '60m' } };
+      },
       inject: [ConfigService],
     }),
   ],

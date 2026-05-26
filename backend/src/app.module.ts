@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
@@ -32,6 +33,7 @@ import { LedgerModule } from './modules/ledger/ledger.module';
 import { MatchesModule } from './modules/matches/matches.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
 import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -39,6 +41,9 @@ import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // Cron / interval / schedule 작업 (음성 출석 polling, 정산 fallback 등)
+    ScheduleModule.forRoot(),
 
     // 정적 파일 서빙 (업로드 이미지)
     ServeStaticModule.forRoot({
@@ -150,6 +155,8 @@ import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
     SystemConfigModule,
     // === Phase 3 (Discord Bot + OAuth) ===
     DiscordBotModule,
+    // === Operations ===
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

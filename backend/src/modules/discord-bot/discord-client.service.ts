@@ -113,4 +113,19 @@ export class DiscordClientService
       this.client = undefined;
     }
   }
+
+  /** 봇이 활성화되었고 Discord WebSocket gateway에 연결된 상태인지. */
+  isReady(): boolean {
+    return this.client?.isReady() ?? false;
+  }
+
+  /** DISCORD_BOT_ENABLED=true로 설정되었는지 (실제 연결 여부와 별개). */
+  isEnabled(): boolean {
+    return this.config.get<string>('DISCORD_BOT_ENABLED') === 'true';
+  }
+
+  /** 봇 길드/명령 알림용으로 Client 노출 (notify-service 등에서 사용). */
+  getClient(): Client | undefined {
+    return this.client;
+  }
 }

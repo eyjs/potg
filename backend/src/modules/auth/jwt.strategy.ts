@@ -14,10 +14,16 @@ function cookieExtractor(req: Request): string | null {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret || secret.length < 16) {
+      throw new Error(
+        'JWT_SECRET is required and must be at least 16 chars. See .env.example.',
+      );
+    }
     super({
       jwtFromRequest: cookieExtractor,
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'dev_secret_key',
+      secretOrKey: secret,
     });
   }
 
