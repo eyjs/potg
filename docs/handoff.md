@@ -1,7 +1,7 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
-> 최종 갱신: 2026-05-26 (Phase 7 클린 아키텍처 + 리팩토링 완료)
-> 진행 상태: **Phase 1 → 7 완료 (auctions/clans 분할 + 권한 helper + 페이지네이션 상수)**
+> 최종 갱신: 2026-05-26 (런칭 Phase + Step UI + DM + Streak 보너스 완료)
+> 진행 상태: **Phase 1 → 7 + 런칭 인프라 (P0/P1) + Discord 봇 UX 전면 개편 완료**
 > 운영 배포 환경 없음 → **테스트 커버리지 + knip으로 회귀/잔재 방어**
 
 ---
@@ -37,6 +37,14 @@
 | **7-A보강. 권한 helper 추출** | ✅ | `9ff79a8` | creatorId 체크 17건 → loadAsCreator(Tx) 통합 |
 | **7-B3. 페이지네이션 상수화** | ✅ | `3f4b6cb` | DEFAULT_PAGE/PAGE_SIZE 공통 + 도메인 특화 2건 |
 | **7-C5. knip dead code** | ✅ | `aa7eefc` | PointTxReason / SystemConfigKey 미사용 타입 제거 |
+| **런칭 P0+P1 Stage 0~6** | ✅ | `b34be4c`~`88f3542` | JWT_SECRET 강제, helmet, /health, 채널 화이트리스트, 관리자 명령 5종, 음성출석, 자동 정산, 운영 가이드 |
+| **런칭 Critical fix** | ✅ | `2a2ee11` | 정산 알림 SettleSummary 합산 + Voice attendance 무한 polling 방지 |
+| **런칭 High C+F** | ✅ | `3f647bf` | createBettingScenario 트랜잭션화 + attendance SELECT FOR UPDATE 시리얼화 |
+| **신규 명령 3종** | ✅ | `e2c8069` | /송금, /최근베팅, /팀나누기 (음성채널 인원 분할 + 자동 이동) |
+| **팀나누기 단순화** | ✅ | `ceeb466` | 컨펌 버튼 + 현재 채널 재사용 + 빈 채널 자동 탐색 |
+| **Step UI Pt.1** | ✅ | `e3cbb60` | /베팅 /관리-정산 → 3-step Select+Modal+Button (UUID 입력 제거) |
+| **Step UI Pt.2 + 정산 DM** | ✅ | `6c52af2` | /구매 /순위예측 /관리-베팅마감 step UI + 베팅자 개인 DM (WON/LOST/REFUNDED) |
+| **출석 streak 보너스** | ✅ | (이번) | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
 
 **현재 검증 상태**:
 - backend build ✅
@@ -305,10 +313,19 @@ DISCORD_OAUTH_SUCCESS_REDIRECT=/
 
 ## 7. 다음 세션 백로그
 
-### 우선순위 1 — 운영 환경 셋업 (DB 필요)
+### 우선순위 1 — 운영 환경 셋업 (DB + Discord 봇 토큰 필요)
 1. PostgreSQL + 5개 마이그레이션 적용
-2. `.env` 채우기 + Discord 봇 활성화
-3. **V1~V10 수동 검증** (`.pipeline/plan-phase4.2.md` §8 참조)
+2. `.env` 채우기 (`.env.example` 참고)
+   - JWT_SECRET (16+ chars)
+   - DISCORD_BOT_TOKEN / DISCORD_CLIENT_ID / DISCORD_GUILD_ID
+   - DISCORD_COMMAND_CHANNEL_IDS (콤마 분리)
+   - DISCORD_BETTING_NOTIFY_CHANNEL_ID
+   - DISCORD_VOICE_ATTENDANCE_MIN_MINUTES=10
+3. Discord Developer Portal:
+   - SERVER MEMBERS INTENT ON (팀나누기 명령)
+   - Bot Permissions: Send Messages, Embed Links, View Channels, Connect, **Move Members**
+4. 첫 ADMIN 사용자 지정: `UPDATE users SET role='ADMIN' WHERE discord_id='...'`
+5. V1~V10 수동 검증 — `docs/operations.md` 참조
 
 ### 우선순위 2 — 프론트엔드 일관성 (Phase 7-C)
 1. **C1. 폼 표준화**: zod + react-hook-form 적용 (reset-password, clan/create, community/write — 현재 수동 정규식)

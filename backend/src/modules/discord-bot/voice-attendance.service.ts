@@ -206,9 +206,9 @@ export class VoiceAttendanceService
       presence.rewardClaimed = true; // 이번 세션 중복 호출 방지
       if (result.awarded) {
         this.logger.log(
-          `Voice attendance awarded: discord=${discordId} +${result.amount}P`,
+          `Voice attendance awarded: discord=${discordId} +${result.amount}P streak=${result.streakDays}${result.streakBonus > 0 ? ` +bonus${result.streakBonus}P` : ''}`,
         );
-        await this.notifyUser(discordId, result.amount, result.balanceAfter);
+        await this.notifyUser(discordId, result);
       }
     } catch (err) {
       this.logger.error(
@@ -219,16 +219,28 @@ export class VoiceAttendanceService
 
   private async notifyUser(
     discordId: string,
-    amount: number,
-    balance: bigint,
+    result: {
+      amount: number;
+      balanceAfter: bigint;
+      streakDays: number;
+      streakBonus: number;
+    },
   ): Promise<void> {
     const client = this.discord.getClient();
     if (!client) return;
     try {
       const user = await client.users.fetch(discordId);
-      await user.send(
-        `🎙️ 음성채널 출석 완료! \`+${amount} P\`\n잔액: **${balance.toString()} P**`,
-      );
+      const lines = [
+        `🎙️ 음성채널 출석 완료! \`+${result.amount} P\``,
+        `🔥 연속 ${result.streakDays}일`,
+      ];
+      if (result.streakBonus > 0) {
+        lines.push(
+          `🎁 **${result.streakDays}연속 보너스** \`+${result.streakBonus} P\``,
+        );
+      }
+      lines.push(`잔액: **${result.balanceAfter.toString()} P**`);
+      await user.send(lines.join('\n'));
     } catch {
       // DM 차단 등은 silent
     }

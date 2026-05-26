@@ -32,8 +32,17 @@ export class AttendanceCommand implements SlashCommand {
       return;
     }
 
-    await interaction.editReply(
-      `✅ 출석 완료! \`+${result.amount} P\` 지급되었습니다.\n현재 잔액: **${result.balanceAfter.toString()} P**`,
-    );
+    const lines = [
+      `✅ 출석 완료! \`+${result.amount} P\` 지급되었습니다.`,
+      `🔥 연속 ${result.streakDays}일`,
+    ];
+    if (result.streakBonus > 0) {
+      lines.push(
+        `🎁 **${result.streakDays}연속 보너스** \`+${result.streakBonus} P\` 추가 지급!`,
+      );
+    }
+    lines.push(`현재 잔액: **${result.balanceAfter.toString()} P**`);
+
+    await interaction.editReply(lines.join('\n'));
   }
 }

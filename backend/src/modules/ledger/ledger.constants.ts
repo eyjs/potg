@@ -21,4 +21,6 @@ export const POINT_TX_REASON = {
   ADMIN_ADJUST: 'ADMIN_ADJUST',
   /** 사용자 ↔ 사용자 송금 (P2P). */
   P2P_SEND: 'P2P_SEND',
+  /** 연속 출석 보너스 (STREAK_3 / STREAK_5 / STREAK_10). */
+  STREAK_BONUS: 'STREAK_BONUS',
 } as const;
