@@ -1,4 +1,4 @@
-import { Module, Provider } from '@nestjs/common';
+import { Module, Provider, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
@@ -29,6 +29,8 @@ import { AdminBettingSettleCommand } from './commands/admin-betting-settle.comma
 import { AdminPointsCommand } from './commands/admin-points.command';
 import { HelpCommand } from './commands/help.command';
 import { BettingNotifyService } from './notifications/betting-notify.service';
+import { AttendanceRewardService } from './attendance-reward.service';
+import { VoiceAttendanceService } from './voice-attendance.service';
 import { UsersModule } from '../users/users.module';
 import { MatchesModule } from '../matches/matches.module';
 
@@ -72,13 +74,15 @@ const commandAggregateProvider: Provider = {
     ShopModule,
     MarketGateModule,
     UsersModule,
-    MatchesModule,
+    forwardRef(() => MatchesModule),
   ],
   providers: [
     CommandRegistry,
     DiscordMemberService,
     DiscordClientService,
     BettingNotifyService,
+    AttendanceRewardService,
+    VoiceAttendanceService,
     ...COMMAND_PROVIDERS,
     commandAggregateProvider,
   ],

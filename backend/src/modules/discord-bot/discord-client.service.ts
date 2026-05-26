@@ -76,7 +76,8 @@ export class DiscordClientService
     }
 
     this.client = new Client({
-      intents: [GatewayIntentBits.Guilds],
+      // GuildVoiceStates: VoiceStateUpdate 이벤트 수신 (음성채널 출석)
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
     });
 
     this.client.once(Events.ClientReady, (c) => {

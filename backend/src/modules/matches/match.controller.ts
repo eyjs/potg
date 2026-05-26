@@ -2,10 +2,12 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Post,
   UseGuards,
+  forwardRef,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -14,6 +16,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { MatchService } from './match.service';
 import { CreateMatchDto, CreateTeamDto, SettleMatchDto } from './dto/match.dto';
+import { BettingNotifyService } from '../discord-bot/notifications/betting-notify.service';
 
 @ApiTags('admin-matches')
 @ApiCookieAuth('access_token')
@@ -21,7 +24,11 @@ import { CreateMatchDto, CreateTeamDto, SettleMatchDto } from './dto/match.dto';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
 export class MatchController {
-  constructor(private readonly matches: MatchService) {}
+  constructor(
+    private readonly matches: MatchService,
+    @Inject(forwardRef(() => BettingNotifyService))
+    private readonly notify: BettingNotifyService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: '내전 목록 조회' })
@@ -68,8 +75,33 @@ export class MatchController {
 
   @Post(':id/settle')
   @ApiOperation({ summary: '내전 정산 (LOCKED → SETTLED, 베팅 페이아웃)' })
-  settle(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SettleMatchDto) {
-    return this.matches.settleMatch(id, dto.winnerTeamId, dto.placements);
+  async settle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SettleMatchDto,
+  ) {
+    const match = await this.matches.settleMatch(
+      id,
+      dto.winnerTeamId,
+      dto.placements,
+    );
+    // 정산 후 Discord 알림 (best-effort, 실패해도 응답에 영향 X)
+    try {
+      const withTeams = await this.matches.findOneWithTeams(match.id);
+      const winnerTeam = withTeams.teams.find((t) => t.id === dto.winnerTeamId);
+      await this.notify.notifyMarketSettled({
+        matchId: match.id,
+        title: match.title,
+        winnerName: winnerTeam?.name ?? '?',
+        // Phase 2: 정산 결과 detail (총 풀 / 지급액 / 당첨자 수) — 별도 조회 필요
+        // 현재는 settleMatch 가 매치 객체만 반환하므로 placeholder
+        totalPool: '-',
+        payoutDistributed: '-',
+        winnersCount: 0,
+      });
+    } catch {
+      // notify 실패는 silent
+    }
+    return match;
   }
 
   @Post(':id/cancel')
