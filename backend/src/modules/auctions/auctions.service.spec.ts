@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuctionsService } from './auctions.service';
+import { AuctionsBiddingService } from './services/auctions-bidding.service';
+import { AuctionsRoomStateService } from './services/auctions-room-state.service';
 import {
   Auction,
   AuctionStatus,
@@ -73,6 +75,8 @@ describe('AuctionsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuctionsService,
+        AuctionsBiddingService,
+        AuctionsRoomStateService,
         { provide: getRepositoryToken(Auction), useValue: mockAuctionsRepo },
         {
           provide: getRepositoryToken(AuctionParticipant),
@@ -96,7 +100,7 @@ describe('AuctionsService', () => {
       id: 'auction-1',
       title: '테스트 경매',
       status: AuctionStatus.PENDING,
-      biddingPhase: BiddingPhase.IDLE,
+      biddingPhase: BiddingPhase.WAITING,
       startingPoints: 1000,
       turnTimeLimit: 30,
       teamCount: 4,

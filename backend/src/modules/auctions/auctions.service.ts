@@ -12,64 +12,13 @@ import {
 } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
 import { CreateAuctionDto } from './dto/create-auction.dto';
+import { AuctionsBiddingService } from './services/auctions-bidding.service';
+import {
+  AuctionsRoomStateService,
+  RoomState,
+} from './services/auctions-room-state.service';
 
-export interface RoomState {
-  auction: {
-    id: string;
-    title: string;
-    status: AuctionStatus;
-    biddingPhase: BiddingPhase;
-    startingPoints: number;
-    turnTimeLimit: number;
-    teamCount: number;
-    currentBiddingPlayerId: string | null;
-    currentBiddingEndTime: Date | null;
-    timerPaused: boolean;
-    pausedTimeRemaining: number | null;
-    creatorId: string;
-  };
-  participants: {
-    id: string;
-    userId: string;
-    role: AuctionRole;
-    currentPoints: number;
-    assignedTeamCaptainId: string | null;
-    wasUnsold: boolean;
-    biddingOrder: number;
-    user: {
-      id: string;
-      battleTag: string | null;
-      mainRole: string | null;
-    } | null;
-  }[];
-  currentBid: {
-    bidderId: string;
-    bidderName: string;
-    amount: number;
-  } | null;
-  currentPlayer: {
-    id: string;
-    name: string;
-    role: string;
-  } | null;
-  teams: {
-    captainId: string;
-    captainName: string;
-    points: number;
-    members: {
-      id: string;
-      name: string;
-      role: string;
-      price: number;
-      wasUnsold: boolean;
-    }[];
-  }[];
-  unsoldPlayers: {
-    id: string;
-    name: string;
-    role: string;
-  }[];
-}
+export type { RoomState };
 
 @Injectable()
 export class AuctionsService {
@@ -81,6 +30,8 @@ export class AuctionsService {
     @InjectRepository(AuctionBid)
     private bidsRepository: Repository<AuctionBid>,
     private dataSource: DataSource,
+    private readonly biddingService: AuctionsBiddingService,
+    private readonly roomStateService: AuctionsRoomStateService,
   ) {}
 
   async create(createAuctionDto: CreateAuctionDto, userId: string) {
@@ -338,31 +289,12 @@ export class AuctionsService {
     targetPlayerId: string,
     amount: number,
   ) {
-    return this.dataSource.transaction(async (manager) => {
-      const participant = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: bidderId },
-      });
-      if (!participant || participant.role !== AuctionRole.CAPTAIN) {
-        throw new BadRequestException('Only captains can bid');
-      }
-      if (participant.currentPoints < amount) {
-        throw new BadRequestException('Not enough points');
-      }
-
-      const bid = manager.create(AuctionBid, {
-        auctionId,
-        bidderId,
-        targetPlayerId,
-        amount,
-      });
-
-      await manager.save(bid);
-
-      participant.currentPoints -= amount;
-      await manager.save(participant);
-
-      return bid;
-    });
+    return this.biddingService.placeBid(
+      auctionId,
+      bidderId,
+      targetPlayerId,
+      amount,
+    );
   }
 
   async placeBidWithValidation(
@@ -371,90 +303,12 @@ export class AuctionsService {
     targetPlayerId: string,
     amount: number,
   ) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (!auction) {
-        throw new BadRequestException('경매를 찾을 수 없습니다.');
-      }
-
-      if (auction.status !== AuctionStatus.ONGOING) {
-        throw new BadRequestException('경매가 진행 중이 아닙니다.');
-      }
-
-      if (auction.currentBiddingPlayerId !== targetPlayerId) {
-        throw new BadRequestException('현재 입찰 대상 선수가 아닙니다.');
-      }
-
-      const participant = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: bidderId },
-        relations: ['user'],
-      });
-
-      if (!participant || participant.role !== AuctionRole.CAPTAIN) {
-        throw new BadRequestException('캡틴만 입찰할 수 있습니다.');
-      }
-
-      // Find current highest bid for this player in this auction round
-      const currentHighestBid = await manager.findOne(AuctionBid, {
-        where: { auctionId, targetPlayerId, isActive: true },
-        order: { amount: 'DESC' },
-      });
-
-      const minBidAmount = currentHighestBid ? currentHighestBid.amount + 1 : 1;
-
-      if (amount < minBidAmount) {
-        throw new BadRequestException(
-          `최소 ${minBidAmount}P 이상 입찰해야 합니다.`,
-        );
-      }
-
-      // Calculate total committed points (previous active bids + new bid)
-      const activeBids = await manager.find(AuctionBid, {
-        where: { auctionId, bidderId, isActive: true },
-      });
-
-      const otherBidsTotal = activeBids
-        .filter((b) => b.targetPlayerId !== targetPlayerId)
-        .reduce((sum, b) => sum + b.amount, 0);
-
-      const requiredPoints = otherBidsTotal + amount;
-
-      if (participant.currentPoints < requiredPoints) {
-        throw new BadRequestException('포인트가 부족합니다.');
-      }
-
-      // Deactivate previous bids from this bidder for this player
-      await manager.update(
-        AuctionBid,
-        { auctionId, bidderId, targetPlayerId, isActive: true },
-        { isActive: false },
-      );
-
-      // Create new bid
-      const bid = manager.create(AuctionBid, {
-        auctionId,
-        bidderId,
-        targetPlayerId,
-        amount,
-        isActive: true,
-      });
-
-      await manager.save(bid);
-
-      // Update auction end time (extend timer on bid)
-      auction.currentBiddingEndTime = new Date(
-        Date.now() + auction.turnTimeLimit * 1000,
-      );
-      await manager.save(auction);
-
-      return {
-        bid,
-        bidderName: participant.user?.battleTag || '익명',
-      };
-    });
+    return this.biddingService.placeBidWithValidation(
+      auctionId,
+      bidderId,
+      targetPlayerId,
+      amount,
+    );
   }
 
   async start(auctionId: string, userId: string) {
@@ -476,425 +330,29 @@ export class AuctionsService {
   }
 
   async selectPlayer(auctionId: string, userId: string, playerId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-      if (!auction) throw new BadRequestException('Auction not found');
-      if (auction.creatorId !== userId)
-        throw new BadRequestException('Only creator can select player');
-      if (auction.status !== AuctionStatus.ONGOING)
-        throw new BadRequestException('Auction is not ongoing');
-
-      // Verify player exists and is not already assigned
-      const player = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: playerId, role: AuctionRole.PLAYER },
-      });
-
-      if (!player) {
-        throw new BadRequestException('선수를 찾을 수 없습니다.');
-      }
-
-      if (player.assignedTeamCaptainId) {
-        throw new BadRequestException('이미 팀에 배정된 선수입니다.');
-      }
-
-      auction.currentBiddingPlayerId = playerId;
-      auction.currentBiddingEndTime = new Date(
-        Date.now() + auction.turnTimeLimit * 1000,
-      );
-      auction.biddingPhase = BiddingPhase.BIDDING;
-      await manager.save(auction);
-
-      return auction;
-    });
+    return this.biddingService.selectPlayer(auctionId, userId, playerId);
   }
 
   async confirmCurrentBid(auctionId: string, adminId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-      if (auction.creatorId !== adminId)
-        throw new BadRequestException('관리자만 낙찰을 확정할 수 있습니다.');
-      if (!auction.currentBiddingPlayerId)
-        throw new BadRequestException('현재 입찰 중인 선수가 없습니다.');
-
-      // Find highest active bid
-      const highestBid = await manager.findOne(AuctionBid, {
-        where: {
-          auctionId,
-          targetPlayerId: auction.currentBiddingPlayerId,
-          isActive: true,
-        },
-        order: { amount: 'DESC' },
-      });
-
-      if (!highestBid) {
-        throw new BadRequestException('입찰 내역이 없습니다. 유찰 처리하세요.');
-      }
-
-      // Assign player to captain's team
-      const player = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: auction.currentBiddingPlayerId },
-      });
-
-      if (player) {
-        player.assignedTeamCaptainId = highestBid.bidderId;
-        player.soldPrice = highestBid.amount;
-        await manager.save(player);
-      }
-
-      // Deduct points from captain (final deduction)
-      const captain = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: highestBid.bidderId },
-      });
-
-      if (captain) {
-        // Deduct the winning bid amount from captain's points
-        captain.currentPoints -= highestBid.amount;
-        await manager.save(captain);
-
-        // Deactivate all bids for this player
-        const previousBids = await manager.find(AuctionBid, {
-          where: {
-            auctionId,
-            bidderId: highestBid.bidderId,
-            targetPlayerId: auction.currentBiddingPlayerId,
-            isActive: true,
-          },
-        });
-
-        for (const bid of previousBids) {
-          bid.isActive = false;
-          await manager.save(bid);
-        }
-      }
-
-      // Set to SOLD phase (wait for master to click Next)
-      const playerId = auction.currentBiddingPlayerId;
-      auction.biddingPhase = BiddingPhase.SOLD;
-      auction.currentBiddingEndTime = null;
-      await manager.save(auction);
-
-      return {
-        playerId,
-        captainId: highestBid.bidderId,
-        amount: highestBid.amount,
-      };
-    });
+    return this.biddingService.confirmCurrentBid(auctionId, adminId);
   }
 
   async passCurrentPlayer(auctionId: string, adminId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-      if (auction.creatorId !== adminId)
-        throw new BadRequestException('관리자만 유찰 처리할 수 있습니다.');
-      if (!auction.currentBiddingPlayerId)
-        throw new BadRequestException('현재 입찰 중인 선수가 없습니다.');
-
-      // Deactivate all bids for this player
-      await manager.update(
-        AuctionBid,
-        {
-          auctionId,
-          targetPlayerId: auction.currentBiddingPlayerId,
-          isActive: true,
-        },
-        { isActive: false },
-      );
-
-      // Mark player as passed (optional: could track in participant)
-      auction.currentBiddingPlayerId = null;
-      auction.currentBiddingEndTime = null;
-      await manager.save(auction);
-
-      return { passed: true };
-    });
+    return this.biddingService.passCurrentPlayer(auctionId, adminId);
   }
 
   async autoConfirmOnTimeout(auctionId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (
-        !auction ||
-        auction.status !== AuctionStatus.ONGOING ||
-        !auction.currentBiddingPlayerId
-      ) {
-        return { confirmed: false };
-      }
-
-      // Find highest active bid
-      const highestBid = await manager.findOne(AuctionBid, {
-        where: {
-          auctionId,
-          targetPlayerId: auction.currentBiddingPlayerId,
-          isActive: true,
-        },
-        order: { amount: 'DESC' },
-      });
-
-      if (!highestBid) {
-        // No bids, pass player
-        auction.currentBiddingPlayerId = null;
-        auction.currentBiddingEndTime = null;
-        await manager.save(auction);
-        return { confirmed: false };
-      }
-
-      // Confirm highest bid
-      const player = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: auction.currentBiddingPlayerId },
-      });
-
-      if (player) {
-        player.assignedTeamCaptainId = highestBid.bidderId;
-        player.soldPrice = highestBid.amount;
-        await manager.save(player);
-      }
-
-      // Deduct points from winning captain
-      const captain = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: highestBid.bidderId },
-      });
-
-      if (captain) {
-        captain.currentPoints -= highestBid.amount;
-        await manager.save(captain);
-      }
-
-      // Deactivate bids
-      await manager.update(
-        AuctionBid,
-        {
-          auctionId,
-          targetPlayerId: auction.currentBiddingPlayerId,
-          isActive: true,
-        },
-        { isActive: false },
-      );
-
-      const playerId = auction.currentBiddingPlayerId;
-      auction.currentBiddingPlayerId = null;
-      auction.currentBiddingEndTime = null;
-      await manager.save(auction);
-
-      return {
-        confirmed: true,
-        playerId,
-        captainId: highestBid.bidderId,
-        amount: highestBid.amount,
-      };
-    });
+    return this.biddingService.autoConfirmOnTimeout(auctionId);
   }
 
   async checkAutoConfirm(
     auctionId: string,
   ): Promise<{ shouldAutoConfirm: boolean; reason?: string }> {
-    const auction = await this.auctionsRepository.findOne({
-      where: { id: auctionId },
-      relations: ['participants', 'bids'],
-    });
-
-    if (
-      !auction ||
-      auction.status !== AuctionStatus.ONGOING ||
-      !auction.currentBiddingPlayerId
-    ) {
-      return { shouldAutoConfirm: false };
-    }
-
-    const participants = auction.participants || [];
-    const bids = auction.bids || [];
-
-    // Find highest active bid for current player
-    const highestBid = bids
-      .filter(
-        (b) =>
-          b.targetPlayerId === auction.currentBiddingPlayerId && b.isActive,
-      )
-      .sort((a, b) => b.amount - a.amount)[0];
-
-    if (!highestBid) {
-      return { shouldAutoConfirm: false };
-    }
-
-    const minNextBid = highestBid.amount + 1;
-    const currentBidderId = highestBid.bidderId;
-
-    // Get all captains except the current highest bidder
-    const captains = participants.filter(
-      (p) => p.role === AuctionRole.CAPTAIN && p.userId !== currentBidderId,
-    );
-
-    if (captains.length === 0) {
-      // Only one captain, auto-confirm
-      return { shouldAutoConfirm: true, reason: '경쟁자 없음 - 자동 낙찰' };
-    }
-
-    // Check if any captain can afford to outbid
-    // Calculate each captain's available points (considering their active bids)
-    let anyCanBid = false;
-
-    for (const captain of captains) {
-      const captainActiveBids = bids.filter(
-        (b) => b.bidderId === captain.userId && b.isActive,
-      );
-
-      // Points committed to other players (not the current one being auctioned)
-      const committedPoints = captainActiveBids
-        .filter((b) => b.targetPlayerId !== auction.currentBiddingPlayerId)
-        .reduce((sum, b) => sum + b.amount, 0);
-
-      const availablePoints = captain.currentPoints - committedPoints;
-
-      if (availablePoints >= minNextBid) {
-        anyCanBid = true;
-        break;
-      }
-    }
-
-    if (!anyCanBid) {
-      return {
-        shouldAutoConfirm: true,
-        reason: '모든 경쟁자 포인트 부족 - 자동 낙찰',
-      };
-    }
-
-    return { shouldAutoConfirm: false };
+    return this.biddingService.checkAutoConfirm(auctionId);
   }
 
   async getRoomState(auctionId: string): Promise<RoomState> {
-    const auction = await this.auctionsRepository.findOne({
-      where: { id: auctionId },
-      relations: ['participants', 'participants.user', 'bids'],
-    });
-
-    if (!auction) {
-      throw new BadRequestException('경매를 찾을 수 없습니다.');
-    }
-
-    const participants = auction.participants || [];
-    const bids = auction.bids || [];
-
-    // Build teams from captains
-    const captains = participants.filter((p) => p.role === AuctionRole.CAPTAIN);
-    const teams = captains.map((captain) => {
-      const teamMembers = participants.filter(
-        (p) =>
-          p.role === AuctionRole.PLAYER &&
-          p.assignedTeamCaptainId === captain.userId,
-      );
-
-      return {
-        captainId: captain.userId,
-        captainName: captain.user?.battleTag || '캡틴',
-        points: captain.currentPoints,
-        members: teamMembers.map((m) => ({
-          id: m.userId,
-          name: m.user?.battleTag?.split('#')[0] || '선수',
-          role: m.user?.mainRole?.toLowerCase() || 'flex',
-          price: m.soldPrice || 0,
-          wasUnsold: m.wasUnsold,
-        })),
-      };
-    });
-
-    // Current bid
-    let currentBid: {
-      bidderId: string;
-      bidderName: string;
-      amount: number;
-    } | null = null;
-    if (auction.currentBiddingPlayerId) {
-      const highestBid = bids
-        .filter(
-          (b) =>
-            b.targetPlayerId === auction.currentBiddingPlayerId && b.isActive,
-        )
-        .sort((a, b) => b.amount - a.amount)[0];
-
-      if (highestBid) {
-        const bidder = participants.find(
-          (p) => p.userId === highestBid.bidderId,
-        );
-        currentBid = {
-          bidderId: highestBid.bidderId,
-          bidderName: bidder?.user?.battleTag || '익명',
-          amount: highestBid.amount,
-        };
-      }
-    }
-
-    // Current player
-    let currentPlayer: { id: string; name: string; role: string } | null = null;
-    if (auction.currentBiddingPlayerId) {
-      const player = participants.find(
-        (p) => p.userId === auction.currentBiddingPlayerId,
-      );
-      if (player) {
-        currentPlayer = {
-          id: player.userId,
-          name: player.user?.battleTag?.split('#')[0] || '선수',
-          role: player.user?.mainRole?.toLowerCase() || 'flex',
-        };
-      }
-    }
-
-    // Get unsold players
-    const unsoldPlayers = participants
-      .filter((p) => p.role === AuctionRole.PLAYER && !p.assignedTeamCaptainId)
-      .map((p) => ({
-        id: p.userId,
-        name: p.user?.battleTag?.split('#')[0] || '선수',
-        role: p.user?.mainRole?.toLowerCase() || 'flex',
-      }));
-
-    return {
-      auction: {
-        id: auction.id,
-        title: auction.title,
-        status: auction.status,
-        biddingPhase: auction.biddingPhase,
-        startingPoints: auction.startingPoints,
-        turnTimeLimit: auction.turnTimeLimit,
-        teamCount: auction.teamCount,
-        currentBiddingPlayerId: auction.currentBiddingPlayerId,
-        currentBiddingEndTime: auction.currentBiddingEndTime,
-        timerPaused: auction.timerPaused,
-        pausedTimeRemaining: auction.pausedTimeRemaining,
-        creatorId: auction.creatorId,
-      },
-      participants: participants.map((p) => ({
-        id: p.id,
-        userId: p.userId,
-        role: p.role,
-        currentPoints: p.currentPoints,
-        assignedTeamCaptainId: p.assignedTeamCaptainId,
-        wasUnsold: p.wasUnsold,
-        biddingOrder: p.biddingOrder,
-        user: p.user
-          ? {
-              id: p.user.id,
-              battleTag: p.user.battleTag ?? null,
-              mainRole: p.user.mainRole ?? null,
-            }
-          : null,
-      })),
-      currentBid,
-      currentPlayer,
-      teams,
-      unsoldPlayers,
-    };
+    return this.roomStateService.getRoomState(auctionId);
   }
 
   async complete(auctionId: string, userId: string) {

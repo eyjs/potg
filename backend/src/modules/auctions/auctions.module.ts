@@ -6,13 +6,20 @@ import { AuctionGateway } from './auction.gateway';
 import { Auction } from './entities/auction.entity';
 import { AuctionParticipant } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
+import { AuctionsBiddingService } from './services/auctions-bidding.service';
+import { AuctionsRoomStateService } from './services/auctions-room-state.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Auction, AuctionParticipant, AuctionBid]),
   ],
   controllers: [AuctionsController],
-  providers: [AuctionsService, AuctionGateway],
+  providers: [
+    AuctionsService,
+    AuctionsBiddingService,
+    AuctionsRoomStateService,
+    AuctionGateway,
+  ],
   exports: [AuctionsService],
 })
 export class AuctionsModule {}
