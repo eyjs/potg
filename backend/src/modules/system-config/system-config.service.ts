@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SystemConfig, SystemConfigKey } from './entities/system-config.entity';
+import { SystemConfig } from './entities/system-config.entity';
 
 @Injectable()
 export class SystemConfigService {
@@ -13,20 +13,14 @@ export class SystemConfigService {
   /**
    * KV 조회. 미존재 시 defaultValue 반환 (defaultValue가 undefined면 throw).
    */
-  async get(
-    key: SystemConfigKey | string,
-    defaultValue?: string,
-  ): Promise<string> {
+  async get(key: string, defaultValue?: string): Promise<string> {
     const row = await this.repo.findOne({ where: { key } });
     if (row) return row.value;
     if (defaultValue !== undefined) return defaultValue;
     throw new NotFoundException(`SystemConfig key not found: ${key}`);
   }
 
-  async getNumber(
-    key: SystemConfigKey | string,
-    defaultValue?: number,
-  ): Promise<number> {
+  async getNumber(key: string, defaultValue?: number): Promise<number> {
     const raw = await this.get(
       key,
       defaultValue !== undefined ? String(defaultValue) : undefined,
@@ -39,7 +33,7 @@ export class SystemConfigService {
   }
 
   async set(
-    key: SystemConfigKey | string,
+    key: string,
     value: string,
     description?: string,
   ): Promise<SystemConfig> {

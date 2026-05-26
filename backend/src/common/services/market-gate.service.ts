@@ -37,7 +37,10 @@ export class MarketGateService {
    * 게이트 통과 여부 계산.
    * cachedPassed=true면 빠른 경로로 즉시 반환 (재계산 없음).
    */
-  async check(userId: string, cachedPassed: boolean): Promise<MarketGateResult> {
+  async check(
+    userId: string,
+    cachedPassed: boolean,
+  ): Promise<MarketGateResult> {
     const requiredAttendanceDays = await this.systemConfig.getNumber(
       SYSTEM_CONFIG_KEYS.MARKET_GATE_ATTENDANCE_DAYS,
       7,
@@ -96,7 +99,10 @@ export class MarketGateService {
     const result = await this.check(userId, cachedPassed);
     if (result.passed) {
       if (!cachedPassed) {
-        await this.userRepository.update({ id: userId }, { marketGatePassed: true });
+        await this.userRepository.update(
+          { id: userId },
+          { marketGatePassed: true },
+        );
       }
       return;
     }

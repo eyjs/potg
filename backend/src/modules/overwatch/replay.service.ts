@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere, DataSource } from 'typeorm';
 import { Replay, ReplayResult } from './entities/replay.entity';
-import { CreateReplayDto, UpdateReplayDto, GetReplaysQueryDto } from './dto/overwatch.dto';
+import {
+  CreateReplayDto,
+  UpdateReplayDto,
+  GetReplaysQueryDto,
+} from './dto/overwatch.dto';
 
 @Injectable()
 export class ReplayService {
@@ -31,7 +35,9 @@ export class ReplayService {
   /**
    * 리플레이 목록 조회 (단일 클랜 전제 — 전체)
    */
-  async findAll(query: GetReplaysQueryDto): Promise<{ data: Replay[]; total: number }> {
+  async findAll(
+    query: GetReplaysQueryDto,
+  ): Promise<{ data: Replay[]; total: number }> {
     const where: FindOptionsWhere<Replay> = {};
 
     if (query.mapName) {
@@ -85,7 +91,11 @@ export class ReplayService {
   /**
    * 리플레이 수정
    */
-  async update(id: string, userId: string, dto: UpdateReplayDto): Promise<Replay> {
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateReplayDto,
+  ): Promise<Replay> {
     const replay = await this.replayRepo.findOne({ where: { id } });
 
     if (!replay) {
@@ -123,7 +133,10 @@ export class ReplayService {
   async toggleLike(id: string): Promise<{ likes: number }> {
     return this.dataSource.transaction(async (manager) => {
       const replayRepo = manager.getRepository(Replay);
-      const replay = await replayRepo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+      const replay = await replayRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
       if (!replay) {
         throw new NotFoundException('리플레이를 찾을 수 없습니다.');

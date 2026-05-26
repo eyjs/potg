@@ -43,8 +43,8 @@ export class CommandRegistry {
     clientId: string,
     guildId?: string,
   ): Promise<number> {
-    const body: RESTPostAPIApplicationCommandsJSONBody[] = this.list().map((c) =>
-      c.definition.toJSON(),
+    const body: RESTPostAPIApplicationCommandsJSONBody[] = this.list().map(
+      (c) => c.definition.toJSON(),
     );
 
     const { Routes } = await import('discord.js');
@@ -81,9 +81,15 @@ export class CommandRegistry {
         err instanceof Error ? err.stack : undefined,
       );
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: `오류: ${message}`, flags: MessageFlags.Ephemeral });
+        await interaction.followUp({
+          content: `오류: ${message}`,
+          flags: MessageFlags.Ephemeral,
+        });
       } else {
-        await interaction.reply({ content: `오류: ${message}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({
+          content: `오류: ${message}`,
+          flags: MessageFlags.Ephemeral,
+        });
       }
     }
   }

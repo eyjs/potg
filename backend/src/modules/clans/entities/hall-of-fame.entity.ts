@@ -3,9 +3,9 @@ import { BaseEntity } from '../../../common/entities/base.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum HallOfFameType {
-  MVP = 'MVP',           // 명예의 전당 (MVP)
-  DONOR = 'DONOR',       // 기부자
-  WANTED = 'WANTED',     // 현상수배
+  MVP = 'MVP', // 명예의 전당 (MVP)
+  DONOR = 'DONOR', // 기부자
+  WANTED = 'WANTED', // 현상수배
 }
 
 @Entity('hall_of_fame')

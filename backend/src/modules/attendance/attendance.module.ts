@@ -10,12 +10,7 @@ import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PointRule,
-      AttendanceRecord,
-      ClanMember,
-      User,
-    ]),
+    TypeOrmModule.forFeature([PointRule, AttendanceRecord, ClanMember, User]),
   ],
   controllers: [AttendanceController, AttendanceUploadController],
   providers: [AttendanceService],

@@ -10,7 +10,9 @@ import { User, UserRole } from './entities/user.entity';
 // 회계 critical — 잔액 조정(mint/burn) 경로 검증
 describe('AdminUsersController', () => {
   let controller: AdminUsersController;
-  let userRepo: jest.Mocked<Pick<Repository<User>, 'findOne' | 'save' | 'findAndCount'>>;
+  let userRepo: jest.Mocked<
+    Pick<Repository<User>, 'findOne' | 'save' | 'findAndCount'>
+  >;
   let ledger: jest.Mocked<Pick<LedgerService, 'mint' | 'burn' | 'getBalance'>>;
 
   const baseUser = (overrides: Partial<User> = {}): User =>
@@ -188,7 +190,9 @@ describe('AdminUsersController', () => {
     it('존재하지 않는 userId이면 NotFoundException을 던진다', async () => {
       (userRepo.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(controller.detail('no-uuid')).rejects.toThrow(NotFoundException);
+      await expect(controller.detail('no-uuid')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

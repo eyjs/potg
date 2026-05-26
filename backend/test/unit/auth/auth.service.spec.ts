@@ -214,7 +214,9 @@ describe('AuthService - Unit Tests', () => {
 
       const result = await service.resetPassword('valid-token', 'newPassword');
 
-      expect(result).toEqual({ message: '비밀번호가 성공적으로 변경되었습니다.' });
+      expect(result).toEqual({
+        message: '비밀번호가 성공적으로 변경되었습니다.',
+      });
       expect(usersService.updatePassword).toHaveBeenCalledWith(
         'user-1',
         'new-hashed-pw',

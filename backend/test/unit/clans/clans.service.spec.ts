@@ -11,12 +11,10 @@ import { Announcement } from '../../../src/modules/clans/entities/announcement.e
 import { HallOfFame } from '../../../src/modules/clans/entities/hall-of-fame.entity';
 import { PointTx } from '../../../src/modules/ledger/entities/point-tx.entity';
 import { DataSource, Repository } from 'typeorm';
-import { BadRequestException } from '@nestjs/common';
 
 describe('ClansService - Unit Tests', () => {
   let service: ClansService;
   let clansRepository: Repository<Clan>;
-  let membersRepository: Repository<ClanMember>;
 
   const mockClan = {
     id: 'clan-1',
@@ -59,16 +57,21 @@ describe('ClansService - Unit Tests', () => {
         cb({
           findOne: jest
             .fn()
-            .mockImplementation((_entity: unknown, opts: { where: Record<string, unknown> }) => {
-              // create(): existing clan check
-              if (opts?.where && 'name' in (opts.where as object)) return null;
-              return null;
+            .mockImplementation(
+              (_entity: unknown, opts: { where: Record<string, unknown> }) => {
+                // create(): existing clan check
+                if (opts?.where && 'name' in (opts.where as object))
+                  return null;
+                return null;
+              },
+            ),
+          create: jest
+            .fn()
+            .mockImplementation((entity: unknown, dto: unknown) => {
+              if (entity === Clan) return mockClan;
+              if (entity === ClanMember) return mockClanMember;
+              return dto;
             }),
-          create: jest.fn().mockImplementation((entity: unknown, dto: unknown) => {
-            if (entity === Clan) return mockClan;
-            if (entity === ClanMember) return mockClanMember;
-            return dto;
-          }),
           save: jest.fn().mockImplementation((entity: unknown) => entity),
         }),
       ),
@@ -78,7 +81,10 @@ describe('ClansService - Unit Tests', () => {
       providers: [
         ClansService,
         { provide: getRepositoryToken(Clan), useValue: mockClansRepository },
-        { provide: getRepositoryToken(ClanMember), useValue: mockMembersRepository },
+        {
+          provide: getRepositoryToken(ClanMember),
+          useValue: mockMembersRepository,
+        },
         { provide: getRepositoryToken(ClanJoinRequest), useValue: noopRepo },
         { provide: getRepositoryToken(Announcement), useValue: noopRepo },
         { provide: getRepositoryToken(HallOfFame), useValue: noopRepo },
@@ -89,9 +95,6 @@ describe('ClansService - Unit Tests', () => {
 
     service = module.get<ClansService>(ClansService);
     clansRepository = module.get<Repository<Clan>>(getRepositoryToken(Clan));
-    membersRepository = module.get<Repository<ClanMember>>(
-      getRepositoryToken(ClanMember),
-    );
 
     jest.clearAllMocks();
   });
@@ -126,4 +129,3 @@ describe('ClansService - Unit Tests', () => {
     });
   });
 });
-

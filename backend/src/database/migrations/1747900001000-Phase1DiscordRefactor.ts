@@ -47,10 +47,18 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         "created_at" timestamp NOT NULL DEFAULT now()
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_point_tx_from" ON "point_tx" ("from_account");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_point_tx_to" ON "point_tx" ("to_account");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_point_tx_ref" ON "point_tx" ("ref_type","ref_id");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_point_tx_created" ON "point_tx" ("created_at");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_point_tx_from" ON "point_tx" ("from_account");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_point_tx_to" ON "point_tx" ("to_account");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_point_tx_ref" ON "point_tx" ("ref_type","ref_id");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_point_tx_created" ON "point_tx" ("created_at");`,
+    );
 
     // ===== 2-b) matches / teams / team_members =====
     await qr.query(`
@@ -71,8 +79,12 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         "description" text NULL
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_matches_status" ON "matches" ("status");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_matches_scheduled" ON "matches" ("scheduled_at");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_matches_status" ON "matches" ("status");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_matches_scheduled" ON "matches" ("scheduled_at");`,
+    );
 
     await qr.query(`
       CREATE TABLE IF NOT EXISTS "teams" (
@@ -85,7 +97,9 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         "placement" int NULL
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_teams_match" ON "teams" ("match_id");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_teams_match" ON "teams" ("match_id");`,
+    );
 
     await qr.query(`
       CREATE TABLE IF NOT EXISTS "team_members" (
@@ -98,7 +112,9 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         CONSTRAINT "uq_team_member" UNIQUE ("team_id","user_id")
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_team_members_team" ON "team_members" ("team_id");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_team_members_team" ON "team_members" ("team_id");`,
+    );
 
     // ===== 2-c) betting_markets =====
     await qr.query(`
@@ -126,8 +142,12 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         "settled_at" timestamp NULL
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_betting_markets_match" ON "betting_markets" ("match_id");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_betting_markets_status" ON "betting_markets" ("status");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_betting_markets_match" ON "betting_markets" ("match_id");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_betting_markets_status" ON "betting_markets" ("status");`,
+    );
 
     // ===== 2-d) market_orders =====
     await qr.query(`
@@ -151,9 +171,15 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
         "admin_note" text NULL
       );
     `);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_market_orders_buyer" ON "market_orders" ("buyer_id");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_market_orders_status" ON "market_orders" ("status");`);
-    await qr.query(`CREATE INDEX IF NOT EXISTS "idx_market_orders_product" ON "market_orders" ("product_id");`);
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_market_orders_buyer" ON "market_orders" ("buyer_id");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_market_orders_status" ON "market_orders" ("status");`,
+    );
+    await qr.query(
+      `CREATE INDEX IF NOT EXISTS "idx_market_orders_product" ON "market_orders" ("product_id");`,
+    );
 
     // ===== 2-e) system_config + 시드 =====
     await qr.query(`
@@ -180,7 +206,9 @@ export class Phase1DiscordRefactor1747900001000 implements MigrationInterface {
     await qr.query(`DROP TABLE IF EXISTS "market_orders";`);
     await qr.query(`DROP TYPE IF EXISTS "public"."market_orders_status_enum";`);
     await qr.query(`DROP TABLE IF EXISTS "betting_markets";`);
-    await qr.query(`DROP TYPE IF EXISTS "public"."betting_markets_status_enum";`);
+    await qr.query(
+      `DROP TYPE IF EXISTS "public"."betting_markets_status_enum";`,
+    );
     await qr.query(`DROP TYPE IF EXISTS "public"."betting_markets_type_enum";`);
     await qr.query(`DROP TABLE IF EXISTS "team_members";`);
     await qr.query(`DROP TABLE IF EXISTS "teams";`);

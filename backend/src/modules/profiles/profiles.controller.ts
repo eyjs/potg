@@ -14,7 +14,11 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import { ProfilesService } from './profiles.service';
-import { UpdateProfileDto, EquipItemsDto, CreateGuestbookDto } from './dto/profile.dto';
+import {
+  UpdateProfileDto,
+  EquipItemsDto,
+  CreateGuestbookDto,
+} from './dto/profile.dto';
 
 @Controller('profiles')
 @UseGuards(AuthGuard('jwt'))
@@ -28,8 +32,13 @@ export class ProfilesController {
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
-    return this.profilesService.getProfile(memberId, viewerMemberId || undefined);
+    const viewerMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
+    return this.profilesService.getProfile(
+      memberId,
+      viewerMemberId || undefined,
+    );
   }
 
   @Patch('me')
@@ -37,7 +46,9 @@ export class ProfilesController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: UpdateProfileDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const memberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.updateProfile(memberId, dto);
   }
@@ -47,7 +58,9 @@ export class ProfilesController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: EquipItemsDto,
   ) {
-    const memberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const memberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!memberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.equipItems(memberId, dto);
   }
@@ -77,9 +90,14 @@ export class ProfilesController {
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!myMemberId) return { isFollowing: false };
-    const isFollowing = await this.profilesService.isFollowing(myMemberId, memberId);
+    const isFollowing = await this.profilesService.isFollowing(
+      myMemberId,
+      memberId,
+    );
     return { isFollowing };
   }
 
@@ -88,7 +106,9 @@ export class ProfilesController {
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.follow(myMemberId, memberId);
     return { success: true };
@@ -99,7 +119,9 @@ export class ProfilesController {
     @Param('memberId') memberId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.unfollow(myMemberId, memberId);
     return { success: true };
@@ -115,8 +137,15 @@ export class ProfilesController {
     @Query('limit') limit = 20,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
-    const viewerMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
-    return this.profilesService.getGuestbook(profile.id, viewerMemberId || undefined, +page, +limit);
+    const viewerMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
+    return this.profilesService.getGuestbook(
+      profile.id,
+      viewerMemberId || undefined,
+      +page,
+      +limit,
+    );
   }
 
   @Post(':memberId/guestbook')
@@ -126,7 +155,9 @@ export class ProfilesController {
     @Body() dto: CreateGuestbookDto,
   ) {
     const profile = await this.profilesService.getProfile(memberId);
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     return this.profilesService.createGuestbook(profile.id, myMemberId, dto);
   }
@@ -136,7 +167,9 @@ export class ProfilesController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    const myMemberId = await this.profilesService.getMemberIdByUserId(req.user.userId);
+    const myMemberId = await this.profilesService.getMemberIdByUserId(
+      req.user.userId,
+    );
     if (!myMemberId) throw new BadRequestException('클랜 멤버가 아닙니다.');
     await this.profilesService.deleteGuestbook(id, myMemberId);
     return { success: true };

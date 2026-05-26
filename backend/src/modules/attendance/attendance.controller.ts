@@ -66,7 +66,10 @@ export class AttendanceController {
   @UseGuards(AuthGuard('jwt'))
   @Get('attendance')
   getAttendanceHistory(@Query() query: AttendanceQueryDto) {
-    return this.attendanceService.getAttendanceHistory(query.limit, query.offset);
+    return this.attendanceService.getAttendanceHistory(
+      query.limit,
+      query.offset,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))

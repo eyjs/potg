@@ -13,7 +13,11 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { ReplayService } from './replay.service';
-import { CreateReplayDto, UpdateReplayDto, GetReplaysQueryDto } from './dto/overwatch.dto';
+import {
+  CreateReplayDto,
+  UpdateReplayDto,
+  GetReplaysQueryDto,
+} from './dto/overwatch.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 @Controller('replays')

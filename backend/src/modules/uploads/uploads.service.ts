@@ -29,7 +29,10 @@ export class UploadsService {
 
   deleteFile(url: string): boolean {
     try {
-      const filePath = join(process.cwd(), url.startsWith('/') ? url.slice(1) : url);
+      const filePath = join(
+        process.cwd(),
+        url.startsWith('/') ? url.slice(1) : url,
+      );
       if (existsSync(filePath)) {
         unlinkSync(filePath);
         return true;

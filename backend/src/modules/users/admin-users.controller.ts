@@ -50,12 +50,12 @@ export class AdminUsersController {
 
   @Get()
   @ApiOperation({ summary: '회원 페이징 목록' })
-  async list(
-    @Query('skip') skipRaw?: string,
-    @Query('take') takeRaw?: string,
-  ) {
+  async list(@Query('skip') skipRaw?: string, @Query('take') takeRaw?: string) {
     const skip = Math.max(0, parseInt(skipRaw ?? '0', 10) || 0);
-    const take = Math.min(100, Math.max(1, parseInt(takeRaw ?? '50', 10) || 50));
+    const take = Math.min(
+      100,
+      Math.max(1, parseInt(takeRaw ?? '50', 10) || 50),
+    );
     const [rows, total] = await this.userRepo.findAndCount({
       select: [
         'id',

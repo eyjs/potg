@@ -12,13 +12,7 @@ import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Post,
-      PostLike,
-      PostComment,
-      Follow,
-      ClanMember,
-    ]),
+    TypeOrmModule.forFeature([Post, PostLike, PostComment, Follow, ClanMember]),
     forwardRef(() => ProfilesModule),
     WalletModule,
   ],

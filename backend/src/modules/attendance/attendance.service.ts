@@ -1,16 +1,44 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { PointRule, PointRuleCategory } from './entities/point-rule.entity';
-import { AttendanceRecord, AttendanceStatus } from './entities/attendance-record.entity';
+import {
+  AttendanceRecord,
+  AttendanceStatus,
+} from './entities/attendance-record.entity';
 import { CreatePointRuleDto, UpdatePointRuleDto } from './dto/point-rule.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 
-const DEFAULT_RULES: Omit<CreatePointRuleDto, 'category'>[] & { category: PointRuleCategory }[] = [
-  { code: 'ATTENDANCE_BASE', name: '출석 기본 포인트', category: PointRuleCategory.ATTENDANCE, points: 100 },
-  { code: 'STREAK_3', name: '3연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 100 },
-  { code: 'STREAK_5', name: '5연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 300 },
-  { code: 'STREAK_10', name: '10연속 출석 보너스', category: PointRuleCategory.ATTENDANCE, points: 500 },
+const DEFAULT_RULES: Omit<CreatePointRuleDto, 'category'>[] &
+  { category: PointRuleCategory }[] = [
+  {
+    code: 'ATTENDANCE_BASE',
+    name: '출석 기본 포인트',
+    category: PointRuleCategory.ATTENDANCE,
+    points: 100,
+  },
+  {
+    code: 'STREAK_3',
+    name: '3연속 출석 보너스',
+    category: PointRuleCategory.ATTENDANCE,
+    points: 100,
+  },
+  {
+    code: 'STREAK_5',
+    name: '5연속 출석 보너스',
+    category: PointRuleCategory.ATTENDANCE,
+    points: 300,
+  },
+  {
+    code: 'STREAK_10',
+    name: '10연속 출석 보너스',
+    category: PointRuleCategory.ATTENDANCE,
+    points: 500,
+  },
 ];
 
 @Injectable()
@@ -38,7 +66,9 @@ export class AttendanceService {
       where: { code: dto.code },
     });
     if (existing) {
-      throw new BadRequestException(`이미 존재하는 규칙 코드입니다: ${dto.code}`);
+      throw new BadRequestException(
+        `이미 존재하는 규칙 코드입니다: ${dto.code}`,
+      );
     }
 
     const rule = this.pointRuleRepository.create(dto);
@@ -54,7 +84,9 @@ export class AttendanceService {
         where: { code: dto.code },
       });
       if (existing) {
-        throw new BadRequestException(`이미 존재하는 규칙 코드입니다: ${dto.code}`);
+        throw new BadRequestException(
+          `이미 존재하는 규칙 코드입니다: ${dto.code}`,
+        );
       }
     }
 
@@ -89,12 +121,14 @@ export class AttendanceService {
     limit = 50,
     offset = 0,
   ): Promise<{ records: AttendanceRecord[]; total: number }> {
-    const [records, total] = await this.attendanceRecordRepository.findAndCount({
-      relations: ['member', 'member.user'],
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
-    });
+    const [records, total] = await this.attendanceRecordRepository.findAndCount(
+      {
+        relations: ['member', 'member.user'],
+        order: { createdAt: 'DESC' },
+        take: limit,
+        skip: offset,
+      },
+    );
 
     return { records, total };
   }
@@ -114,9 +148,12 @@ export class AttendanceService {
 
       const totalRecords = records.length;
       const presentCount = records.filter(
-        (r) => r.status === AttendanceStatus.PRESENT || r.status === AttendanceStatus.LATE,
+        (r) =>
+          r.status === AttendanceStatus.PRESENT ||
+          r.status === AttendanceStatus.LATE,
       ).length;
-      const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+      const attendanceRate =
+        totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
 
       const currentStreak = this.calculateCurrentStreak(records);
       const totalPointsEarned = records.reduce(

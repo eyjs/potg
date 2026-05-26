@@ -42,7 +42,9 @@ export class DiscordMemberService {
    *
    * 반환: { user, isNew } — isNew=true면 호출자가 환영 메시지 전송.
    */
-  async findOrCreate(identity: DiscordIdentity): Promise<{ user: User; isNew: boolean }> {
+  async findOrCreate(
+    identity: DiscordIdentity,
+  ): Promise<{ user: User; isNew: boolean }> {
     const existing = await this.findByDiscordId(identity.discordId);
     if (existing) {
       let dirty = false;
@@ -107,7 +109,9 @@ export class DiscordMemberService {
     );
 
     // 시드 mint 이후 잔액 다시 로드 (transfer 내부에서 row update 수행).
-    const reloaded = await this.userRepository.findOneOrFail({ where: { id: created.id } });
+    const reloaded = await this.userRepository.findOneOrFail({
+      where: { id: created.id },
+    });
     return { user: reloaded, isNew: true };
   }
 
@@ -120,7 +124,8 @@ export class DiscordMemberService {
     excludeUserId?: string,
     discordId?: string,
   ): Promise<string> {
-    const normalized = (base || 'discord_user').trim().slice(0, 32) || 'discord_user';
+    const normalized =
+      (base || 'discord_user').trim().slice(0, 32) || 'discord_user';
     let candidate = normalized;
     let suffix = 0;
     while (true) {

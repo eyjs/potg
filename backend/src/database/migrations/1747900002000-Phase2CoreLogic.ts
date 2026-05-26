@@ -54,14 +54,22 @@ export class Phase2CoreLogic1747900002000 implements MigrationInterface {
     await qr.query(`DROP TABLE IF EXISTS "betting_questions" CASCADE;`);
     await qr.query(`DROP TABLE IF EXISTS "shop_purchases" CASCADE;`);
     // 폐기 enum 정리.
-    await qr.query(`DROP TYPE IF EXISTS "public"."betting_questions_status_enum";`);
-    await qr.query(`DROP TYPE IF EXISTS "public"."betting_tickets_status_enum";`);
-    await qr.query(`DROP TYPE IF EXISTS "public"."shop_purchases_status_enum";`);
+    await qr.query(
+      `DROP TYPE IF EXISTS "public"."betting_questions_status_enum";`,
+    );
+    await qr.query(
+      `DROP TYPE IF EXISTS "public"."betting_tickets_status_enum";`,
+    );
+    await qr.query(
+      `DROP TYPE IF EXISTS "public"."shop_purchases_status_enum";`,
+    );
   }
 
   public async down(qr: QueryRunner): Promise<void> {
     // 폐기 테이블은 복원하지 않는다 (데이터 손실 회복 불가).
     await qr.query(`DROP TABLE IF EXISTS "betting_stakes";`);
-    await qr.query(`DROP TYPE IF EXISTS "public"."betting_stakes_status_enum";`);
+    await qr.query(
+      `DROP TYPE IF EXISTS "public"."betting_stakes_status_enum";`,
+    );
   }
 }

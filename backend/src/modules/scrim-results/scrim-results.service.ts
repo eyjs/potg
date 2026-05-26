@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ScrimResult, ScrimResultStatus } from './entities/scrim-result.entity';
 import { ScrimResultEntry } from './entities/scrim-result-entry.entity';
-import { AuctionParticipant, AuctionRole } from '../auctions/entities/auction-participant.entity';
+import {
+  AuctionParticipant,
+  AuctionRole,
+} from '../auctions/entities/auction-participant.entity';
 import { Auction, AuctionStatus } from '../auctions/entities/auction.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { WalletService } from '../wallet/wallet.service';
@@ -40,7 +43,7 @@ export class ScrimResultsService {
    */
   async create(
     dto: CreateScrimResultDto,
-    adminUserId: string,
+    _adminUserId: string,
   ): Promise<ScrimResult> {
     const auction = await this.auctionRepo.findOne({
       where: { id: dto.auctionId },
@@ -49,7 +52,9 @@ export class ScrimResultsService {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
     if (auction.status !== AuctionStatus.COMPLETED) {
-      throw new BadRequestException('완료된 경매만 내전 결과를 등록할 수 있습니다.');
+      throw new BadRequestException(
+        '완료된 경매만 내전 결과를 등록할 수 있습니다.',
+      );
     }
 
     const existing = await this.resultRepo.findOne({
@@ -65,17 +70,17 @@ export class ScrimResultsService {
       relations: ['user'],
     });
 
-    const captains = participants.filter(
-      (p) => p.role === AuctionRole.CAPTAIN,
-    );
+    const captains = participants.filter((p) => p.role === AuctionRole.CAPTAIN);
     const players = participants.filter(
-      (p) =>
-        p.role === AuctionRole.PLAYER && p.assignedTeamCaptainId !== null,
+      (p) => p.role === AuctionRole.PLAYER && p.assignedTeamCaptainId !== null,
     );
 
     // Build ranking map: teamCaptainId -> { rank, points }
     const rankingMap = new Map(
-      dto.rankings.map((r) => [r.teamCaptainId, { rank: r.rank, points: r.points }]),
+      dto.rankings.map((r) => [
+        r.teamCaptainId,
+        { rank: r.rank, points: r.points },
+      ]),
     );
 
     return this.dataSource.transaction(async (manager) => {
@@ -161,17 +166,17 @@ export class ScrimResultsService {
   /**
    * Update a draft scrim result (re-enter rankings).
    */
-  async update(
-    id: string,
-    dto: UpdateScrimResultDto,
-  ): Promise<ScrimResult> {
+  async update(id: string, dto: UpdateScrimResultDto): Promise<ScrimResult> {
     const result = await this.findById(id);
     if (result.status !== ScrimResultStatus.DRAFT) {
       throw new BadRequestException('확정된 결과는 수정할 수 없습니다.');
     }
 
     const rankingMap = new Map(
-      dto.rankings.map((r) => [r.teamCaptainId, { rank: r.rank, points: r.points }]),
+      dto.rankings.map((r) => [
+        r.teamCaptainId,
+        { rank: r.rank, points: r.points },
+      ]),
     );
 
     return this.dataSource.transaction(async (manager) => {
@@ -213,9 +218,10 @@ export class ScrimResultsService {
       where: { userId: auction.creatorId },
     });
     if (!creatorMember) {
-      throw new BadRequestException('경매 생성자의 클랜 정보를 찾을 수 없습니다.');
+      throw new BadRequestException(
+        '경매 생성자의 클랜 정보를 찾을 수 없습니다.',
+      );
     }
-    const clanId = creatorMember.clanId;
 
     return this.dataSource.transaction(async (manager) => {
       // Award points to each participant

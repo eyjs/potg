@@ -10,9 +10,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * down()은 컬럼을 DEFAULT 0으로 복구하여 롤백을 가능하게 한다.
  * 단, 이전 데이터는 복구되지 않는다 (SSOT는 PointTx에 있음).
  */
-export class Phase5CDropClanMemberPoints1747900005000
-  implements MigrationInterface
-{
+export class Phase5CDropClanMemberPoints1747900005000 implements MigrationInterface {
   name = 'Phase5CDropClanMemberPoints1747900005000';
 
   public async up(qr: QueryRunner): Promise<void> {

@@ -1,16 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { LedgerService } from '../ledger/ledger.service';
-import {
-  POINT_TX_REASON,
-  SINK_ACCOUNT_ID,
-} from '../ledger/ledger.constants';
+import { POINT_TX_REASON, SINK_ACCOUNT_ID } from '../ledger/ledger.constants';
 
 /**
  * 사용자 지갑 — LedgerService 위임자 (잔여 기능: 적립 + 랭킹).

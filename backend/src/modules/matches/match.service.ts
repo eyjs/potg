@@ -208,7 +208,11 @@ export class MatchService {
           // 추후 RANK 마켓 정산 정책 재정의 필요.
           winningOption = '1';
         }
-        await this.bettingService.settleMarket(market.id, winningOption, manager);
+        await this.bettingService.settleMarket(
+          market.id,
+          winningOption,
+          manager,
+        );
       }
 
       return match;
@@ -249,7 +253,9 @@ export class MatchService {
   }
 
   protected async findOrFail(matchId: string): Promise<Match> {
-    const match = await this.matchRepository.findOne({ where: { id: matchId } });
+    const match = await this.matchRepository.findOne({
+      where: { id: matchId },
+    });
     if (!match) {
       throw new NotFoundException(`Match not found: ${matchId}`);
     }

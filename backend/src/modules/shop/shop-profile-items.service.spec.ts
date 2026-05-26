@@ -6,7 +6,10 @@ import { ShopService } from './shop.service';
 import { ShopProduct } from './entities/shop-product.entity';
 import { MarketOrder } from './entities/market-order.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
-import { ProfileItem, ProfileItemCategory } from './entities/profile-item.entity';
+import {
+  ProfileItem,
+  ProfileItemCategory,
+} from './entities/profile-item.entity';
 import { MemberItem } from './entities/member-item.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { LedgerService } from '../ledger/ledger.service';
@@ -89,7 +92,9 @@ describe('ShopService - Profile Items', () => {
 
   describe('getProfileItems', () => {
     it('활성화된 모든 프로필 아이템을 반환', async () => {
-      profileItemRepo.find.mockResolvedValue([mockProfileItem] as ProfileItem[]);
+      profileItemRepo.find.mockResolvedValue([
+        mockProfileItem,
+      ] as ProfileItem[]);
       const result = await service.getProfileItems();
       expect(result).toEqual([mockProfileItem]);
     });
@@ -107,7 +112,9 @@ describe('ShopService - Profile Items', () => {
   describe('getProfileItem', () => {
     it('NotFoundException on missing', async () => {
       profileItemRepo.findOne.mockResolvedValue(null);
-      await expect(service.getProfileItem('x')).rejects.toThrow(NotFoundException);
+      await expect(service.getProfileItem('x')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -142,16 +149,19 @@ describe('ShopService - Profile Items', () => {
         'user-1',
         300n,
         expect.any(String),
-        expect.objectContaining({ refType: 'ProfileItem', manager: mockManager }),
+        expect.objectContaining({
+          refType: 'ProfileItem',
+          manager: mockManager,
+        }),
       );
     });
 
     it('아이템 없음 → NotFoundException', async () => {
       const mockManager = { findOne: jest.fn().mockResolvedValue(null) };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-      await expect(
-        service.purchaseProfileItem('m', 'x'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.purchaseProfileItem('m', 'x')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('중복 보유 → BadRequestException', async () => {
@@ -162,9 +172,9 @@ describe('ShopService - Profile Items', () => {
           .mockResolvedValueOnce(mockMemberItem),
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-      await expect(
-        service.purchaseProfileItem('m', 'item-1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.purchaseProfileItem('m', 'item-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('클랜 멤버 아님 → NotFoundException', async () => {
@@ -176,9 +186,9 @@ describe('ShopService - Profile Items', () => {
           .mockResolvedValueOnce(null),
       };
       mockTransaction.mockImplementation((cb) => cb(mockManager));
-      await expect(
-        service.purchaseProfileItem('m', 'item-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.purchaseProfileItem('m', 'item-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { ProfilesService } from './profiles.service';
 import { MemberProfile } from './entities/member-profile.entity';
 import { Follow } from './entities/follow.entity';
@@ -13,7 +13,6 @@ import { BadRequestException } from '@nestjs/common';
 describe('ProfilesService - equipItems', () => {
   let service: ProfilesService;
   let profileRepo: jest.Mocked<Repository<MemberProfile>>;
-  let memberItemRepo: jest.Mocked<Repository<MemberItem>>;
 
   const mockProfile = {
     id: 'profile-1',
@@ -33,16 +32,6 @@ describe('ProfilesService - equipItems', () => {
     followerCount: 0,
     followingCount: 0,
     isPublic: true,
-  };
-
-  const mockMember = {
-    id: 'member-1',
-    userId: 'user-1',
-    clanId: 'clan-1',
-    user: {
-      battleTag: 'Tester#1234',
-      username: 'tester',
-    },
   };
 
   let mockQueryBuilder: {
@@ -107,13 +96,14 @@ describe('ProfilesService - equipItems', () => {
 
     service = module.get<ProfilesService>(ProfilesService);
     profileRepo = module.get(getRepositoryToken(MemberProfile));
-    memberItemRepo = module.get(getRepositoryToken(MemberItem));
   });
 
   describe('equipItems', () => {
     beforeEach(() => {
       profileRepo.findOne.mockResolvedValue(mockProfile as MemberProfile);
-      profileRepo.save.mockImplementation(async (profile) => profile as MemberProfile);
+      profileRepo.save.mockImplementation(
+        async (profile) => profile as MemberProfile,
+      );
     });
 
     it('default 아이템은 보유 검증 없이 적용되어야 함', async () => {
@@ -146,7 +136,7 @@ describe('ProfilesService - equipItems', () => {
 
     it('여러 아이템 중 하나라도 미보유면 실패해야 함', async () => {
       mockQueryBuilder.getCount
-        .mockResolvedValueOnce(1)  // themeId 보유
+        .mockResolvedValueOnce(1) // themeId 보유
         .mockResolvedValueOnce(0); // frameId 미보유
 
       await expect(

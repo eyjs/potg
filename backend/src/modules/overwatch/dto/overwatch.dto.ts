@@ -35,7 +35,9 @@ export class GetStatsHistoryDto {
 
 export class CreateReplayDto {
   @IsString()
-  @Matches(/^[A-Z0-9]{5,6}$/, { message: '리플레이 코드는 5-6자리 영문/숫자입니다' })
+  @Matches(/^[A-Z0-9]{5,6}$/, {
+    message: '리플레이 코드는 5-6자리 영문/숫자입니다',
+  })
   code: string;
 
   @IsString()

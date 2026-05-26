@@ -9,11 +9,7 @@ import { AuctionBid } from './entities/auction-bid.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Auction,
-      AuctionParticipant,
-      AuctionBid,
-    ]),
+    TypeOrmModule.forFeature([Auction, AuctionParticipant, AuctionBid]),
   ],
   controllers: [AuctionsController],
   providers: [AuctionsService, AuctionGateway],

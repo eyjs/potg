@@ -1,5 +1,4 @@
 import {
-  IsString,
   IsArray,
   IsInt,
   IsUUID,

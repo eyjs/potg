@@ -11,10 +11,7 @@ import {
   ProductStatus,
   ProductCategory,
 } from './entities/shop-product.entity';
-import {
-  MarketOrder,
-  MarketOrderStatus,
-} from './entities/market-order.entity';
+import { MarketOrder, MarketOrderStatus } from './entities/market-order.entity';
 import { ShopCoupon } from './entities/shop-coupon.entity';
 import {
   ProfileItem,
@@ -135,16 +132,11 @@ export class ShopService {
       const totalPrice = unitPrice * BigInt(quantity);
 
       // 사용자 → SINK 소각.
-      await this.ledger.burn(
-        userId,
-        totalPrice,
-        POINT_TX_REASON.MARKET_BUY,
-        {
-          refType: 'MarketOrder',
-          memo: `product=${product.id} qty=${quantity}`,
-          manager,
-        },
-      );
+      await this.ledger.burn(userId, totalPrice, POINT_TX_REASON.MARKET_BUY, {
+        refType: 'MarketOrder',
+        memo: `product=${product.id} qty=${quantity}`,
+        manager,
+      });
 
       // 주문 생성.
       const order = manager.create(MarketOrder, {
@@ -189,7 +181,9 @@ export class ShopService {
 
   async markDelivered(orderId: string, adminNote?: string) {
     return this.dataSource.transaction(async (manager) => {
-      const order = await manager.findOne(MarketOrder, { where: { id: orderId } });
+      const order = await manager.findOne(MarketOrder, {
+        where: { id: orderId },
+      });
       if (!order) throw new NotFoundException('Order not found');
       if (order.status !== MarketOrderStatus.COMPLETED) {
         throw new BadRequestException(
@@ -205,7 +199,9 @@ export class ShopService {
 
   async cancelOrder(orderId: string, adminNote?: string) {
     return this.dataSource.transaction(async (manager) => {
-      const order = await manager.findOne(MarketOrder, { where: { id: orderId } });
+      const order = await manager.findOne(MarketOrder, {
+        where: { id: orderId },
+      });
       if (!order) throw new NotFoundException('Order not found');
       if (order.status === MarketOrderStatus.CANCELLED) {
         throw new BadRequestException('Already cancelled');
@@ -247,7 +243,11 @@ export class ShopService {
       });
       if (product && product.category === ProductCategory.VOUCHER) {
         const coupons = await manager.find(ShopCoupon, {
-          where: { productId: order.productId, assignedToUserId: order.buyerId, isUsed: true },
+          where: {
+            productId: order.productId,
+            assignedToUserId: order.buyerId,
+            isUsed: true,
+          },
           take: order.quantity,
         });
         for (const coupon of coupons) {
@@ -288,7 +288,9 @@ export class ShopService {
 
   // ==================== 프로필 아이템 (레거시 — Phase 5에서 재검토) ====================
 
-  async getProfileItems(category?: ProfileItemCategory): Promise<ProfileItem[]> {
+  async getProfileItems(
+    category?: ProfileItemCategory,
+  ): Promise<ProfileItem[]> {
     const where: { isActive: boolean; category?: ProfileItemCategory } = {
       isActive: true,
     };
@@ -313,7 +315,9 @@ export class ShopService {
   }
 
   async hasMemberItem(memberId: string, itemId: string): Promise<boolean> {
-    const count = await this.memberItemRepo.count({ where: { memberId, itemId } });
+    const count = await this.memberItemRepo.count({
+      where: { memberId, itemId },
+    });
     return count > 0;
   }
 
@@ -339,7 +343,8 @@ export class ShopService {
       const clanMember = await manager.findOne(ClanMember, {
         where: { id: memberId },
       });
-      if (!clanMember) throw new NotFoundException('클랜 멤버를 찾을 수 없습니다.');
+      if (!clanMember)
+        throw new NotFoundException('클랜 멤버를 찾을 수 없습니다.');
 
       await this.ledger.burn(
         clanMember.userId,

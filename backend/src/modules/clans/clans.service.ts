@@ -1,9 +1,16 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Clan } from './entities/clan.entity';
 import { ClanMember, ClanRole } from './entities/clan-member.entity';
-import { ClanJoinRequest, RequestStatus } from './entities/clan-join-request.entity';
+import {
+  ClanJoinRequest,
+  RequestStatus,
+} from './entities/clan-join-request.entity';
 import { Announcement } from './entities/announcement.entity';
 import { HallOfFame, HallOfFameType } from './entities/hall-of-fame.entity';
 import { PointTx } from '../ledger/entities/point-tx.entity';
@@ -52,13 +59,16 @@ export class ClansService {
   }
 
   async requestJoin(_clanId: string, userId: string, message?: string) {
-    const existingMember = await this.clanMembersRepository.findOne({ where: { userId } });
+    const existingMember = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
     if (existingMember) throw new BadRequestException('Already in a clan');
 
     const existingRequest = await this.joinRequestsRepository.findOne({
       where: { userId, status: RequestStatus.PENDING },
     });
-    if (existingRequest) throw new BadRequestException('Join request already pending');
+    if (existingRequest)
+      throw new BadRequestException('Join request already pending');
 
     const request = this.joinRequestsRepository.create({
       userId,
@@ -75,9 +85,13 @@ export class ClansService {
   }
 
   async getClanRequests(_clanId: string, userId: string) {
-    const member = await this.clanMembersRepository.findOne({ where: { userId } });
+    const member = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
     if (!member || member.role === ClanRole.MEMBER) {
-      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 조회할 수 있습니다.');
+      throw new ForbiddenException(
+        '마스터 또는 운영진만 가입 신청을 조회할 수 있습니다.',
+      );
     }
 
     return this.joinRequestsRepository.find({
@@ -92,9 +106,13 @@ export class ClansService {
     });
     if (!request) throw new BadRequestException('Request not found');
 
-    const admin = await this.clanMembersRepository.findOne({ where: { userId: adminId } });
+    const admin = await this.clanMembersRepository.findOne({
+      where: { userId: adminId },
+    });
     if (!admin || admin.role === ClanRole.MEMBER) {
-      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 승인할 수 있습니다.');
+      throw new ForbiddenException(
+        '마스터 또는 운영진만 가입 신청을 승인할 수 있습니다.',
+      );
     }
 
     request.status = RequestStatus.APPROVED;
@@ -111,9 +129,13 @@ export class ClansService {
     });
     if (!request) throw new BadRequestException('Request not found');
 
-    const admin = await this.clanMembersRepository.findOne({ where: { userId } });
+    const admin = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
     if (!admin || admin.role === ClanRole.MEMBER) {
-      throw new ForbiddenException('마스터 또는 운영진만 가입 신청을 거절할 수 있습니다.');
+      throw new ForbiddenException(
+        '마스터 또는 운영진만 가입 신청을 거절할 수 있습니다.',
+      );
     }
 
     request.status = RequestStatus.REJECTED;
@@ -140,7 +162,9 @@ export class ClansService {
       where: { clanId: id, userId },
     });
     if (!member || member.role !== ClanRole.MASTER) {
-      throw new ForbiddenException('클랜 마스터만 클랜 정보를 수정할 수 있습니다.');
+      throw new ForbiddenException(
+        '클랜 마스터만 클랜 정보를 수정할 수 있습니다.',
+      );
     }
 
     const clan = await this.clansRepository.findOne({ where: { id } });
@@ -191,7 +215,9 @@ export class ClansService {
     }
     // Prevent Master from leaving without transferring ownership or deleting clan
     if (member.role === ClanRole.MASTER) {
-      throw new BadRequestException('Clan Master cannot leave. Delete clan or transfer ownership.');
+      throw new BadRequestException(
+        'Clan Master cannot leave. Delete clan or transfer ownership.',
+      );
     }
 
     await this.clanMembersRepository.remove(member);
@@ -247,12 +273,18 @@ export class ClansService {
   }
 
   // 마스터 권한 양도 (마스터 본인만)
-  async transferMaster(clanId: string, newMasterId: string, currentMasterId: string) {
+  async transferMaster(
+    clanId: string,
+    newMasterId: string,
+    currentMasterId: string,
+  ) {
     const currentMaster = await this.clanMembersRepository.findOne({
       where: { clanId, userId: currentMasterId },
     });
     if (!currentMaster || currentMaster.role !== ClanRole.MASTER) {
-      throw new ForbiddenException('클랜 마스터만 마스터를 양도할 수 있습니다.');
+      throw new ForbiddenException(
+        '클랜 마스터만 마스터를 양도할 수 있습니다.',
+      );
     }
 
     const newMaster = await this.clanMembersRepository.findOne({
@@ -293,7 +325,10 @@ export class ClansService {
     }
 
     // 운영진은 다른 운영진 추방 불가 (마스터만 가능)
-    if (requester.role === ClanRole.MANAGER && target.role === ClanRole.MANAGER) {
+    if (
+      requester.role === ClanRole.MANAGER &&
+      target.role === ClanRole.MANAGER
+    ) {
       throw new BadRequestException('Managers cannot kick other managers');
     }
 
@@ -321,7 +356,9 @@ export class ClansService {
       where: { clanId, userId },
     });
     if (!membership) {
-      throw new ForbiddenException('클랜 멤버만 활동 피드를 조회할 수 있습니다.');
+      throw new ForbiddenException(
+        '클랜 멤버만 활동 피드를 조회할 수 있습니다.',
+      );
     }
 
     // 클랜 멤버 userId 집합 (PointTx 필터링용).
@@ -346,9 +383,12 @@ export class ClansService {
         ? Promise.resolve([])
         : this.pointTxRepository
             .createQueryBuilder('tx')
-            .where('tx.from_account IN (:...ids) OR tx.to_account IN (:...ids)', {
-              ids: memberUserIds,
-            })
+            .where(
+              'tx.from_account IN (:...ids) OR tx.to_account IN (:...ids)',
+              {
+                ids: memberUserIds,
+              },
+            )
             .orderBy('tx.created_at', 'DESC')
             .take(limit)
             .getMany(),
@@ -364,9 +404,10 @@ export class ClansService {
     const events: ActivityEvent[] = [];
 
     // 멤버 가입 이벤트 변환 (createdAt이 가장 오래된 멤버 = 클랜 생성자)
-    const oldestCreatedAt = members.length > 0
-      ? Math.min(...members.map((m) => m.createdAt.getTime()))
-      : 0;
+    const oldestCreatedAt =
+      members.length > 0
+        ? Math.min(...members.map((m) => m.createdAt.getTime()))
+        : 0;
 
     for (const member of members) {
       const isCreator = member.createdAt.getTime() === oldestCreatedAt;
@@ -397,7 +438,7 @@ export class ClansService {
         tx.toAccount !== null && memberUserIdSet.has(tx.toAccount);
       const focusUserId = isInflow
         ? (tx.toAccount as string)
-        : (tx.fromAccount as string | null) ?? '';
+        : (tx.fromAccount ?? '');
       if (!focusUserId) continue;
       const amount = Number(tx.amount);
       events.push({
@@ -431,7 +472,10 @@ export class ClansService {
     return events.slice(0, limit);
   }
 
-  private resolvePointTxActivityType(reason: string, isInflow: boolean): ActivityType {
+  private resolvePointTxActivityType(
+    reason: string,
+    isInflow: boolean,
+  ): ActivityType {
     if (reason === 'BET_PAYOUT') return ActivityType.BET_WIN;
     if (reason === 'BET_STAKE') return ActivityType.BET_LOSS;
     if (reason === 'P2P_SEND') {
@@ -442,10 +486,13 @@ export class ClansService {
 
   private buildPointTxMessage(tx: PointTx, isInflow: boolean): string {
     const amount = Number(tx.amount);
-    if (tx.reason === 'BET_PAYOUT') return `베팅 정산으로 ${amount}P를 획득했습니다.`;
+    if (tx.reason === 'BET_PAYOUT')
+      return `베팅 정산으로 ${amount}P를 획득했습니다.`;
     if (tx.reason === 'BET_STAKE') return `베팅에 ${amount}P를 사용했습니다.`;
-    if (tx.reason === 'MARKET_BUY') return `상점에서 ${amount}P를 사용했습니다.`;
-    if (tx.reason === 'MARKET_REFUND') return `상점 환불로 ${amount}P를 받았습니다.`;
+    if (tx.reason === 'MARKET_BUY')
+      return `상점에서 ${amount}P를 사용했습니다.`;
+    if (tx.reason === 'MARKET_REFUND')
+      return `상점 환불로 ${amount}P를 받았습니다.`;
     if (tx.reason === 'P2P_SEND') {
       return isInflow ? `${amount}P를 받았습니다.` : `${amount}P를 보냈습니다.`;
     }
@@ -484,9 +531,12 @@ export class ClansService {
     const announcement = await this.announcementsRepository.findOne({
       where: { id: announcementId },
     });
-    if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
+    if (!announcement)
+      throw new BadRequestException('공지사항을 찾을 수 없습니다.');
 
-    const member = await this.clanMembersRepository.findOne({ where: { userId } });
+    const member = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
     if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
       throw new ForbiddenException('작성자 또는 마스터만 수정할 수 있습니다.');
     }
@@ -502,9 +552,12 @@ export class ClansService {
     const announcement = await this.announcementsRepository.findOne({
       where: { id: announcementId },
     });
-    if (!announcement) throw new BadRequestException('공지사항을 찾을 수 없습니다.');
+    if (!announcement)
+      throw new BadRequestException('공지사항을 찾을 수 없습니다.');
 
-    const member = await this.clanMembersRepository.findOne({ where: { userId } });
+    const member = await this.clanMembersRepository.findOne({
+      where: { userId },
+    });
     if (announcement.authorId !== userId && member?.role !== ClanRole.MASTER) {
       throw new ForbiddenException('작성자 또는 마스터만 삭제할 수 있습니다.');
     }
@@ -516,7 +569,9 @@ export class ClansService {
   // ========== 명예의전당/기부자/현상수배 ==========
 
   async getHallOfFame(_clanId: string, type?: HallOfFameType) {
-    const where: { isActive: boolean; type?: HallOfFameType } = { isActive: true };
+    const where: { isActive: boolean; type?: HallOfFameType } = {
+      isActive: true,
+    };
     if (type) where.type = type;
 
     return this.hallOfFameRepository.find({

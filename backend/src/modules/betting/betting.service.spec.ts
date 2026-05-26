@@ -5,7 +5,10 @@ import {
   BettingMarketStatus,
   BettingMarketType,
 } from './entities/betting-market.entity';
-import { BettingStake, BettingStakeStatus } from './entities/betting-stake.entity';
+import {
+  BettingStake,
+  BettingStakeStatus,
+} from './entities/betting-stake.entity';
 import { Match } from '../matches/entities/match.entity';
 import { MatchStatus } from '../matches/enums/match-status.enum';
 
@@ -40,7 +43,10 @@ describe('BettingService (unit)', () => {
           }),
         }),
       }),
-      findOne: async (entity: unknown, opts: { where: Record<string, unknown> }) => {
+      findOne: async (
+        entity: unknown,
+        opts: { where: Record<string, unknown> },
+      ) => {
         if (entity === Match) return state.match;
         if (entity === BettingStake) {
           return state.stakes.find(
@@ -52,7 +58,10 @@ describe('BettingService (unit)', () => {
         }
         return null;
       },
-      find: async (entity: unknown, opts: { where: Record<string, unknown> }) => {
+      find: async (
+        entity: unknown,
+        opts: { where: Record<string, unknown> },
+      ) => {
         if (entity === BettingStake) {
           return state.stakes.filter((s) => s.marketId === opts.where.marketId);
         }
@@ -68,12 +77,10 @@ describe('BettingService (unit)', () => {
     return {
       mint: jest
         .fn()
-        .mockImplementation(
-          async (userId: string, amount: bigint) => {
-            mintCalls.push({ userId, amount });
-            return {};
-          },
-        ),
+        .mockImplementation(async (userId: string, amount: bigint) => {
+          mintCalls.push({ userId, amount });
+          return {};
+        }),
       burn: jest.fn().mockResolvedValue({}),
     };
   }
@@ -83,7 +90,8 @@ describe('BettingService (unit)', () => {
     ledger: ReturnType<typeof makeLedgerMock>,
   ) {
     const dataSource = {
-      transaction: async <T>(cb: (m: unknown) => Promise<T>) => cb(state.manager),
+      transaction: async <T>(cb: (m: unknown) => Promise<T>) =>
+        cb(state.manager),
     };
     return new BettingService(
       // marketRepository

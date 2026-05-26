@@ -54,7 +54,9 @@ export class BuyCommand implements SlashCommand {
 
     await this.gate.enforce(user.id, user.marketGatePassed);
 
-    const product = await this.productRepo.findOne({ where: { id: productId } });
+    const product = await this.productRepo.findOne({
+      where: { id: productId },
+    });
     if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
     if (product.status !== ProductStatus.ACTIVE) {
       await interaction.editReply('현재 판매중이 아닌 상품입니다.');

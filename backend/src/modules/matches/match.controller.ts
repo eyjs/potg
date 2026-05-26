@@ -13,11 +13,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { MatchService } from './match.service';
-import {
-  CreateMatchDto,
-  CreateTeamDto,
-  SettleMatchDto,
-} from './dto/match.dto';
+import { CreateMatchDto, CreateTeamDto, SettleMatchDto } from './dto/match.dto';
 
 @ApiTags('admin-matches')
 @ApiCookieAuth('access_token')
@@ -72,10 +68,7 @@ export class MatchController {
 
   @Post(':id/settle')
   @ApiOperation({ summary: '내전 정산 (LOCKED → SETTLED, 베팅 페이아웃)' })
-  settle(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SettleMatchDto,
-  ) {
+  settle(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SettleMatchDto) {
     return this.matches.settleMatch(id, dto.winnerTeamId, dto.placements);
   }
 

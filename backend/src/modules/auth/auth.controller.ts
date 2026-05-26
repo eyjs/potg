@@ -76,7 +76,9 @@ export class AuthController {
    */
   @Get('discord/callback')
   @UseGuards(DiscordOAuthGuard)
-  @ApiOperation({ summary: 'Discord OAuth 콜백 (access_token 쿠키 set + 리다이렉트)' })
+  @ApiOperation({
+    summary: 'Discord OAuth 콜백 (access_token 쿠키 set + 리다이렉트)',
+  })
   async discordCallback(
     @Request() req: AuthenticatedRequest & { user: User },
     @Res() res: Response,

@@ -5,9 +5,7 @@ import { BlindDateController } from './blind-date.controller';
 import { BlindDateListing } from './entities/blind-date-listing.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([BlindDateListing]),
-  ],
+  imports: [TypeOrmModule.forFeature([BlindDateListing])],
   controllers: [BlindDateController],
   providers: [BlindDateService],
   exports: [BlindDateService],

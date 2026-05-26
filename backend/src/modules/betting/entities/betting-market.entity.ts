@@ -56,7 +56,12 @@ export class BettingMarket extends BaseEntity {
   rakeBps: number;
 
   /** SETTLED 시 당첨 옵션. WIN: teamId, RANK: placement(string) */
-  @Column({ name: 'winning_option', type: 'varchar', length: 64, nullable: true })
+  @Column({
+    name: 'winning_option',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
   winningOption: string | null;
 
   @Column({ name: 'locked_at', type: 'timestamp', nullable: true })

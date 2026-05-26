@@ -10,7 +10,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
 import { AuctionsService } from './auctions.service';
-import { AuctionRole } from './entities/auction-participant.entity';
 
 interface JoinRoomPayload {
   auctionId: string;
@@ -56,12 +55,17 @@ interface ChatMessagePayload {
   },
   namespace: '/auction',
 })
-export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AuctionGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
   private logger = new Logger('AuctionGateway');
-  private connectedUsers: Map<string, { socketId: string; auctionId: string; userId: string }> = new Map();
+  private connectedUsers: Map<
+    string,
+    { socketId: string; auctionId: string; userId: string }
+  > = new Map();
   private auctionTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(private readonly auctionsService: AuctionsService) {}
@@ -97,7 +101,11 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       // Join socket room
       client.join(auctionId);
-      this.connectedUsers.set(client.id, { socketId: client.id, auctionId, userId });
+      this.connectedUsers.set(client.id, {
+        socketId: client.id,
+        auctionId,
+        userId,
+      });
 
       // Get full room state
       const roomState = await this.auctionsService.getRoomState(auctionId);
@@ -165,15 +173,21 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
 
       // Check if auto-confirm should happen (all competitors can't bid higher)
-      const autoConfirmCheck = await this.auctionsService.checkAutoConfirm(auctionId);
+      const autoConfirmCheck =
+        await this.auctionsService.checkAutoConfirm(auctionId);
       if (autoConfirmCheck.shouldAutoConfirm) {
-        this.logger.log(`Auto-confirming bid for auction ${auctionId}: ${autoConfirmCheck.reason}`);
+        this.logger.log(
+          `Auto-confirming bid for auction ${auctionId}: ${autoConfirmCheck.reason}`,
+        );
         this.stopBiddingTimer(auctionId);
 
         // Get auction to find creator for admin context
         const auction = await this.auctionsService.findOne(auctionId);
         if (auction) {
-          const confirmResult = await this.auctionsService.confirmCurrentBid(auctionId, auction.creatorId);
+          const confirmResult = await this.auctionsService.confirmCurrentBid(
+            auctionId,
+            auction.creatorId,
+          );
           roomState = await this.auctionsService.getRoomState(auctionId);
 
           this.server.to(auctionId).emit('bidConfirmed', {
@@ -228,7 +242,10 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       // Stop timer
       this.stopBiddingTimer(auctionId);
 
-      const result = await this.auctionsService.confirmCurrentBid(auctionId, adminId);
+      const result = await this.auctionsService.confirmCurrentBid(
+        auctionId,
+        adminId,
+      );
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
       this.server.to(auctionId).emit('bidConfirmed', {
@@ -299,9 +316,9 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   @SubscribeMessage('chatMessage')
-  async handleChatMessage(
+  handleChatMessage(
     @MessageBody() payload: ChatMessagePayload,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() _client: Socket,
   ) {
     const { auctionId, userId, userName, message } = payload;
 
@@ -347,8 +364,15 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
       // Resume timer if there was a player being auctioned
-      if (roomState.auction.currentBiddingPlayerId && !roomState.auction.timerPaused) {
-        this.startBiddingTimerWithRemaining(auctionId, roomState.auction.pausedTimeRemaining || roomState.auction.turnTimeLimit);
+      if (
+        roomState.auction.currentBiddingPlayerId &&
+        !roomState.auction.timerPaused
+      ) {
+        this.startBiddingTimerWithRemaining(
+          auctionId,
+          roomState.auction.pausedTimeRemaining ||
+            roomState.auction.turnTimeLimit,
+        );
       }
 
       this.server.to(auctionId).emit('auctionResumed', { roomState });
@@ -384,7 +408,8 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     try {
       const auction = await this.auctionsService.findOne(auctionId);
-      const remainingTime = auction?.pausedTimeRemaining || auction?.turnTimeLimit || 60;
+      const remainingTime =
+        auction?.pausedTimeRemaining || auction?.turnTimeLimit || 60;
 
       await this.auctionsService.resumeTimer(auctionId, adminId);
       this.startBiddingTimerWithRemaining(auctionId, remainingTime);
@@ -398,7 +423,8 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   @SubscribeMessage('undoSoldPlayer')
   async handleUndoSoldPlayer(
-    @MessageBody() payload: { auctionId: string; adminId: string; playerId: string },
+    @MessageBody()
+    payload: { auctionId: string; adminId: string; playerId: string },
     @ConnectedSocket() client: Socket,
   ) {
     const { auctionId, adminId, playerId } = payload;
@@ -449,16 +475,29 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   @SubscribeMessage('manualAssignPlayer')
   async handleManualAssignPlayer(
-    @MessageBody() payload: { auctionId: string; adminId: string; playerId: string; captainId: string },
+    @MessageBody()
+    payload: {
+      auctionId: string;
+      adminId: string;
+      playerId: string;
+      captainId: string;
+    },
     @ConnectedSocket() client: Socket,
   ) {
     const { auctionId, adminId, playerId, captainId } = payload;
 
     try {
-      await this.auctionsService.manualAssignPlayer(auctionId, adminId, playerId, captainId);
+      await this.auctionsService.manualAssignPlayer(
+        auctionId,
+        adminId,
+        playerId,
+        captainId,
+      );
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
-      this.server.to(auctionId).emit('playerManuallyAssigned', { playerId, captainId, roomState });
+      this.server
+        .to(auctionId)
+        .emit('playerManuallyAssigned', { playerId, captainId, roomState });
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -491,7 +530,10 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.startBiddingTimer(auctionId);
   }
 
-  private startBiddingTimerWithRemaining(auctionId: string, remainingTime: number) {
+  private startBiddingTimerWithRemaining(
+    auctionId: string,
+    remainingTime: number,
+  ) {
     this.stopBiddingTimer(auctionId);
 
     const TIMER_INTERVAL = 1000;
@@ -501,7 +543,9 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       timeLeft--;
 
       // Broadcast timer update
-      this.server.to(auctionId).emit('timerUpdate', { remainingTime: timeLeft });
+      this.server
+        .to(auctionId)
+        .emit('timerUpdate', { remainingTime: timeLeft });
 
       if (timeLeft <= 0) {
         this.stopBiddingTimer(auctionId);

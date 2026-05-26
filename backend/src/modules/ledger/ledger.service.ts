@@ -1,13 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { PointTx } from './entities/point-tx.entity';
-import { POINT_TX_REASON, PointTxReason, SINK_ACCOUNT_ID } from './ledger.constants';
+import { SINK_ACCOUNT_ID } from './ledger.constants';
 
 export interface TransferParams {
   /** null = mint (시스템 발행). 사용자 UUID 또는 SINK_ACCOUNT_ID. */
@@ -15,7 +11,8 @@ export interface TransferParams {
   /** null = burn (시스템 소각). 사용자 UUID 또는 SINK_ACCOUNT_ID. */
   toAccount: string | null;
   amount: bigint;
-  reason: PointTxReason | string;
+  /** POINT_TX_REASON 상수 키 권장. ad-hoc 사유 문자열도 허용. */
+  reason: string;
   refType?: string;
   refId?: string;
   memo?: string;
@@ -74,11 +71,7 @@ export class LedgerService {
       );
     }
 
-    if (
-      fromIsUser &&
-      toIsUser &&
-      params.fromAccount === params.toAccount
-    ) {
+    if (fromIsUser && toIsUser && params.fromAccount === params.toAccount) {
       throw new BadRequestException(
         'LedgerService.transfer: from/to cannot be the same user',
       );
@@ -160,7 +153,7 @@ export class LedgerService {
   async mint(
     toAccount: string,
     amount: bigint,
-    reason: PointTxReason | string,
+    reason: string,
     opts: Pick<TransferParams, 'refType' | 'refId' | 'memo' | 'manager'> = {},
   ): Promise<PointTx> {
     return this.transfer({
@@ -176,7 +169,7 @@ export class LedgerService {
   async burn(
     fromAccount: string,
     amount: bigint,
-    reason: PointTxReason | string,
+    reason: string,
     opts: Pick<TransferParams, 'refType' | 'refId' | 'memo' | 'manager'> = {},
   ): Promise<PointTx> {
     return this.transfer({
@@ -193,7 +186,9 @@ export class LedgerService {
     const repo = (manager ?? this.dataSource.manager).getRepository(User);
     const user = await repo.findOne({ where: { id: userId } });
     if (!user) {
-      throw new BadRequestException(`LedgerService.getBalance: user not found: ${userId}`);
+      throw new BadRequestException(
+        `LedgerService.getBalance: user not found: ${userId}`,
+      );
     }
     return BigInt(user.pointsBalance ?? '0');
   }

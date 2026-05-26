@@ -66,7 +66,11 @@ export class Post extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   isPinned: boolean; // 프로필 상단 고정
 
-  @Column({ type: 'enum', enum: PostVisibility, default: PostVisibility.PUBLIC })
+  @Column({
+    type: 'enum',
+    enum: PostVisibility,
+    default: PostVisibility.PUBLIC,
+  })
   visibility: PostVisibility;
 
   // Relations

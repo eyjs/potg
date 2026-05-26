@@ -42,9 +42,7 @@ describe('LedgerController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LedgerController],
-      providers: [
-        { provide: getRepositoryToken(PointTx), useValue: repoMock },
-      ],
+      providers: [{ provide: getRepositoryToken(PointTx), useValue: repoMock }],
     }).compile();
 
     controller = module.get(LedgerController);
@@ -63,7 +61,9 @@ describe('LedgerController', () => {
       qb.getRawMany.mockResolvedValue([]);
       const result = await controller.timeseries('day', undefined);
       expect(result).toHaveLength(30);
-      expect(result.every((r) => r.minted === '0' && r.burned === '0')).toBe(true);
+      expect(result.every((r) => r.minted === '0' && r.burned === '0')).toBe(
+        true,
+      );
       expect(result[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 

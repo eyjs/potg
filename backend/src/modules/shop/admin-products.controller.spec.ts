@@ -4,12 +4,18 @@ import { NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { AdminProductsController } from './admin-products.controller';
 import { ShopService } from './shop.service';
-import { ShopProduct, ProductStatus, ProductCategory } from './entities/shop-product.entity';
+import {
+  ShopProduct,
+  ProductStatus,
+  ProductCategory,
+} from './entities/shop-product.entity';
 
 // 관리자 상품 CRUD 단위 테스트
 describe('AdminProductsController', () => {
   let controller: AdminProductsController;
-  let productsRepo: jest.Mocked<Pick<Repository<ShopProduct>, 'findOne' | 'save'>>;
+  let productsRepo: jest.Mocked<
+    Pick<Repository<ShopProduct>, 'findOne' | 'save'>
+  >;
   let shopService: jest.Mocked<Pick<ShopService, 'findAll' | 'createProduct'>>;
 
   const baseProduct = (overrides: Partial<ShopProduct> = {}): ShopProduct =>
@@ -44,7 +50,10 @@ describe('AdminProductsController', () => {
       controllers: [AdminProductsController],
       providers: [
         { provide: ShopService, useValue: mockShopService },
-        { provide: getRepositoryToken(ShopProduct), useValue: mockProductsRepo },
+        {
+          provide: getRepositoryToken(ShopProduct),
+          useValue: mockProductsRepo,
+        },
       ],
     }).compile();
 
@@ -106,7 +115,9 @@ describe('AdminProductsController', () => {
         Promise.resolve(p),
       );
 
-      const result = await controller.update('product-uuid-1', { isActive: false });
+      const result = await controller.update('product-uuid-1', {
+        isActive: false,
+      });
 
       expect(result.status).toBe(ProductStatus.INACTIVE);
     });
@@ -118,7 +129,9 @@ describe('AdminProductsController', () => {
         Promise.resolve(p),
       );
 
-      const result = await controller.update('product-uuid-1', { isActive: true });
+      const result = await controller.update('product-uuid-1', {
+        isActive: true,
+      });
 
       expect(result.status).toBe(ProductStatus.ACTIVE);
     });

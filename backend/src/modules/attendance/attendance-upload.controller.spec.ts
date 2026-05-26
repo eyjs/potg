@@ -6,7 +6,10 @@ import * as XLSX from 'xlsx';
 import { AttendanceUploadController } from './attendance-upload.controller';
 import { User } from '../users/entities/user.entity';
 import { ClanMember } from '../clans/entities/clan-member.entity';
-import { AttendanceRecord, AttendanceStatus } from './entities/attendance-record.entity';
+import {
+  AttendanceRecord,
+  AttendanceStatus,
+} from './entities/attendance-record.entity';
 
 /**
  * xlsx 파일을 Buffer로 직렬화하는 헬퍼.
@@ -23,7 +26,9 @@ describe('AttendanceUploadController', () => {
   let controller: AttendanceUploadController;
   let userRepo: jest.Mocked<Pick<Repository<User>, 'findOne'>>;
   let clanMemberRepo: jest.Mocked<Pick<Repository<ClanMember>, 'findOne'>>;
-  let attendanceRepo: jest.Mocked<Pick<Repository<AttendanceRecord>, 'create' | 'save'>>;
+  let attendanceRepo: jest.Mocked<
+    Pick<Repository<AttendanceRecord>, 'create' | 'save'>
+  >;
 
   const baseUser = (overrides: Partial<User> = {}): User =>
     ({
@@ -50,12 +55,20 @@ describe('AttendanceUploadController', () => {
       controllers: [AttendanceUploadController],
       providers: [
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
-        { provide: getRepositoryToken(ClanMember), useValue: mockClanMemberRepo },
-        { provide: getRepositoryToken(AttendanceRecord), useValue: mockAttendanceRepo },
+        {
+          provide: getRepositoryToken(ClanMember),
+          useValue: mockClanMemberRepo,
+        },
+        {
+          provide: getRepositoryToken(AttendanceRecord),
+          useValue: mockAttendanceRepo,
+        },
       ],
     }).compile();
 
-    controller = module.get<AttendanceUploadController>(AttendanceUploadController);
+    controller = module.get<AttendanceUploadController>(
+      AttendanceUploadController,
+    );
     userRepo = module.get(getRepositoryToken(User));
     clanMemberRepo = module.get(getRepositoryToken(ClanMember));
     attendanceRepo = module.get(getRepositoryToken(AttendanceRecord));
@@ -67,7 +80,9 @@ describe('AttendanceUploadController', () => {
 
   describe('upload — 파일 누락', () => {
     it('file이 없으면 BadRequestException을 던진다', async () => {
-      await expect(controller.upload(undefined)).rejects.toThrow(BadRequestException);
+      await expect(controller.upload(undefined)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -94,7 +109,10 @@ describe('AttendanceUploadController', () => {
       expect(result.total).toBe(1);
       expect(result.success).toBe(1);
       expect(result.failed).toBe(0);
-      expect(result.results[0]).toMatchObject({ ok: true, discord_id: discordId });
+      expect(result.results[0]).toMatchObject({
+        ok: true,
+        discord_id: discordId,
+      });
       expect(attendanceRepo.save).toHaveBeenCalledTimes(1);
     });
 
@@ -134,7 +152,10 @@ describe('AttendanceUploadController', () => {
       expect(result.total).toBe(1);
       expect(result.success).toBe(0);
       expect(result.failed).toBe(1);
-      expect(result.results[0]).toMatchObject({ ok: false, reason: 'discord_id 누락' });
+      expect(result.results[0]).toMatchObject({
+        ok: false,
+        reason: 'discord_id 누락',
+      });
       expect(userRepo.findOne).not.toHaveBeenCalled();
     });
 
@@ -162,7 +183,9 @@ describe('AttendanceUploadController', () => {
         buffer: makeXlsxBuffer([{ discord_id: discordId }]),
       } as Express.Multer.File;
 
-      (userRepo.findOne as jest.Mock).mockResolvedValue(baseUser({ discordId }));
+      (userRepo.findOne as jest.Mock).mockResolvedValue(
+        baseUser({ discordId }),
+      );
       (clanMemberRepo.findOne as jest.Mock).mockResolvedValue(null);
 
       const result = await controller.upload(file);
@@ -189,8 +212,8 @@ describe('AttendanceUploadController', () => {
       const record = {} as AttendanceRecord;
 
       (userRepo.findOne as jest.Mock)
-        .mockResolvedValueOnce(user)    // 첫 번째 행
-        .mockResolvedValueOnce(null);   // 세 번째 행
+        .mockResolvedValueOnce(user) // 첫 번째 행
+        .mockResolvedValueOnce(null); // 세 번째 행
 
       (clanMemberRepo.findOne as jest.Mock).mockResolvedValue(cm);
       (attendanceRepo.create as jest.Mock).mockReturnValue(record);

@@ -59,11 +59,16 @@ export class AttendanceCommand implements SlashCommand {
       throw new BadRequestException('출석 보상이 0으로 설정되어 있습니다.');
     }
 
-    await this.ledger.mint(user.id, BigInt(amount), POINT_TX_REASON.ATTENDANCE, {
-      refType: 'User',
-      refId: user.id,
-      memo: `discord:${interaction.user.id}`,
-    });
+    await this.ledger.mint(
+      user.id,
+      BigInt(amount),
+      POINT_TX_REASON.ATTENDANCE,
+      {
+        refType: 'User',
+        refId: user.id,
+        memo: `discord:${interaction.user.id}`,
+      },
+    );
 
     const balance = await this.ledger.getBalance(user.id);
     await interaction.editReply(

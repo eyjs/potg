@@ -43,11 +43,15 @@ export class BlindDateService {
     return this.listingsRepository.save(listing);
   }
 
-  async findAll(
-    options: FindAllOptions,
-  ): Promise<{ data: BlindDateListing[]; total: number; page: number; limit: number }> {
+  async findAll(options: FindAllOptions): Promise<{
+    data: BlindDateListing[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const page = options.page && options.page > 0 ? options.page : 1;
-    const limit = options.limit && options.limit > 0 ? Math.min(options.limit, 100) : 20;
+    const limit =
+      options.limit && options.limit > 0 ? Math.min(options.limit, 100) : 20;
 
     const qb = this.listingsRepository
       .createQueryBuilder('listing')

@@ -62,10 +62,7 @@ export class ShopController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch('orders/:id/deliver')
-  deliver(
-    @Param('id') orderId: string,
-    @Body('adminNote') adminNote?: string,
-  ) {
+  deliver(@Param('id') orderId: string, @Body('adminNote') adminNote?: string) {
     return this.shopService.markDelivered(orderId, adminNote);
   }
 

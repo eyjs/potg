@@ -44,7 +44,9 @@ describe('AuthController', () => {
 
     const mockDiscordOAuth = {
       generateState: jest.fn(() => 'state-xyz'),
-      getAuthUrl: jest.fn((s: string) => `https://discord.test/auth?state=${s}`),
+      getAuthUrl: jest.fn(
+        (s: string) => `https://discord.test/auth?state=${s}`,
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -75,7 +77,9 @@ describe('AuthController', () => {
       const user = baseUser();
       const token = 'jwt-token-xyz';
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
-      (authService.login as jest.Mock).mockResolvedValue({ access_token: token });
+      (authService.login as jest.Mock).mockResolvedValue({
+        access_token: token,
+      });
       (configService.get as jest.Mock).mockReturnValue('development');
 
       const res = buildResMock();
@@ -102,7 +106,9 @@ describe('AuthController', () => {
     it('prod 환경에서는 secure: true로 쿠키를 설정한다', async () => {
       const user = baseUser();
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
-      (authService.login as jest.Mock).mockResolvedValue({ access_token: 'tok' });
+      (authService.login as jest.Mock).mockResolvedValue({
+        access_token: 'tok',
+      });
       (configService.get as jest.Mock).mockReturnValue('production');
 
       const res = buildResMock();
@@ -118,7 +124,9 @@ describe('AuthController', () => {
     it('dev 환경에서는 secure: false로 쿠키를 설정한다', async () => {
       const user = baseUser();
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
-      (authService.login as jest.Mock).mockResolvedValue({ access_token: 'tok' });
+      (authService.login as jest.Mock).mockResolvedValue({
+        access_token: 'tok',
+      });
       (configService.get as jest.Mock).mockReturnValue('development');
 
       const res = buildResMock();
@@ -135,7 +143,9 @@ describe('AuthController', () => {
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
       const user = baseUser();
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
-      (authService.login as jest.Mock).mockResolvedValue({ access_token: 'tok' });
+      (authService.login as jest.Mock).mockResolvedValue({
+        access_token: 'tok',
+      });
       (configService.get as jest.Mock).mockReturnValue('development');
 
       const res = buildResMock();
@@ -194,7 +204,9 @@ describe('AuthController', () => {
     it('Discord 콜백도 자체 로그인과 동일한 7일 maxAge 쿠키를 설정한다', async () => {
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
       const user = baseUser();
-      (authService.login as jest.Mock).mockResolvedValue({ access_token: 'd-tok' });
+      (authService.login as jest.Mock).mockResolvedValue({
+        access_token: 'd-tok',
+      });
       (configService.get as jest.Mock).mockImplementation((key: string) => {
         if (key === 'NODE_ENV') return 'production';
         if (key === 'DISCORD_OAUTH_SUCCESS_REDIRECT') return '/';
@@ -233,7 +245,9 @@ describe('AuthController', () => {
       const res = buildResMock();
       const result = controller.logout(res);
 
-      expect(res.clearCookie).toHaveBeenCalledWith('access_token', { path: '/' });
+      expect(res.clearCookie).toHaveBeenCalledWith('access_token', {
+        path: '/',
+      });
       expect(result).toEqual({ message: 'Logged out successfully' });
     });
 

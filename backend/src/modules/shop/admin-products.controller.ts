@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -28,10 +27,7 @@ import { ShopService } from './shop.service';
 import { CreateProductDto } from './dto/shop.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  ShopProduct,
-  ProductStatus,
-} from './entities/shop-product.entity';
+import { ShopProduct, ProductStatus } from './entities/shop-product.entity';
 import { NotFoundException } from '@nestjs/common';
 
 export class UpdateProductDto {
@@ -98,7 +94,9 @@ export class AdminProductsController {
     if (dto.stock !== undefined) product.stock = dto.stock;
     if (dto.imageUrl !== undefined) product.imageUrl = dto.imageUrl;
     if (dto.isActive !== undefined) {
-      product.status = dto.isActive ? ProductStatus.ACTIVE : ProductStatus.INACTIVE;
+      product.status = dto.isActive
+        ? ProductStatus.ACTIVE
+        : ProductStatus.INACTIVE;
     }
 
     return this.productsRepo.save(product);

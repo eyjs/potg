@@ -57,7 +57,9 @@ export class DiscordOAuthService {
         },
       );
       if (!res.data?.access_token) {
-        throw new UnauthorizedException('Discord token response missing access_token');
+        throw new UnauthorizedException(
+          'Discord token response missing access_token',
+        );
       }
       return res.data.access_token;
     } catch (err) {

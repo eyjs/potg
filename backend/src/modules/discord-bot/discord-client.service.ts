@@ -7,7 +7,13 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client, Events, GatewayIntentBits, MessageFlags, REST } from 'discord.js';
+import {
+  Client,
+  Events,
+  GatewayIntentBits,
+  MessageFlags,
+  REST,
+} from 'discord.js';
 import { CommandRegistry } from './command-registry';
 import {
   SLASH_COMMAND_TOKEN,

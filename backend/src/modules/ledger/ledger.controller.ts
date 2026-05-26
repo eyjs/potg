@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -40,7 +35,10 @@ export class LedgerController {
     @Query('take') takeRaw?: string,
   ) {
     const skip = Math.max(0, parseInt(skipRaw ?? '0', 10) || 0);
-    const take = Math.min(200, Math.max(1, parseInt(takeRaw ?? '50', 10) || 50));
+    const take = Math.min(
+      200,
+      Math.max(1, parseInt(takeRaw ?? '50', 10) || 50),
+    );
 
     const qb = this.txRepo
       .createQueryBuilder('tx')
@@ -83,7 +81,10 @@ export class LedgerController {
       return [];
     }
     const parsed = parseInt(daysRaw ?? '', 10);
-    const days = Math.min(90, Math.max(1, Number.isFinite(parsed) ? parsed : 30));
+    const days = Math.min(
+      90,
+      Math.max(1, Number.isFinite(parsed) ? parsed : 30),
+    );
     const since = new Date();
     since.setUTCHours(0, 0, 0, 0);
     since.setUTCDate(since.getUTCDate() - (days - 1));

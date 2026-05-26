@@ -54,6 +54,8 @@ export class LeaderboardCommand implements SlashCommand {
       return `\`${rank}. ${name}\` ${balance}`;
     });
 
-    await interaction.editReply(`**🏆 포인트 리더보드 (Top ${top})**\n` + lines.join('\n'));
+    await interaction.editReply(
+      `**🏆 포인트 리더보드 (Top ${top})**\n` + lines.join('\n'),
+    );
   }
 }

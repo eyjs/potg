@@ -87,7 +87,11 @@ export class ClansController {
     @Body() data: { title?: string; content?: string; isPinned?: boolean },
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.updateAnnouncement(announcementId, data, req.user.userId);
+    return this.clansService.updateAnnouncement(
+      announcementId,
+      data,
+      req.user.userId,
+    );
   }
 
   // 공지사항 삭제 (정적 prefix)
@@ -97,7 +101,10 @@ export class ClansController {
     @Param('announcementId') announcementId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.deleteAnnouncement(announcementId, req.user.userId);
+    return this.clansService.deleteAnnouncement(
+      announcementId,
+      req.user.userId,
+    );
   }
 
   // ========== 파라미터 라우트 (:id, :clanId) ==========
@@ -153,7 +160,12 @@ export class ClansController {
     @Body('role') role: ClanRole,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.updateMemberRole(clanId, userId, role, req.user.userId);
+    return this.clansService.updateMemberRole(
+      clanId,
+      userId,
+      role,
+      req.user.userId,
+    );
   }
 
   // 멤버 추방 (마스터/운영진)
@@ -175,7 +187,11 @@ export class ClansController {
     @Body('newMasterId') newMasterId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.transferMaster(clanId, newMasterId, req.user.userId);
+    return this.clansService.transferMaster(
+      clanId,
+      newMasterId,
+      req.user.userId,
+    );
   }
 
   // ========== 활동 피드 API ==========
@@ -187,7 +203,11 @@ export class ClansController {
     @Query() query: ActivityQueryDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.clansService.getActivities(clanId, req.user.userId, query.limit);
+    return this.clansService.getActivities(
+      clanId,
+      req.user.userId,
+      query.limit,
+    );
   }
 
   // ========== 공지사항 API ==========

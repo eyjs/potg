@@ -116,10 +116,12 @@ export class UsersService {
 
     if (dto.password) {
       if (!dto.currentPassword) {
-        throw new BadRequestException('Current password is required to set new password');
+        throw new BadRequestException(
+          'Current password is required to set new password',
+        );
       }
       if (!user.password) {
-        // Handle case where user has no password (e.g. social login) if applicable, 
+        // Handle case where user has no password (e.g. social login) if applicable,
         // or just allow setting if no password exists. But for now assume password exists.
         throw new BadRequestException('User has no password set');
       }
@@ -132,7 +134,8 @@ export class UsersService {
 
     await this.usersRepository.update(id, updates);
     const updatedUser = await this.usersRepository.findOne({ where: { id } });
-    if (!updatedUser) throw new BadRequestException('User not found after update');
+    if (!updatedUser)
+      throw new BadRequestException('User not found after update');
     return updatedUser;
   }
 

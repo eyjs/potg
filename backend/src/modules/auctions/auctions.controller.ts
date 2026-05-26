@@ -149,19 +149,25 @@ export class AuctionsController {
   @Patch(':id/settings')
   updateSettings(
     @Param('id') id: string,
-    @Body() settings: { teamCount?: number; startingPoints?: number; turnTimeLimit?: number },
+    @Body()
+    settings: {
+      teamCount?: number;
+      startingPoints?: number;
+      turnTimeLimit?: number;
+    },
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.updateAuctionSettings(id, req.user.userId, settings);
+    return this.auctionsService.updateAuctionSettings(
+      id,
+      req.user.userId,
+      settings,
+    );
   }
 
   // 경매 삭제
   @UseGuards(AuthGuard('jwt'))
   @Post(':id/delete')
-  deleteAuction(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  deleteAuction(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.auctionsService.deleteAuction(id, req.user.userId);
   }
 }

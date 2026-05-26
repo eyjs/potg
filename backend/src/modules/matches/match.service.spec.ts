@@ -60,7 +60,9 @@ describe('MatchService', () => {
       getRepository: jest.fn().mockReturnValue({
         createQueryBuilder: jest.fn().mockReturnValue(qbMock),
       }),
-      save: jest.fn().mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue(null),
     };
@@ -116,7 +118,10 @@ describe('MatchService', () => {
       const result = await service.create({ title: '내전 1회' });
 
       expect(matchRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '내전 1회', status: MatchStatus.DRAFT }),
+        expect.objectContaining({
+          title: '내전 1회',
+          status: MatchStatus.DRAFT,
+        }),
       );
       expect(result.status).toBe(MatchStatus.DRAFT);
     });
@@ -136,7 +141,8 @@ describe('MatchService', () => {
       const match = baseMatch({ status: MatchStatus.DRAFT });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       const result = await service.openBetting('match-uuid-1');
@@ -149,7 +155,8 @@ describe('MatchService', () => {
       const match = baseMatch({ status: MatchStatus.SETTLED });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(service.openBetting('match-uuid-1')).rejects.toThrow(
@@ -160,7 +167,8 @@ describe('MatchService', () => {
     it('존재하지 않는 matchId이면 NotFoundException을 던진다', async () => {
       const manager = buildManagerMock(null);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(service.openBetting('no-such-id')).rejects.toThrow(
@@ -183,22 +191,30 @@ describe('MatchService', () => {
       manager.find.mockResolvedValue(openMarkets as BettingMarket[]);
 
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       const result = await service.lockMatch('match-uuid-1');
 
       expect(result.status).toBe(MatchStatus.LOCKED);
       expect(bettingService.lockMarket).toHaveBeenCalledTimes(2);
-      expect(bettingService.lockMarket).toHaveBeenCalledWith('market-1', expect.anything());
-      expect(bettingService.lockMarket).toHaveBeenCalledWith('market-2', expect.anything());
+      expect(bettingService.lockMarket).toHaveBeenCalledWith(
+        'market-1',
+        expect.anything(),
+      );
+      expect(bettingService.lockMarket).toHaveBeenCalledWith(
+        'market-2',
+        expect.anything(),
+      );
     });
 
     it('DRAFT에서 lockMatch를 호출하면 BadRequestException을 던진다', async () => {
       const match = baseMatch({ status: MatchStatus.DRAFT });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(service.lockMatch('match-uuid-1')).rejects.toThrow(
@@ -224,7 +240,8 @@ describe('MatchService', () => {
       manager.find.mockResolvedValue([lockedMarket] as BettingMarket[]);
 
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       const result = await service.settleMatch('match-uuid-1', 'team-uuid-1');
@@ -242,7 +259,8 @@ describe('MatchService', () => {
       const match = baseMatch({ status: MatchStatus.DRAFT });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(
@@ -257,7 +275,8 @@ describe('MatchService', () => {
       manager.findOne.mockResolvedValue(null);
 
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(
@@ -277,11 +296,14 @@ describe('MatchService', () => {
         .mockResolvedValueOnce(rankedTeam);
 
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(
-        service.settleMatch('match-uuid-1', 'team-uuid-1', { 'team-uuid-2': 5 }),
+        service.settleMatch('match-uuid-1', 'team-uuid-1', {
+          'team-uuid-2': 5,
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -301,7 +323,8 @@ describe('MatchService', () => {
       manager.find.mockResolvedValue(markets as BettingMarket[]);
 
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       const result = await service.cancelMatch('match-uuid-1');
@@ -319,7 +342,8 @@ describe('MatchService', () => {
       const match = baseMatch({ status: MatchStatus.SETTLED });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(service.cancelMatch('match-uuid-1')).rejects.toThrow(
@@ -331,7 +355,8 @@ describe('MatchService', () => {
       const match = baseMatch({ status: MatchStatus.CANCELLED });
       const manager = buildManagerMock(match);
       dataSource.transaction.mockImplementation(
-        (cb: (m: EntityManager) => Promise<unknown>) => cb(manager as unknown as EntityManager),
+        (cb: (m: EntityManager) => Promise<unknown>) =>
+          cb(manager as unknown as EntityManager),
       );
 
       await expect(service.cancelMatch('match-uuid-1')).rejects.toThrow(

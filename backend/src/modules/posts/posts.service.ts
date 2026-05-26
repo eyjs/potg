@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { Post, PostType, PostVisibility } from './entities/post.entity';
@@ -41,7 +46,9 @@ export class PostsService {
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .leftJoinAndSelect('author.user', 'user')
-      .where('post.visibility = :visibility', { visibility: PostVisibility.PUBLIC })
+      .where('post.visibility = :visibility', {
+        visibility: PostVisibility.PUBLIC,
+      })
       .orderBy('post.isPinned', 'DESC')
       .addOrderBy('post.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -80,7 +87,8 @@ export class PostsService {
   ): Promise<{ data: Post[]; total: number }> {
     const { authorId, type, page = 1, limit = 20 } = options;
 
-    const query = this.postRepo.createQueryBuilder('post')
+    const query = this.postRepo
+      .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .leftJoinAndSelect('author.user', 'user')
       .orderBy('post.isPinned', 'DESC')
@@ -97,14 +105,17 @@ export class PostsService {
     }
 
     // 공개 범위 필터링
-    query.andWhere(`(
+    query.andWhere(
+      `(
       post.visibility = 'PUBLIC'
       OR post.authorId = :viewerId
       OR (post.visibility = 'FOLLOWERS' AND EXISTS (
         SELECT 1 FROM follows f 
         WHERE f.followerId = :viewerId AND f.followingId = post.authorId
       ))
-    )`, { viewerId });
+    )`,
+      { viewerId },
+    );
 
     const [data, total] = await query.getManyAndCount();
     return { data, total };
@@ -119,7 +130,10 @@ export class PostsService {
     if (!post) throw new NotFoundException('게시물을 찾을 수 없습니다.');
 
     // 공개 범위 확인
-    if (post.visibility === PostVisibility.PRIVATE && post.authorId !== viewerId) {
+    if (
+      post.visibility === PostVisibility.PRIVATE &&
+      post.authorId !== viewerId
+    ) {
       throw new ForbiddenException('비공개 게시물입니다.');
     }
 
@@ -166,9 +180,14 @@ export class PostsService {
     return saved;
   }
 
-  async updatePost(id: string, authorId: string, dto: UpdatePostDto): Promise<Post> {
+  async updatePost(
+    id: string,
+    authorId: string,
+    dto: UpdatePostDto,
+  ): Promise<Post> {
     const post = await this.postRepo.findOne({ where: { id, authorId } });
-    if (!post) throw new NotFoundException('게시물을 찾을 수 없거나 권한이 없습니다.');
+    if (!post)
+      throw new NotFoundException('게시물을 찾을 수 없거나 권한이 없습니다.');
 
     Object.assign(post, dto);
     return this.postRepo.save(post);
@@ -176,7 +195,8 @@ export class PostsService {
 
   async deletePost(id: string, authorId: string): Promise<void> {
     const result = await this.postRepo.delete({ id, authorId });
-    if (!result.affected) throw new NotFoundException('게시물을 찾을 수 없거나 권한이 없습니다.');
+    if (!result.affected)
+      throw new NotFoundException('게시물을 찾을 수 없거나 권한이 없습니다.');
   }
 
   // ==================== 좋아요 ====================
@@ -218,7 +238,10 @@ export class PostsService {
     return count > 0;
   }
 
-  async getLikeStatusBulk(postIds: string[], memberId: string): Promise<Record<string, boolean>> {
+  async getLikeStatusBulk(
+    postIds: string[],
+    memberId: string,
+  ): Promise<Record<string, boolean>> {
     if (!postIds.length || !memberId) return {};
 
     const likes = await this.likeRepo.find({
@@ -227,15 +250,22 @@ export class PostsService {
     });
 
     const likedSet = new Set(likes.map((l) => l.postId));
-    return postIds.reduce((acc, id) => {
-      acc[id] = likedSet.has(id);
-      return acc;
-    }, {} as Record<string, boolean>);
+    return postIds.reduce(
+      (acc, id) => {
+        acc[id] = likedSet.has(id);
+        return acc;
+      },
+      {} as Record<string, boolean>,
+    );
   }
 
   // ==================== 댓글 ====================
 
-  async getComments(postId: string, page = 1, limit = 20): Promise<{ data: PostComment[]; total: number }> {
+  async getComments(
+    postId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: PostComment[]; total: number }> {
     const [data, total] = await this.commentRepo.findAndCount({
       where: { postId, parentId: undefined },
       relations: ['author', 'author.user'],
@@ -254,7 +284,11 @@ export class PostsService {
     });
   }
 
-  async createComment(postId: string, authorId: string, dto: CreateCommentDto): Promise<PostComment> {
+  async createComment(
+    postId: string,
+    authorId: string,
+    dto: CreateCommentDto,
+  ): Promise<PostComment> {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('게시물을 찾을 수 없습니다.');
 
@@ -288,7 +322,8 @@ export class PostsService {
 
   async deleteComment(id: string, authorId: string): Promise<void> {
     const comment = await this.commentRepo.findOne({ where: { id, authorId } });
-    if (!comment) throw new NotFoundException('댓글을 찾을 수 없거나 권한이 없습니다.');
+    if (!comment)
+      throw new NotFoundException('댓글을 찾을 수 없거나 권한이 없습니다.');
 
     await this.commentRepo.delete(id);
     await this.postRepo.decrement({ id: comment.postId }, 'commentCount', 1);

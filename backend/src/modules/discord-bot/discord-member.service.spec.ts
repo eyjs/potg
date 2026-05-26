@@ -8,7 +8,9 @@ import { SystemConfigService } from '../system-config/system-config.service';
 
 describe('DiscordMemberService', () => {
   let service: DiscordMemberService;
-  let userRepo: jest.Mocked<Pick<Repository<User>, 'findOne' | 'findOneOrFail' | 'save' | 'create'>>;
+  let userRepo: jest.Mocked<
+    Pick<Repository<User>, 'findOne' | 'findOneOrFail' | 'save' | 'create'>
+  >;
   let ledger: jest.Mocked<Pick<LedgerService, 'mint'>>;
   let systemConfig: jest.Mocked<Pick<SystemConfigService, 'getNumber'>>;
   let dataSource: { transaction: jest.Mock };

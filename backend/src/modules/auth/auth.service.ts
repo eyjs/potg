@@ -102,16 +102,17 @@ export class AuthService {
     });
 
     if (!passwordReset) {
-      throw new BadRequestException(
-        '유효하지 않거나 만료된 토큰입니다.',
-      );
+      throw new BadRequestException('유효하지 않거나 만료된 토큰입니다.');
     }
 
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update the user's password
-    await this.usersService.updatePassword(passwordReset.userId, hashedPassword);
+    await this.usersService.updatePassword(
+      passwordReset.userId,
+      hashedPassword,
+    );
 
     // Mark the token as used
     passwordReset.used = true;

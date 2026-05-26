@@ -21,4 +21,5 @@ export const POINT_TX_REASON = {
   ADMIN_ADJUST: 'ADMIN_ADJUST',
 } as const;
 
-export type PointTxReason = (typeof POINT_TX_REASON)[keyof typeof POINT_TX_REASON];
+export type PointTxReason =
+  (typeof POINT_TX_REASON)[keyof typeof POINT_TX_REASON];

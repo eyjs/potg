@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 // import { Cron, CronExpression } from '@nestjs/schedule'; // TODO: ScheduleModule 설치 후 활성화
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -6,7 +12,11 @@ import { MemberProfile } from './entities/member-profile.entity';
 import { Follow } from './entities/follow.entity';
 import { Guestbook } from './entities/guestbook.entity';
 import { ProfileVisit } from './entities/profile-visit.entity';
-import { UpdateProfileDto, EquipItemsDto, CreateGuestbookDto } from './dto/profile.dto';
+import {
+  UpdateProfileDto,
+  EquipItemsDto,
+  CreateGuestbookDto,
+} from './dto/profile.dto';
 import { ClanMember } from '../clans/entities/clan-member.entity';
 import { MemberItem } from '../shop/entities/member-item.entity';
 
@@ -37,7 +47,10 @@ export class ProfilesService {
 
   // ==================== 프로필 ====================
 
-  async getProfile(memberId: string, viewerId?: string): Promise<MemberProfile> {
+  async getProfile(
+    memberId: string,
+    viewerId?: string,
+  ): Promise<MemberProfile> {
     let profile = await this.profileRepo.findOne({
       where: { memberId },
       relations: ['member', 'member.user'],
@@ -69,13 +82,19 @@ export class ProfilesService {
     return profile;
   }
 
-  async updateProfile(memberId: string, dto: UpdateProfileDto): Promise<MemberProfile> {
+  async updateProfile(
+    memberId: string,
+    dto: UpdateProfileDto,
+  ): Promise<MemberProfile> {
     const profile = await this.getProfile(memberId);
     Object.assign(profile, dto);
     return this.profileRepo.save(profile);
   }
 
-  async equipItems(memberId: string, dto: EquipItemsDto): Promise<MemberProfile> {
+  async equipItems(
+    memberId: string,
+    dto: EquipItemsDto,
+  ): Promise<MemberProfile> {
     const profile = await this.getProfile(memberId);
 
     // 아이템 보유 검증 (default는 무조건 허용)
@@ -85,7 +104,7 @@ export class ProfilesService {
       { field: 'petId', value: dto.petId },
     ];
 
-    for (const { field, value } of itemsToCheck) {
+    for (const { value } of itemsToCheck) {
       if (value !== undefined && value !== 'default') {
         // MemberItem 테이블에서 해당 아이템 코드 보유 확인
         const hasItem = await this.memberItemRepo
@@ -131,8 +150,18 @@ export class ProfilesService {
 
       // 실제로 삽입된 경우에만 카운트 증가
       if (inserted.length > 0) {
-        await manager.increment(MemberProfile, { memberId: followerId }, 'followingCount', 1);
-        await manager.increment(MemberProfile, { memberId: followingId }, 'followerCount', 1);
+        await manager.increment(
+          MemberProfile,
+          { memberId: followerId },
+          'followingCount',
+          1,
+        );
+        await manager.increment(
+          MemberProfile,
+          { memberId: followingId },
+          'followerCount',
+          1,
+        );
       }
     });
   }
@@ -142,13 +171,27 @@ export class ProfilesService {
       const result = await manager.delete(Follow, { followerId, followingId });
 
       if (result.affected && result.affected > 0) {
-        await manager.decrement(MemberProfile, { memberId: followerId }, 'followingCount', 1);
-        await manager.decrement(MemberProfile, { memberId: followingId }, 'followerCount', 1);
+        await manager.decrement(
+          MemberProfile,
+          { memberId: followerId },
+          'followingCount',
+          1,
+        );
+        await manager.decrement(
+          MemberProfile,
+          { memberId: followingId },
+          'followerCount',
+          1,
+        );
       }
     });
   }
 
-  async getFollowers(memberId: string, page = 1, limit = 20): Promise<{ data: Follow[]; total: number }> {
+  async getFollowers(
+    memberId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Follow[]; total: number }> {
     const [data, total] = await this.followRepo.findAndCount({
       where: { followingId: memberId },
       relations: ['follower', 'follower.user'],
@@ -159,7 +202,11 @@ export class ProfilesService {
     return { data, total };
   }
 
-  async getFollowing(memberId: string, page = 1, limit = 20): Promise<{ data: Follow[]; total: number }> {
+  async getFollowing(
+    memberId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Follow[]; total: number }> {
     const [data, total] = await this.followRepo.findAndCount({
       where: { followerId: memberId },
       relations: ['following', 'following.user'],
@@ -171,17 +218,27 @@ export class ProfilesService {
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    const count = await this.followRepo.count({ where: { followerId, followingId } });
+    const count = await this.followRepo.count({
+      where: { followerId, followingId },
+    });
     return count > 0;
   }
 
   // ==================== 방명록 ====================
 
-  async getGuestbook(profileId: string, viewerId?: string, page = 1, limit = 20): Promise<{ data: Guestbook[]; total: number }> {
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+  async getGuestbook(
+    profileId: string,
+    viewerId?: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Guestbook[]; total: number }> {
+    const profile = await this.profileRepo.findOne({
+      where: { id: profileId },
+    });
     if (!profile) throw new NotFoundException('프로필을 찾을 수 없습니다.');
 
-    const query = this.guestbookRepo.createQueryBuilder('g')
+    const query = this.guestbookRepo
+      .createQueryBuilder('g')
       .leftJoinAndSelect('g.writer', 'writer')
       .leftJoinAndSelect('writer.user', 'user')
       .where('g.profileId = :profileId', { profileId })
@@ -198,8 +255,14 @@ export class ProfilesService {
     return { data, total };
   }
 
-  async createGuestbook(profileId: string, writerId: string, dto: CreateGuestbookDto): Promise<Guestbook> {
-    const profile = await this.profileRepo.findOne({ where: { id: profileId } });
+  async createGuestbook(
+    profileId: string,
+    writerId: string,
+    dto: CreateGuestbookDto,
+  ): Promise<Guestbook> {
+    const profile = await this.profileRepo.findOne({
+      where: { id: profileId },
+    });
     if (!profile) throw new NotFoundException('프로필을 찾을 수 없습니다.');
 
     const guestbook = this.guestbookRepo.create({
@@ -215,11 +278,14 @@ export class ProfilesService {
       where: { id },
       relations: ['profile'],
     });
-    
+
     if (!guestbook) throw new NotFoundException('방명록을 찾을 수 없습니다.');
-    
+
     // 작성자 또는 프로필 주인만 삭제 가능
-    if (guestbook.writerId !== requesterId && guestbook.profile.memberId !== requesterId) {
+    if (
+      guestbook.writerId !== requesterId &&
+      guestbook.profile.memberId !== requesterId
+    ) {
       throw new ForbiddenException('삭제 권한이 없습니다.');
     }
 
@@ -248,7 +314,11 @@ export class ProfilesService {
     }
   }
 
-  async getVisitors(profileId: string, page = 1, limit = 20): Promise<{ data: ProfileVisit[]; total: number }> {
+  async getVisitors(
+    profileId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: ProfileVisit[]; total: number }> {
     const [data, total] = await this.visitRepo.findAndCount({
       where: { profileId },
       order: { visitDate: 'DESC' },

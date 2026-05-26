@@ -16,7 +16,10 @@ import {
   BettingMarketStatus,
   BettingMarketType,
 } from './entities/betting-market.entity';
-import { BettingStake, BettingStakeStatus } from './entities/betting-stake.entity';
+import {
+  BettingStake,
+  BettingStakeStatus,
+} from './entities/betting-stake.entity';
 import { CreateMarketDto, PlaceStakeDto } from './dto/betting.dto';
 
 export interface SettleSummary {
@@ -58,7 +61,9 @@ export class BettingService {
   // ==================== 마켓 ====================
 
   async createMarket(dto: CreateMarketDto): Promise<BettingMarket> {
-    const match = await this.matchRepository.findOne({ where: { id: dto.matchId } });
+    const match = await this.matchRepository.findOne({
+      where: { id: dto.matchId },
+    });
     if (!match) throw new NotFoundException(`Match not found: ${dto.matchId}`);
 
     const existing = await this.marketRepository.findOne({
@@ -85,7 +90,9 @@ export class BettingService {
   }
 
   async findMarketById(marketId: string): Promise<BettingMarket> {
-    const market = await this.marketRepository.findOne({ where: { id: marketId } });
+    const market = await this.marketRepository.findOne({
+      where: { id: marketId },
+    });
     if (!market) throw new NotFoundException(`Market not found: ${marketId}`);
     return market;
   }
@@ -108,8 +115,11 @@ export class BettingService {
 
     return this.dataSource.transaction(async (manager) => {
       const market = await this.lockMarketRow(manager, marketId);
-      const match = await manager.findOne(Match, { where: { id: market.matchId } });
-      if (!match) throw new NotFoundException(`Match not found: ${market.matchId}`);
+      const match = await manager.findOne(Match, {
+        where: { id: market.matchId },
+      });
+      if (!match)
+        throw new NotFoundException(`Match not found: ${market.matchId}`);
 
       // 마켓 + 매치 둘 다 OPEN/BETTING_OPEN 이어야 함.
       this.assertOpenForStaking(market, match);
@@ -208,13 +218,12 @@ export class BettingService {
       const rakeAmount = (totalPool * rakeBps) / 10000n;
       const poolAfterRake = totalPool - rakeAmount;
 
-      const stakes = await m.find(BettingStake, { where: { marketId: market.id } });
+      const stakes = await m.find(BettingStake, {
+        where: { marketId: market.id },
+      });
 
       const winners = stakes.filter((s) => s.side === winningOption);
-      const winningPool = winners.reduce(
-        (acc, s) => acc + BigInt(s.stake),
-        0n,
-      );
+      const winningPool = winners.reduce((acc, s) => acc + BigInt(s.stake), 0n);
 
       let payoutDistributed = 0n;
 
@@ -300,18 +309,25 @@ export class BettingService {
         throw new BadRequestException('Cannot cancel a settled market');
       }
 
-      const stakes = await m.find(BettingStake, { where: { marketId: market.id } });
+      const stakes = await m.find(BettingStake, {
+        where: { marketId: market.id },
+      });
       let refunded = 0n;
       for (const stake of stakes) {
         if (stake.status !== BettingStakeStatus.PLACED) continue;
         const amount = BigInt(stake.stake);
         if (amount > 0n) {
-          await this.ledger.mint(stake.userId, amount, POINT_TX_REASON.BET_PAYOUT, {
-            refType: 'BettingMarket',
-            refId: market.id,
-            memo: 'refund:cancel',
-            manager: m,
-          });
+          await this.ledger.mint(
+            stake.userId,
+            amount,
+            POINT_TX_REASON.BET_PAYOUT,
+            {
+              refType: 'BettingMarket',
+              refId: market.id,
+              memo: 'refund:cancel',
+              manager: m,
+            },
+          );
           refunded += amount;
         }
         stake.status = BettingStakeStatus.REFUNDED;
@@ -385,7 +401,9 @@ export class BettingService {
       }
     } else if (type === BettingMarketType.RANK) {
       if (!['1', '2', '3', '4'].includes(side)) {
-        throw new BadRequestException(`RANK market side must be one of 1,2,3,4`);
+        throw new BadRequestException(
+          `RANK market side must be one of 1,2,3,4`,
+        );
       }
     }
   }

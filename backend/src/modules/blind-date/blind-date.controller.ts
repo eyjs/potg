@@ -73,10 +73,7 @@ export class BlindDateController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('listings/:id/close')
-  closeListing(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  closeListing(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.blindDateService.closeListing(
       id,
       req.user.userId,

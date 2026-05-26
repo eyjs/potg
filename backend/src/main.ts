@@ -55,14 +55,14 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
-  
+
   app.enableCors({
     origin: [
       'https://potg-psi.vercel.app',
       'https://potg.joonbi.co.kr',
       'http://localhost:3000',
       'http://localhost:3001',
-      /\.vercel\.app$/ // Allow all Vercel preview deployments
+      /\.vercel\.app$/, // Allow all Vercel preview deployments
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,

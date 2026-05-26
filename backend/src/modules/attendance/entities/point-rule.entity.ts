@@ -19,7 +19,11 @@ export class PointRule extends BaseEntity {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ type: 'enum', enum: PointRuleCategory, default: PointRuleCategory.ATTENDANCE })
+  @Column({
+    type: 'enum',
+    enum: PointRuleCategory,
+    default: PointRuleCategory.ATTENDANCE,
+  })
   category: PointRuleCategory;
 
   @Column({ type: 'int' })

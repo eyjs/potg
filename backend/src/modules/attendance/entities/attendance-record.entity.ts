@@ -21,7 +21,11 @@ export class AttendanceRecord extends BaseEntity {
   @Column({ nullable: true })
   scrimId: string;
 
-  @Column({ type: 'enum', enum: AttendanceStatus, default: AttendanceStatus.PRESENT })
+  @Column({
+    type: 'enum',
+    enum: AttendanceStatus,
+    default: AttendanceStatus.PRESENT,
+  })
   status: AttendanceStatus;
 
   @Column({ type: 'int', default: 0 })

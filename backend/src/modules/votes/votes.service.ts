@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vote, VoteStatus } from './entities/vote.entity';
@@ -37,7 +41,7 @@ export class VotesService {
   async findAll(userId?: string) {
     const votes = await this.votesRepository.find({
       relations: ['options'],
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
 
     if (!userId) return votes;
@@ -45,15 +49,15 @@ export class VotesService {
     // Fetch user's voting records for these votes
     const records = await this.voteRecordsRepository.find({
       where: { userId },
-      relations: ['option']
+      relations: ['option'],
     });
 
     // Map user selection to each vote
-    return votes.map(vote => {
-      const userRecord = records.find(r => r.voteId === vote.id);
+    return votes.map((vote) => {
+      const userRecord = records.find((r) => r.voteId === vote.id);
       return {
         ...vote,
-        userSelection: userRecord ? userRecord.option.label : null
+        userSelection: userRecord ? userRecord.option.label : null,
       };
     });
   }
@@ -123,13 +127,13 @@ export class VotesService {
   async close(id: string, userId: string) {
     const vote = await this.votesRepository.findOne({
       where: { id },
-      relations: ['options']
+      relations: ['options'],
     });
     if (!vote) throw new BadRequestException('Vote not found');
     if (vote.creatorId !== userId) {
       throw new ForbiddenException('Only the creator can close this vote');
     }
-    
+
     vote.status = VoteStatus.CLOSED;
     return this.votesRepository.save(vote);
   }

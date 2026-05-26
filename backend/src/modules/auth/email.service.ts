@@ -29,7 +29,8 @@ export class EmailService {
 
     const mailOptions = {
       from:
-        this.configService.get<string>('SMTP_FROM') || '"POTG" <noreply@potg.gg>',
+        this.configService.get<string>('SMTP_FROM') ||
+        '"POTG" <noreply@potg.gg>',
       to: email,
       subject: '[POTG] 비밀번호 재설정',
       html: `

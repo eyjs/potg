@@ -57,20 +57,14 @@ export class ScrimResultsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateScrimResultDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateScrimResultDto) {
     return this.scrimResultsService.update(id, dto);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post(':id/confirm')
-  async confirm(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
-  ) {
+  async confirm(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.scrimResultsService.confirm(id, req.user.userId);
   }
 }

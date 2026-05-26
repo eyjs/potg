@@ -1,8 +1,4 @@
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { ShopProduct } from '../../shop/entities/shop-product.entity';
 
 export interface ProductCardOptions {
@@ -35,8 +31,7 @@ export function buildProductCard(
   };
   components: ActionRowBuilder<ButtonBuilder>[];
 } {
-  const buyId =
-    opts.buyCustomId?.(product.id) ?? `buy:${product.id}`;
+  const buyId = opts.buyCustomId?.(product.id) ?? `buy:${product.id}`;
   const price = BigInt(product.price ?? '0');
   const insufficient =
     opts.userBalance !== undefined && opts.userBalance < price;
