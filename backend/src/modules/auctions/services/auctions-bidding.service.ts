@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import {
   Auction,
   AuctionStatus,
@@ -35,14 +35,32 @@ export class AuctionsBiddingService {
     private dataSource: DataSource,
   ) {}
 
+  /**
+   * 트랜잭션 내에서 경매를 조회하고 creator인지 검증.
+   */
+  private async loadAsCreatorTx(
+    manager: EntityManager,
+    auctionId: string,
+    adminId: string,
+    forbiddenMsg: string,
+  ): Promise<Auction> {
+    const auction = await manager.findOne(Auction, {
+      where: { id: auctionId },
+    });
+    if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
+    if (auction.creatorId !== adminId)
+      throw new BadRequestException(forbiddenMsg);
+    return auction;
+  }
+
   async selectPlayer(auctionId: string, userId: string, playerId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-      if (!auction) throw new BadRequestException('Auction not found');
-      if (auction.creatorId !== userId)
-        throw new BadRequestException('Only creator can select player');
+      const auction = await this.loadAsCreatorTx(
+        manager,
+        auctionId,
+        userId,
+        'Only creator can select player',
+      );
       if (auction.status !== AuctionStatus.ONGOING)
         throw new BadRequestException('Auction is not ongoing');
 
@@ -191,13 +209,12 @@ export class AuctionsBiddingService {
 
   async confirmCurrentBid(auctionId: string, adminId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-      if (auction.creatorId !== adminId)
-        throw new BadRequestException('관리자만 낙찰을 확정할 수 있습니다.');
+      const auction = await this.loadAsCreatorTx(
+        manager,
+        auctionId,
+        adminId,
+        '관리자만 낙찰을 확정할 수 있습니다.',
+      );
       if (!auction.currentBiddingPlayerId)
         throw new BadRequestException('현재 입찰 중인 선수가 없습니다.');
 
@@ -262,13 +279,12 @@ export class AuctionsBiddingService {
 
   async passCurrentPlayer(auctionId: string, adminId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const auction = await manager.findOne(Auction, {
-        where: { id: auctionId },
-      });
-
-      if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-      if (auction.creatorId !== adminId)
-        throw new BadRequestException('관리자만 유찰 처리할 수 있습니다.');
+      const auction = await this.loadAsCreatorTx(
+        manager,
+        auctionId,
+        adminId,
+        '관리자만 유찰 처리할 수 있습니다.',
+      );
       if (!auction.currentBiddingPlayerId)
         throw new BadRequestException('현재 입찰 중인 선수가 없습니다.');
 
