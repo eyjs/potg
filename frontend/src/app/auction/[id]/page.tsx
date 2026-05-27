@@ -1,20 +1,33 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Header } from "@/common/layouts/header"
 import { Button } from "@/common/components/ui/button"
 import { Badge } from "@/common/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card"
-import { ArrowLeft, Shield, Crosshair, Heart, Users, Gavel, Clock, Send, Pause, Play, Check, X, SkipForward, Eye } from "lucide-react"
+import {
+  ArrowLeft,
+  Shield,
+  Crosshair,
+  Heart,
+  Users,
+  Gavel,
+  Clock,
+} from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { cn } from "@/lib/utils"
 import { AuthGuard } from "@/common/components/auth-guard"
 import { useAuctionSocket } from "@/modules/auction/hooks/use-auction-socket"
+import { useAuctionRoom } from "@/modules/auction/hooks/use-auction-room"
 import { MasterControlPanel } from "@/modules/auction/components/master-control-panel"
 import { AuctionTeamPanel } from "@/modules/auction/components/auction-team-panel"
 import { AuctionResultsPoster } from "@/modules/auction/components/auction-results-poster"
 import { AuctionSetupPanel } from "@/modules/auction/components/auction-setup-panel"
+import { AuctionChat } from "@/modules/auction/components/auction-chat"
+import { MobileBidBar } from "@/modules/auction/components/mobile-bid-bar"
+import { MobileAdminBar } from "@/modules/auction/components/mobile-admin-bar"
+import { MobileSpectatorBar } from "@/modules/auction/components/mobile-spectator-bar"
 import { toast } from "sonner"
 
 const roleConfig = {
@@ -33,7 +46,6 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 }
 
 const teamColors = ["#F99E1A", "#00C3FF", "#FF4649", "#00FF88", "#FF00FF", "#FFFF00"]
-
 const DEFAULT_TURN_TIME_LIMIT = 30
 
 export default function AuctionRoomPage() {
@@ -41,10 +53,25 @@ export default function AuctionRoomPage() {
   const auctionId = params.id as string
   const router = useRouter()
   const { user } = useAuth()
-  const [chatInput, setChatInput] = useState("")
-  const [selectedBidAmount, setSelectedBidAmount] = useState(100)
 
-  const [selectedUnsoldPlayer, setSelectedUnsoldPlayer] = useState<string | null>(null)
+  const socket = useAuctionSocket({
+    auctionId,
+    userId: user?.id || "",
+    onError: (error) => toast.error(error.message),
+    onBidPlaced: (data) =>
+      toast(`${data.bidderName}님이 ${data.amount.toLocaleString()}P 입찰!`),
+    onBidConfirmed: (data) =>
+      toast.success(data.auto ? "시간 초과 - 자동 낙찰되었습니다" : "낙찰이 확정되었습니다"),
+    onPlayerPassed: (data) =>
+      toast.info(data.auto ? "입찰 없음 - 자동 유찰되었습니다" : "유찰 처리되었습니다"),
+    onPlayerUndone: () => toast.info("낙찰이 취소되었습니다"),
+    onAssignmentPhaseStarted: () => toast.info("수동 배정 단계로 전환되었습니다"),
+    onPlayerManuallyAssigned: () => {
+      toast.success("선수가 팀에 배정되었습니다")
+      room.setSelectedUnsoldPlayer(null)
+    },
+    onScrimCreated: () => toast.success("스크림이 생성되었습니다!"),
+  })
 
   const {
     isConnected,
@@ -68,48 +95,30 @@ export default function AuctionRoomPage() {
     createScrim,
     sendChatMessage,
     requestRoomState,
-  } = useAuctionSocket({
-    auctionId,
-    userId: user?.id || "",
-    onError: (error) => {
-      toast.error(error.message)
-    },
-    onBidPlaced: (data) => {
-      toast(`${data.bidderName}님이 ${data.amount.toLocaleString()}P 입찰!`)
-    },
-    onBidConfirmed: (data) => {
-      toast.success(data.auto ? "시간 초과 - 자동 낙찰되었습니다" : "낙찰이 확정되었습니다")
-    },
-    onPlayerPassed: (data) => {
-      toast.info(data.auto ? "입찰 없음 - 자동 유찰되었습니다" : "유찰 처리되었습니다")
-    },
-    onPlayerUndone: () => {
-      toast.info("낙찰이 취소되었습니다")
-    },
-    onAssignmentPhaseStarted: () => {
-      toast.info("수동 배정 단계로 전환되었습니다")
-    },
-    onPlayerManuallyAssigned: () => {
-      toast.success("선수가 팀에 배정되었습니다")
-      setSelectedUnsoldPlayer(null)
-    },
-    onScrimCreated: () => {
-      toast.success("스크림이 생성되었습니다!")
-    },
+  } = socket
+
+  const room = useAuctionRoom({
+    user: user
+      ? { id: user.id, role: user.role, battleTag: user.battleTag ?? null }
+      : null,
+    roomState,
+    placeBid,
+    sendChatMessage,
   })
 
-  // Derived state
-  const userRole = useMemo(() => {
-    if (user?.role === "ADMIN" || roomState?.auction?.creatorId === user?.id) return "admin"
-    const myPart = roomState?.participants?.find((p) => p.user?.id === user?.id)
-    if (myPart?.role === "CAPTAIN") return "captain"
-    return "spectator"
-  }, [user, roomState])
-
-  const myTeam = useMemo(() => {
-    if (userRole !== "captain") return null
-    return roomState?.teams?.find((t) => t.captainId === user?.id) || null
-  }, [userRole, roomState, user])
+  const {
+    chatInput,
+    setChatInput,
+    selectedBidAmount,
+    setSelectedBidAmount,
+    selectedUnsoldPlayer,
+    setSelectedUnsoldPlayer,
+    userRole,
+    myTeam,
+    availablePlayers,
+    handleBid,
+    handleSendChat,
+  } = room
 
   const currentPlayer = roomState?.currentPlayer
   const currentBid = roomState?.currentBid
@@ -120,29 +129,13 @@ export default function AuctionRoomPage() {
   const isAssigning = auctionStatus === "ASSIGNING"
   const isCompleted = auctionStatus === "COMPLETED"
   const isBidding = biddingPhase === "BIDDING"
+  const turnTimeLimit =
+    roomState?.auction?.turnTimeLimit || DEFAULT_TURN_TIME_LIMIT
 
-  const availablePlayers = useMemo(() => {
-    if (!roomState) return []
-    return roomState.participants
-      .filter((p) => p.role === "PLAYER" && !p.assignedTeamCaptainId)
-      .map((p) => ({
-        id: p.user?.id || p.id,
-        name: p.user?.battleTag?.split("#")[0] || "선수",
-        role: (p.user?.mainRole?.toLowerCase() || "flex") as keyof typeof roleConfig,
-      }))
-  }, [roomState])
-
-  const handleBid = useCallback(() => {
-    if (!currentPlayer) return
-    const newAmount = (currentBid?.amount || 0) + selectedBidAmount
-    placeBid(currentPlayer.id, newAmount)
-  }, [currentPlayer, currentBid, selectedBidAmount, placeBid])
-
-  const handleSendChat = useCallback(() => {
-    if (!chatInput.trim()) return
-    sendChatMessage(chatInput, user?.battleTag?.split("#")[0] || "익명")
-    setChatInput("")
-  }, [chatInput, sendChatMessage, user])
+  const showMobileNextPlayer = useMemo(
+    () => isActive && !currentPlayer && biddingPhase === "WAITING",
+    [isActive, currentPlayer, biddingPhase],
+  )
 
   if (!isConnected || !roomState) {
     return (
@@ -178,7 +171,7 @@ export default function AuctionRoomPage() {
               <Badge
                 className={cn(
                   "text-xs",
-                  statusConfig[auctionStatus]?.color || "bg-muted"
+                  statusConfig[auctionStatus]?.color || "bg-muted",
                 )}
               >
                 {statusConfig[auctionStatus]?.label || "종료"}
@@ -187,14 +180,13 @@ export default function AuctionRoomPage() {
             <Badge
               className={cn(
                 "skew-btn text-xs",
-                userRole === "admin" ? "bg-destructive" : userRole === "captain" ? "bg-primary" : "bg-muted"
+                userRole === "admin" ? "bg-destructive" : userRole === "captain" ? "bg-primary" : "bg-muted",
               )}
             >
               {userRole.toUpperCase()}
             </Badge>
           </div>
 
-          {/* Mobile Current Player/Bid Info */}
           {isActive && currentPlayer && (
             <div className="px-3 pb-2 space-y-1">
               <div className="flex items-center justify-between text-sm">
@@ -220,17 +212,21 @@ export default function AuctionRoomPage() {
             </div>
           )}
 
-          {/* Mobile Timer Bar */}
           {isActive && currentPlayer && isBidding && (
             <div className="px-3 pb-3">
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className={cn(
                     "h-full transition-all duration-1000",
-                    roomState.auction.timerPaused ? "bg-yellow-500" :
-                    timer > 10 ? "bg-primary" : timer > 5 ? "bg-yellow-500" : "bg-destructive"
+                    roomState.auction.timerPaused
+                      ? "bg-yellow-500"
+                      : timer > 10
+                        ? "bg-primary"
+                        : timer > 5
+                          ? "bg-yellow-500"
+                          : "bg-destructive",
                   )}
-                  style={{ width: `${(timer / (roomState.auction.turnTimeLimit || DEFAULT_TURN_TIME_LIMIT)) * 100}%` }}
+                  style={{ width: `${(timer / turnTimeLimit) * 100}%` }}
                 />
               </div>
               <div className="flex items-center justify-center gap-2 mt-1">
@@ -266,7 +262,7 @@ export default function AuctionRoomPage() {
                   <span
                     className={cn(
                       "text-xl font-black",
-                      timer > 10 ? "text-primary" : timer > 5 ? "text-yellow-500" : "text-destructive"
+                      timer > 10 ? "text-primary" : timer > 5 ? "text-yellow-500" : "text-destructive",
                     )}
                   >
                     {timer}초
@@ -276,7 +272,7 @@ export default function AuctionRoomPage() {
               <Badge
                 className={cn(
                   "skew-btn",
-                  userRole === "admin" ? "bg-destructive" : userRole === "captain" ? "bg-primary" : "bg-muted"
+                  userRole === "admin" ? "bg-destructive" : userRole === "captain" ? "bg-primary" : "bg-muted",
                 )}
               >
                 {userRole.toUpperCase()}
@@ -288,7 +284,7 @@ export default function AuctionRoomPage() {
         {/* Main Content */}
         <div className="flex-1 container px-4 py-4 pb-32 md:pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Player Pool - Hidden on mobile when bidding */}
+            {/* Player Pool */}
             <div className={cn("lg:col-span-3", isActive && currentPlayer ? "hidden md:block" : "block")}>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
@@ -307,7 +303,7 @@ export default function AuctionRoomPage() {
                       const Icon = config.icon
                       const isClickable = userRole === "admin" && isActive
                       const handleSelect = () => isClickable && selectPlayer(player.id)
-                      const isBiddingPlayer = roomState?.auction?.currentBiddingPlayerId === player.id
+                      const isBiddingPlayer = roomState.auction.currentBiddingPlayerId === player.id
                       return (
                         <div
                           key={player.id}
@@ -322,12 +318,10 @@ export default function AuctionRoomPage() {
                           }}
                           className={cn(
                             "flex items-center gap-3 p-2 rounded border transition-colors",
-                            isBiddingPlayer
-                              ? "border-primary bg-primary/10"
-                              : "border-border/50",
+                            isBiddingPlayer ? "border-primary bg-primary/10" : "border-border/50",
                             isClickable && !isBiddingPlayer
                               ? "cursor-pointer hover:bg-muted/50 hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                              : ""
+                              : "",
                           )}
                         >
                           <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", config.bg)}>
@@ -361,7 +355,6 @@ export default function AuctionRoomPage() {
             <div className="lg:col-span-5">
               <Card className="border-border/50">
                 <CardContent className="p-6">
-                  {/* Current Player Display */}
                   <div className="min-h-[250px] flex flex-col items-center justify-center">
                     {currentPlayer ? (
                       <>
@@ -374,7 +367,7 @@ export default function AuctionRoomPage() {
                               className={cn(
                                 "w-36 h-48 md:w-40 md:h-52 rounded-lg border-2 flex flex-col items-center justify-center p-4",
                                 isActive ? "border-primary animate-pulse" : "border-border",
-                                config.bg
+                                config.bg,
                               )}
                             >
                               <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-background/50 flex items-center justify-center mb-3">
@@ -386,7 +379,6 @@ export default function AuctionRoomPage() {
                           )
                         })()}
 
-                        {/* Current Bid Info */}
                         {currentBid && (
                           <div className="mt-4 text-center">
                             <p className="text-muted-foreground text-sm">현재 최고 입찰</p>
@@ -430,7 +422,6 @@ export default function AuctionRoomPage() {
                     )}
                   </div>
 
-                  {/* Desktop Bidding Controls (Captain Only) */}
                   {userRole === "captain" && isActive && currentPlayer && (
                     <div className="hidden md:block mt-6 space-y-3">
                       {myTeam && (
@@ -446,7 +437,7 @@ export default function AuctionRoomPage() {
                             variant={selectedBidAmount === amount ? "default" : "outline"}
                             className={cn(
                               "skew-btn font-bold text-lg",
-                              selectedBidAmount === amount && "bg-primary text-primary-foreground"
+                              selectedBidAmount === amount && "bg-primary text-primary-foreground",
                             )}
                             onClick={() => setSelectedBidAmount(amount)}
                           >
@@ -465,14 +456,12 @@ export default function AuctionRoomPage() {
                     </div>
                   )}
 
-                  {/* Admin Status Note */}
                   {userRole === "admin" && isActive && (
                     <div className="mt-6 text-center text-sm text-muted-foreground">
                       <p>오른쪽 마스터 컨트롤 패널에서 경매를 조작하세요</p>
                     </div>
                   )}
 
-                  {/* Paused Notice */}
                   {isPaused && (
                     <div className="mt-6 text-center">
                       <Badge className="bg-yellow-500 text-white text-lg py-2 px-4">
@@ -481,7 +470,6 @@ export default function AuctionRoomPage() {
                     </div>
                   )}
 
-                  {/* Assignment Phase Notice */}
                   {isAssigning && (
                     <div className="mt-6 text-center">
                       <Badge className="bg-blue-500 text-white text-lg py-2 px-4">
@@ -493,7 +481,6 @@ export default function AuctionRoomPage() {
                     </div>
                   )}
 
-                  {/* Spectator Notice */}
                   {userRole === "spectator" && isActive && (
                     <div className="mt-6 text-center text-muted-foreground">
                       <p>관전 모드 - 입찰에 참여할 수 없습니다</p>
@@ -505,7 +492,6 @@ export default function AuctionRoomPage() {
 
             {/* Teams & Chat */}
             <div className="lg:col-span-4 space-y-4">
-              {/* Auction Setup Panel (Admin Only, PENDING status) */}
               {userRole === "admin" && auctionStatus === "PENDING" && user?.clanId && (
                 <AuctionSetupPanel
                   auctionId={auctionId}
@@ -520,7 +506,6 @@ export default function AuctionRoomPage() {
                 />
               )}
 
-              {/* Master Control Panel (Admin Only) */}
               {userRole === "admin" && (
                 <MasterControlPanel
                   roomState={roomState}
@@ -539,7 +524,6 @@ export default function AuctionRoomPage() {
                 />
               )}
 
-              {/* Teams */}
               <AuctionTeamPanel
                 teams={roomState.teams}
                 unsoldPlayers={roomState.unsoldPlayers}
@@ -551,43 +535,15 @@ export default function AuctionRoomPage() {
                 onSelectUnsoldPlayer={setSelectedUnsoldPlayer}
               />
 
-              {/* Chat */}
-              <Card className="border-border/50 hidden md:block">
-                <CardHeader className="pb-2">
-                  <h3 className="font-bold uppercase tracking-wide">채팅</h3>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48 overflow-y-auto space-y-2 mb-3 bg-muted/30 rounded p-2">
-                    {messages.length === 0 ? (
-                      <p className="text-center text-muted-foreground text-sm py-4">아직 메시지가 없습니다</p>
-                    ) : (
-                      messages.map((msg) => (
-                        <div key={msg.id} className="text-sm">
-                          <span className="font-semibold text-primary">{msg.userName}: </span>
-                          <span>{msg.message}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-                      placeholder="메시지 입력..."
-                      className="flex-1 bg-muted rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <Button size="icon" onClick={handleSendChat}>
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <AuctionChat
+                messages={messages}
+                chatInput={chatInput}
+                onChatInputChange={setChatInput}
+                onSend={handleSendChat}
+              />
             </div>
           </div>
 
-          {/* Results Poster (Completed) */}
           {isCompleted && (
             <div className="mt-8">
               <AuctionResultsPoster
@@ -598,147 +554,37 @@ export default function AuctionRoomPage() {
           )}
         </div>
 
-        {/* Mobile Floating Bid Controls (Captain) */}
+        {/* Mobile Floating bars */}
         {userRole === "captain" && isActive && currentPlayer && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-pb">
-            {myTeam && (
-              <p className="text-center text-sm text-muted-foreground mb-2">
-                보유: <span className="text-primary font-bold">{myTeam.points.toLocaleString()}P</span>
-              </p>
-            )}
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              {[100, 200, 500, 1000].map((amount) => (
-                <Button
-                  key={amount}
-                  size="sm"
-                  variant={selectedBidAmount === amount ? "default" : "outline"}
-                  className={cn("font-bold", selectedBidAmount === amount && "bg-primary text-primary-foreground")}
-                  onClick={() => setSelectedBidAmount(amount)}
-                >
-                  +{amount}
-                </Button>
-              ))}
-            </div>
-            <Button
-              size="lg"
-              className="w-full skew-btn bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg"
-              onClick={handleBid}
-              disabled={!!(myTeam && myTeam.points < (currentBid?.amount || 0) + selectedBidAmount)}
-            >
-              {((currentBid?.amount || 0) + selectedBidAmount).toLocaleString()}P 입찰
-            </Button>
-          </div>
+          <MobileBidBar
+            myTeamPoints={myTeam?.points}
+            currentBidAmount={currentBid?.amount}
+            selectedBidAmount={selectedBidAmount}
+            onSelectAmount={setSelectedBidAmount}
+            onBid={handleBid}
+          />
         )}
 
-        {/* Mobile Floating Admin Controls */}
         {userRole === "admin" && (isActive || isPaused) && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-destructive/10 backdrop-blur-sm border-t border-destructive/30 p-4 safe-area-pb">
-            <div className="space-y-2">
-              {/* Main Controls when bidding */}
-              {currentPlayer && isBidding && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="lg"
-                    className="skew-btn bg-green-600 hover:bg-green-700 text-white font-bold"
-                    onClick={() => confirmBid()}
-                    disabled={!currentBid}
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    낙찰
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="skew-btn border-yellow-500 text-yellow-500 hover:bg-yellow-500/10 font-bold"
-                    onClick={() => passPlayer()}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    유찰
-                  </Button>
-                </div>
-              )}
-
-              {/* Next Player when not bidding */}
-              {isActive && !currentPlayer && biddingPhase === "WAITING" && (
-                <Button
-                  size="lg"
-                  className="w-full skew-btn bg-primary hover:bg-primary/90 font-bold"
-                  onClick={nextPlayer}
-                >
-                  <SkipForward className="w-4 h-4 mr-2" />
-                  다음 선수
-                </Button>
-              )}
-
-              {/* Timer Controls */}
-              <div className="grid grid-cols-2 gap-2">
-                {isPaused ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-green-500 text-green-500 hover:bg-green-500/10"
-                    onClick={resumeAuction}
-                  >
-                    <Play className="w-4 h-4 mr-1" />
-                    경매 재개
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-yellow-500 text-yellow-500 hover:bg-yellow-500/10"
-                    onClick={pauseAuction}
-                  >
-                    <Pause className="w-4 h-4 mr-1" />
-                    일시정지
-                  </Button>
-                )}
-                {roomState.auction.timerPaused ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-green-500 text-green-500 hover:bg-green-500/10"
-                    onClick={resumeTimer}
-                  >
-                    <Play className="w-4 h-4 mr-1" />
-                    타이머 재개
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={pauseTimer}
-                  >
-                    <Pause className="w-4 h-4 mr-1" />
-                    타이머 정지
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+          <MobileAdminBar
+            isPaused={isPaused}
+            isTimerPaused={Boolean(roomState.auction.timerPaused)}
+            hasCurrentPlayer={Boolean(currentPlayer)}
+            isBidding={isBidding}
+            hasCurrentBid={Boolean(currentBid)}
+            canShowNextPlayer={showMobileNextPlayer}
+            onConfirmBid={() => confirmBid()}
+            onPassPlayer={() => passPlayer()}
+            onNextPlayer={nextPlayer}
+            onPauseAuction={pauseAuction}
+            onResumeAuction={resumeAuction}
+            onPauseTimer={pauseTimer}
+            onResumeTimer={resumeTimer}
+          />
         )}
 
-        {/* Mobile Spectator Bottom Bar */}
         {userRole === "spectator" && isActive && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-muted/95 backdrop-blur-sm border-t border-border py-2 px-4 safe-area-pb">
-            <div className="flex items-center justify-center gap-4 text-sm">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Eye className="w-4 h-4" />
-                <span>관전 중</span>
-              </div>
-              {roomState.teams.map((team, index) => (
-                <div key={team.captainId} className="flex items-center gap-1">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: teamColors[index % teamColors.length] }}
-                  />
-                  <span className="font-semibold" style={{ color: teamColors[index % teamColors.length] }}>
-                    {team.members.length}명
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <MobileSpectatorBar teams={roomState.teams} teamColors={teamColors} />
         )}
       </div>
     </AuthGuard>

@@ -41,7 +41,7 @@ export default function LoginPage() {
   const errors = form.formState.errors
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/5 to-transparent rotate-12" />
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-accent/5 to-transparent -rotate-12" />
@@ -86,7 +86,7 @@ export default function LoginPage() {
                   type="text"
                   placeholder="아이디를 입력하세요"
                   {...form.register("username")}
-                  className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
+                  className="bg-ow-dark border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                 />
                 {errors.username && (
                   <p className="text-destructive text-xs">{errors.username.message}</p>
@@ -106,7 +106,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     {...form.register("password")}
-                    className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12"
+                    className="bg-ow-dark border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12"
                   />
                   <button
                     type="button"

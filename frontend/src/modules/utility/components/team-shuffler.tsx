@@ -86,7 +86,7 @@ export default function TeamShuffler() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-[#00c3ff] skew-btn">
+          <div className="p-3 bg-ow-blue skew-btn">
             <Shuffle className="w-6 h-6 text-black" />
           </div>
           <div>
@@ -94,7 +94,7 @@ export default function TeamShuffler() {
             <p className="text-muted-foreground text-sm">Team Shuffle</p>
           </div>
         </div>
-        <Badge variant="outline" className="text-[#00c3ff] border-[#00c3ff]">
+        <Badge variant="outline" className="text-ow-blue border-ow-blue">
           <Users className="w-3 h-3 mr-1" />
           {players.length}명
         </Badge>
@@ -102,7 +102,7 @@ export default function TeamShuffler() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Player Input Section */}
-        <div className="bg-[#1a1a1a] border border-[#333] p-6 space-y-4">
+        <div className="bg-ow-dark border border-[#333] p-6 space-y-4">
           <h3 className="font-bold uppercase tracking-wide text-sm text-muted-foreground">참가자 명단</h3>
 
           {/* Add Player */}
@@ -112,9 +112,9 @@ export default function TeamShuffler() {
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addPlayer()}
-              className="bg-[#0b0b0b] border-[#333]"
+              className="bg-background border-[#333]"
             />
-            <Button onClick={addPlayer} className="skew-btn bg-[#f99e1a] hover:bg-[#f99e1a]/80 text-black">
+            <Button onClick={addPlayer} className="skew-btn bg-ow-orange hover:bg-ow-orange/80 text-black">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -124,7 +124,7 @@ export default function TeamShuffler() {
             {players.map((player, index) => (
               <div
                 key={player.id}
-                className="flex items-center justify-between bg-[#0b0b0b] border border-[#333] px-4 py-2 group hover:border-[#f99e1a]/50 transition-colors"
+                className="flex items-center justify-between bg-background border border-[#333] px-4 py-2 group hover:border-ow-orange/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-muted-foreground text-sm w-6">{index + 1}</span>
@@ -156,7 +156,7 @@ export default function TeamShuffler() {
             <Button
               onClick={shuffleTeams}
               disabled={players.length < 2 || isShuffling}
-              className="flex-1 skew-btn bg-[#00c3ff] hover:bg-[#00c3ff]/80 text-black font-bold uppercase"
+              className="flex-1 skew-btn bg-ow-blue hover:bg-ow-blue/80 text-black font-bold uppercase"
             >
               <span className="flex items-center gap-2">
                 <Shuffle className={`w-4 h-4 ${isShuffling ? "animate-spin" : ""}`} />
@@ -174,7 +174,7 @@ export default function TeamShuffler() {
         </div>
 
         {/* Result Section */}
-        <div className="bg-[#1a1a1a] border border-[#333] p-6 space-y-4">
+        <div className="bg-ow-dark border border-[#333] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold uppercase tracking-wide text-sm text-muted-foreground">결과</h3>
             {result && (
@@ -203,20 +203,20 @@ export default function TeamShuffler() {
             <div className="grid grid-cols-2 gap-4">
               {/* Team A */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#00c3ff]/30">
-                  <div className="w-3 h-3 bg-[#00c3ff] rounded-full" />
-                  <span className="font-bold uppercase text-[#00c3ff]">Team A</span>
-                  <Badge className="bg-[#00c3ff]/20 text-[#00c3ff] ml-auto">{result.teamA.length}명</Badge>
+                <div className="flex items-center gap-2 pb-2 border-b border-ow-blue/30">
+                  <div className="w-3 h-3 bg-ow-blue rounded-full" />
+                  <span className="font-bold uppercase text-ow-blue">Team A</span>
+                  <Badge className="bg-ow-blue/20 text-ow-blue ml-auto">{result.teamA.length}명</Badge>
                 </div>
                 <div className="space-y-2">
                   {result.teamA.map((player, index) => (
                     <div
                       key={player.id}
-                      className="flex items-center gap-2 bg-[#00c3ff]/10 border border-[#00c3ff]/30 px-3 py-2"
+                      className="flex items-center gap-2 bg-ow-blue/10 border border-ow-blue/30 px-3 py-2"
                     >
-                      {index === 0 && <Crown className="w-4 h-4 text-[#f99e1a]" />}
+                      {index === 0 && <Crown className="w-4 h-4 text-ow-orange" />}
                       <Avatar className="w-6 h-6">
-                        <AvatarFallback className="bg-[#00c3ff]/30 text-xs">{player.name.slice(0, 2)}</AvatarFallback>
+                        <AvatarFallback className="bg-ow-blue/30 text-xs">{player.name.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium">{player.name}</span>
                     </div>
@@ -226,20 +226,20 @@ export default function TeamShuffler() {
 
               {/* Team B */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-2 border-b border-[#ff4649]/30">
-                  <div className="w-3 h-3 bg-[#ff4649] rounded-full" />
-                  <span className="font-bold uppercase text-[#ff4649]">Team B</span>
-                  <Badge className="bg-[#ff4649]/20 text-[#ff4649] ml-auto">{result.teamB.length}명</Badge>
+                <div className="flex items-center gap-2 pb-2 border-b border-ow-red/30">
+                  <div className="w-3 h-3 bg-ow-red rounded-full" />
+                  <span className="font-bold uppercase text-ow-red">Team B</span>
+                  <Badge className="bg-ow-red/20 text-ow-red ml-auto">{result.teamB.length}명</Badge>
                 </div>
                 <div className="space-y-2">
                   {result.teamB.map((player, index) => (
                     <div
                       key={player.id}
-                      className="flex items-center gap-2 bg-[#ff4649]/10 border border-[#ff4649]/30 px-3 py-2"
+                      className="flex items-center gap-2 bg-ow-red/10 border border-ow-red/30 px-3 py-2"
                     >
-                      {index === 0 && <Crown className="w-4 h-4 text-[#f99e1a]" />}
+                      {index === 0 && <Crown className="w-4 h-4 text-ow-orange" />}
                       <Avatar className="w-6 h-6">
-                        <AvatarFallback className="bg-[#ff4649]/30 text-xs">{player.name.slice(0, 2)}</AvatarFallback>
+                        <AvatarFallback className="bg-ow-red/30 text-xs">{player.name.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium">{player.name}</span>
                     </div>

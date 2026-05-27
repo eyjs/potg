@@ -23,7 +23,7 @@ export function Header() {
   const { user, isAdmin, logout } = useAuth()
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-[#0B0B0B]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href={user ? "/" : "/login"} className="flex items-center gap-2">

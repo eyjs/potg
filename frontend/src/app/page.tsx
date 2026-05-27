@@ -89,7 +89,7 @@ export default function DashboardPage() {
   if (!user.clanId) {
     if (pendingRequest) {
       return (
-        <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+        <div className="min-h-screen bg-background flex flex-col">
           <Header />
           <main className="container flex-1 flex flex-col items-center justify-center text-center px-4 py-20 relative overflow-hidden">
             <div className="space-y-4">
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     }
 
     return (
-      <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <Header />
         <main className="container flex-1 flex flex-col items-center justify-center text-center px-4 py-20 relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10" />
@@ -145,7 +145,7 @@ export default function DashboardPage() {
   if (isDataLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">데이터 로딩 중...</div>
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
       <Header />
 
       <main className="container px-4 py-6 flex-1">

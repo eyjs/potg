@@ -149,7 +149,7 @@ export default function StatisticsPage() {
   if (!user?.clanId) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0">
+        <div className="min-h-screen bg-background pb-20 md:pb-0">
           <Header />
           <main className="container px-4 py-8 max-w-6xl mx-auto">
             <div className="bg-card border border-border border-dashed p-20 text-center rounded-lg">
@@ -164,7 +164,7 @@ export default function StatisticsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#0B0B0B] pb-20 md:pb-0">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         <Header />
         <main className="container px-4 py-8 max-w-6xl mx-auto space-y-8">
           {/* Header */}

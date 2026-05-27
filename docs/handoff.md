@@ -46,7 +46,8 @@
 | **Step UI Pt.2 + 정산 DM** | ✅ | `6c52af2` | /구매 /순위예측 /관리-베팅마감 step UI + 베팅자 개인 DM (WON/LOST/REFUNDED) |
 | **출석 streak 보너스** | ✅ | `4fe8553` | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
 | **Frontend 정리 A+C** | ✅ | `c818758` | reset-password zod+RHF + vitest 인프라 도입 + schema 단위 테스트 5건 |
-| **Frontend Phase A~C** | ✅ | (이번) | Tier 1 dead code 제거 + /login/security-settings RHF + admin API generic + map-randomizer custom hook (19 tests pass) |
+| **Frontend Phase A~C** | ✅ | `c72c4ab` | Tier 1 dead code 제거 + /login/security-settings RHF + admin API generic + map-randomizer custom hook (19 tests pass) |
+| **Frontend Tier 3+4** | ✅ | (이번) | auction page 746→592 분할 + RTL/hook 테스트 + hex 토큰화(66건) + clan-create RHF (36 tests pass) |
 
 **현재 검증 상태**:
 - backend build ✅

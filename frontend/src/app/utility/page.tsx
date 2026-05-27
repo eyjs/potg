@@ -19,7 +19,7 @@ export default function UtilityPage() {
       subtitle: "Team Shuffle",
       description: "참가자들을 랜덤하게 두 팀으로 나눕니다",
       icon: Shuffle,
-      color: "bg-[#00c3ff]",
+      color: "bg-ow-blue",
     },
     {
       id: "map" as const,
@@ -27,22 +27,22 @@ export default function UtilityPage() {
       subtitle: "Map Randomizer",
       description: "오버워치 맵을 랜덤하게 선택합니다",
       icon: Map,
-      color: "bg-[#f99e1a]",
+      color: "bg-ow-orange",
     },
   ]
 
   return (
     <AuthGuard>
-    <div className="min-h-screen bg-[#0b0b0b]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-[#333] bg-[#1a1a1a]/80 backdrop-blur-md">
+      <div className="border-b border-[#333] bg-ow-dark/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
               <ChevronRight className="w-5 h-5 rotate-180" />
             </Link>
             <div>
-              <h1 className="text-3xl font-black italic uppercase tracking-wider text-[#f99e1a]">Utility</h1>
+              <h1 className="text-3xl font-black italic uppercase tracking-wider text-ow-orange">Utility</h1>
               <p className="text-muted-foreground text-sm">유틸리티 도구 모음</p>
             </div>
           </div>
@@ -57,7 +57,7 @@ export default function UtilityPage() {
               <button
                 key={tool.id}
                 onClick={() => setActiveTool(tool.id)}
-                className="group relative bg-[#1a1a1a] border border-[#333] hover:border-[#f99e1a] transition-all duration-300 overflow-hidden text-left"
+                className="group relative bg-ow-dark border border-[#333] hover:border-ow-orange transition-all duration-300 overflow-hidden text-left"
               >
                 {/* Skewed accent bar */}
                 <div className={`absolute top-0 left-0 w-2 h-full ${tool.color} -skew-x-12 -translate-x-1`} />
@@ -67,7 +67,7 @@ export default function UtilityPage() {
                     <div className={`p-4 ${tool.color} skew-btn`}>
                       <tool.icon className="w-8 h-8 text-black" />
                     </div>
-                    <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-[#f99e1a] group-hover:translate-x-1 transition-all" />
+                    <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:text-ow-orange group-hover:translate-x-1 transition-all" />
                   </div>
 
                   <h2 className="text-2xl font-black italic uppercase tracking-wide mb-1">{tool.title}</h2>

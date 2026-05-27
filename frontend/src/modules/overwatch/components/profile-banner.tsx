@@ -104,7 +104,7 @@ export function ProfileBanner({
         <div className="w-full px-4 pb-4 md:px-6 md:pb-6 flex items-end justify-between gap-4">
           {/* 왼쪽: 아바타 + 정보 */}
           <div className="flex items-end gap-4">
-            <Avatar className="w-20 h-20 md:w-24 md:h-24 border-4 border-[#0B0B0B] shadow-2xl ring-2 ring-primary/30">
+            <Avatar className="w-20 h-20 md:w-24 md:h-24 border-4 border-background shadow-2xl ring-2 ring-primary/30">
               <AvatarImage src={displayAvatar} />
               <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-black">
                 {battleTag?.slice(0, 2).toUpperCase()}

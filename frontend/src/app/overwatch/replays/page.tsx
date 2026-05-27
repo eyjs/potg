@@ -57,7 +57,7 @@ export default function ReplaysPage() {
 
   if (!user.clanId) {
     return (
-      <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <Header />
         <main className="container flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -69,7 +69,7 @@ export default function ReplaysPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
       <Header />
 
       <main className="container px-4 py-6 flex-1">

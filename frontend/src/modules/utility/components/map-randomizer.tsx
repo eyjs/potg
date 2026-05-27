@@ -44,7 +44,7 @@ export default function MapRandomizer() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-[#f99e1a] skew-btn">
+          <div className="p-3 bg-ow-orange skew-btn">
             <Map className="w-6 h-6 text-black" />
           </div>
           <div>
@@ -55,7 +55,7 @@ export default function MapRandomizer() {
         <Button
           variant="outline"
           onClick={() => setShowFilter(!showFilter)}
-          className={`skew-btn ${showFilter ? "border-[#f99e1a] text-[#f99e1a]" : ""}`}
+          className={`skew-btn ${showFilter ? "border-ow-orange text-ow-orange" : ""}`}
         >
           <Filter className="w-4 h-4 mr-2" />
           <span>필터</span>
@@ -63,7 +63,7 @@ export default function MapRandomizer() {
       </div>
 
       {showFilter && (
-        <div className="bg-[#1a1a1a] border border-[#333] p-6 space-y-4">
+        <div className="bg-ow-dark border border-[#333] p-6 space-y-4">
           <h3 className="font-bold uppercase tracking-wide text-sm text-muted-foreground mb-4">맵 타입 필터</h3>
           <div className="flex flex-wrap gap-3">
             {(Object.keys(mapTypeLabels) as MapType[]).map((type) => (
@@ -110,13 +110,13 @@ export default function MapRandomizer() {
           </div>
 
           <div className="text-sm text-muted-foreground">
-            선택 가능한 맵: <span className="text-[#f99e1a] font-bold">{availableMaps.length}</span>개
+            선택 가능한 맵: <span className="text-ow-orange font-bold">{availableMaps.length}</span>개
           </div>
         </div>
       )}
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-[#1a1a1a] border border-[#333] p-6">
+        <div className="lg:col-span-2 bg-ow-dark border border-[#333] p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold uppercase tracking-wide text-sm text-muted-foreground">추첨 결과</h3>
             {selectedMap && (
@@ -162,7 +162,7 @@ export default function MapRandomizer() {
 
                 {isSpinning && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Dices className="w-16 h-16 text-[#f99e1a] animate-spin" />
+                    <Dices className="w-16 h-16 text-ow-orange animate-spin" />
                   </div>
                 )}
               </div>
@@ -170,7 +170,7 @@ export default function MapRandomizer() {
               <Button
                 onClick={randomize}
                 disabled={availableMaps.length === 0 || isSpinning}
-                className="w-full skew-btn bg-[#f99e1a] hover:bg-[#f99e1a]/80 text-black font-bold uppercase text-lg py-6"
+                className="w-full skew-btn bg-ow-orange hover:bg-ow-orange/80 text-black font-bold uppercase text-lg py-6"
               >
                 <span className="flex items-center gap-2">
                   <Dices className={`w-5 h-5 ${isSpinning ? "animate-spin" : ""}`} />
@@ -186,7 +186,7 @@ export default function MapRandomizer() {
               <Button
                 onClick={randomize}
                 disabled={availableMaps.length === 0}
-                className="skew-btn bg-[#f99e1a] hover:bg-[#f99e1a]/80 text-black font-bold uppercase text-lg px-12 py-6"
+                className="skew-btn bg-ow-orange hover:bg-ow-orange/80 text-black font-bold uppercase text-lg px-12 py-6"
               >
                 <span className="flex items-center gap-2">
                   <Dices className="w-5 h-5" />맵 추첨
@@ -196,7 +196,7 @@ export default function MapRandomizer() {
           )}
         </div>
 
-        <div className="bg-[#1a1a1a] border border-[#333] p-6">
+        <div className="bg-ow-dark border border-[#333] p-6">
           <h3 className="font-bold uppercase tracking-wide text-sm text-muted-foreground mb-4">추첨 기록</h3>
 
           {history.length > 0 ? (
@@ -205,7 +205,7 @@ export default function MapRandomizer() {
                 <div
                   key={`${map.id}-${index}`}
                   className={`flex items-center gap-3 p-3 border transition-all ${
-                    index === 0 ? "border-[#f99e1a] bg-[#f99e1a]/10" : "border-[#333] opacity-70"
+                    index === 0 ? "border-ow-orange bg-ow-orange/10" : "border-[#333] opacity-70"
                   }`}
                 >
                   <div className="w-2 h-8 rounded-full" style={{ backgroundColor: mapTypeLabels[map.type].color }} />
@@ -213,7 +213,7 @@ export default function MapRandomizer() {
                     <p className="font-medium truncate">{map.nameKr}</p>
                     <p className="text-xs text-muted-foreground">{mapTypeLabels[map.type].label}</p>
                   </div>
-                  {index === 0 && <Badge className="bg-[#f99e1a] text-black text-xs">최근</Badge>}
+                  {index === 0 && <Badge className="bg-ow-orange text-black text-xs">최근</Badge>}
                 </div>
               ))}
             </div>

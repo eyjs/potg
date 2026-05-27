@@ -10,7 +10,7 @@ export default function Error({
   reset: () => void
 }) {
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-500/5 rounded-full blur-3xl -z-10" />
 
       <h1 className="text-[8rem] md:text-[12rem] font-black italic uppercase leading-none tracking-tighter text-red-500/20 select-none">

@@ -54,7 +54,7 @@ export default function JoinClanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B]">
+    <div className="min-h-screen bg-background">
       <Header />
       <main className="container px-4 py-8">
         <h1 className="text-3xl font-black italic uppercase tracking-wider text-foreground mb-8">

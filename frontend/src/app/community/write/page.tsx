@@ -20,7 +20,7 @@ export default function CommunityWritePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-primary font-bold">로딩 중...</div>
@@ -32,7 +32,7 @@ export default function CommunityWritePage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
       <Header />
 
       <main className="container px-4 py-6 flex-1 max-w-2xl mx-auto">

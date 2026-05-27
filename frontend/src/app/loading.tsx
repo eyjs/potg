@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header skeleton */}
       <div className="h-16 border-b border-border/30 px-4 flex items-center justify-between">
         <div className="h-6 w-32 bg-muted/20 animate-pulse rounded" />
