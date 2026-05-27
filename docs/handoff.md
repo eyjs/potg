@@ -45,7 +45,8 @@
 | **Step UI Pt.1** | ✅ | `e3cbb60` | /베팅 /관리-정산 → 3-step Select+Modal+Button (UUID 입력 제거) |
 | **Step UI Pt.2 + 정산 DM** | ✅ | `6c52af2` | /구매 /순위예측 /관리-베팅마감 step UI + 베팅자 개인 DM (WON/LOST/REFUNDED) |
 | **출석 streak 보너스** | ✅ | `4fe8553` | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
-| **Frontend 정리 A+C** | ✅ | (이번) | reset-password zod+RHF + vitest 인프라 도입 + schema 단위 테스트 5건 |
+| **Frontend 정리 A+C** | ✅ | `c818758` | reset-password zod+RHF + vitest 인프라 도입 + schema 단위 테스트 5건 |
+| **Frontend Phase A~C** | ✅ | (이번) | Tier 1 dead code 제거 + /login/security-settings RHF + admin API generic + map-randomizer custom hook (19 tests pass) |
 
 **현재 검증 상태**:
 - backend build ✅

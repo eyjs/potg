@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/lib/api"
-import type { ScrimResult, ScrimRankingEntry, TeamRanking } from "../types"
+import type { ScrimResult, TeamRanking } from "../types"
 
 export function useScrimResult(auctionId: string | undefined) {
   return useQuery<ScrimResult | null>({
@@ -10,30 +10,6 @@ export function useScrimResult(auctionId: string | undefined) {
       return res.data
     },
     enabled: !!auctionId,
-  })
-}
-
-export function useScrimRanking(limit = 50) {
-  return useQuery<ScrimRankingEntry[]>({
-    queryKey: ["scrim-ranking", limit],
-    queryFn: async () => {
-      const res = await api.get("/scrim-results/ranking", {
-        params: { limit },
-      })
-      return res.data
-    },
-  })
-}
-
-export function useActivityRanking(limit = 50) {
-  return useQuery<ScrimRankingEntry[]>({
-    queryKey: ["activity-ranking", limit],
-    queryFn: async () => {
-      const res = await api.get("/wallet/ranking/activity", {
-        params: { limit },
-      })
-      return res.data
-    },
   })
 }
 
@@ -68,8 +44,6 @@ export function useConfirmScrimResult() {
       queryClient.invalidateQueries({
         queryKey: ["scrim-result", data.auctionId],
       })
-      queryClient.invalidateQueries({ queryKey: ["scrim-ranking"] })
-      queryClient.invalidateQueries({ queryKey: ["activity-ranking"] })
     },
   })
 }

@@ -23,11 +23,6 @@ export interface MemberListParams {
   take?: number
 }
 
-export interface MemberListResponse {
-  data: AdminMember[]
-  total: number
-}
-
 export interface AdjustPointsDto {
   delta: number
   memo: string
@@ -35,17 +30,19 @@ export interface AdjustPointsDto {
 
 export const membersApi = {
   list: (params: MemberListParams): Promise<AdminMember[]> =>
-    api.get('/admin/members', { params }).then((r) => r.data),
+    api.get<AdminMember[]>('/admin/members', { params }).then((r) => r.data),
 
   detail: (id: string): Promise<AdminMemberDetail> =>
-    api.get(`/admin/members/${id}`).then((r) => r.data),
+    api.get<AdminMemberDetail>(`/admin/members/${id}`).then((r) => r.data),
 
   updateRole: (
     id: string,
     role: 'USER' | 'CAPTAIN' | 'ADMIN',
   ): Promise<AdminMember> =>
-    api.patch(`/admin/members/${id}/role`, { role }).then((r) => r.data),
+    api
+      .patch<AdminMember>(`/admin/members/${id}/role`, { role })
+      .then((r) => r.data),
 
   adjustPoints: (id: string, dto: AdjustPointsDto): Promise<void> =>
-    api.post(`/admin/members/${id}/adjust`, dto).then((r) => r.data),
+    api.post<void>(`/admin/members/${id}/adjust`, dto).then((r) => r.data),
 }

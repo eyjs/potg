@@ -44,18 +44,20 @@ export interface LedgerTimeseriesParams {
 
 export const ledgerApi = {
   list: (params?: LedgerListParams): Promise<PointTx[]> =>
-    api.get('/admin/ledger', { params }).then((r) => r.data),
+    api.get<PointTx[]>('/admin/ledger', { params }).then((r) => r.data),
 
   summary: (): Promise<LedgerSummary> =>
-    api.get('/admin/ledger/summary').then((r) => r.data),
+    api.get<LedgerSummary>('/admin/ledger/summary').then((r) => r.data),
 
-  timeseries: (params?: LedgerTimeseriesParams): Promise<LedgerTimeseriesPoint[]> =>
+  timeseries: (
+    params?: LedgerTimeseriesParams,
+  ): Promise<LedgerTimeseriesPoint[]> =>
     api
-      .get('/admin/ledger/timeseries', {
+      .get<RawTimeseriesPoint[]>('/admin/ledger/timeseries', {
         params: { bucket: params?.bucket ?? 'day', days: params?.days ?? 30 },
       })
       .then((r) =>
-        (r.data as RawTimeseriesPoint[]).map((p) => ({
+        r.data.map((p) => ({
           date: p.date,
           minted: Number(p.minted),
           burned: Number(p.burned),

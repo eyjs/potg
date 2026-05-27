@@ -1,10 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Eye, EyeOff, LogIn, Shield } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
@@ -12,23 +12,24 @@ import { Label } from "@/common/components/ui/label"
 import { Checkbox } from "@/common/components/ui/checkbox"
 import { useAuth } from "@/context/auth-context"
 import { handleApiError } from "@/lib/api-error"
+import { loginSchema, type LoginFormValues } from "@/modules/auth/schemas/login.schema"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-    rememberMe: false,
+
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: "onSubmit",
+    defaultValues: { username: "", password: "", rememberMe: false },
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onValid = async (values: LoginFormValues) => {
     setIsLoading(true)
     try {
-      await login({ username: formData.username, password: formData.password })
+      await login({ username: values.username, password: values.password })
       router.replace("/")
     } catch (error) {
       handleApiError(error, "로그인 실패: 아이디나 비밀번호를 확인해주세요.")
@@ -37,13 +38,13 @@ export default function LoginPage() {
     }
   }
 
+  const errors = form.formState.errors
+
   return (
     <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
-      {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/5 to-transparent rotate-12" />
         <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-accent/5 to-transparent -rotate-12" />
-        {/* Grid pattern */}
         <div
           className="absolute inset-0 opacity-5"
           style={{
@@ -54,7 +55,6 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* Header */}
       <header className="relative z-10 p-6">
         <Link href="/" className="flex items-center gap-2 w-fit">
           <div className="h-10 w-10 bg-primary skew-btn flex items-center justify-center">
@@ -66,22 +66,17 @@ export default function LoginPage() {
         </Link>
       </header>
 
-      {/* Main Content */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
-          {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-extrabold italic uppercase tracking-wider text-foreground mb-2">로그인</h1>
             <p className="text-muted-foreground">POTG에 오신 것을 환영합니다</p>
           </div>
 
-          {/* Login Form Card */}
           <div className="bg-card/80 backdrop-blur-sm border border-border/50 p-6 relative overflow-hidden">
-            {/* Accent line */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-accent" />
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Username */}
+            <form onSubmit={form.handleSubmit(onValid)} className="space-y-5" noValidate>
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   아이디
@@ -90,14 +85,14 @@ export default function LoginPage() {
                   id="username"
                   type="text"
                   placeholder="아이디를 입력하세요"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  required
+                  {...form.register("username")}
                   className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50"
                 />
+                {errors.username && (
+                  <p className="text-destructive text-xs">{errors.username.message}</p>
+                )}
               </div>
 
-              {/* Password */}
               <div className="space-y-2">
                 <Label
                   htmlFor="password"
@@ -110,9 +105,7 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
+                    {...form.register("password")}
                     className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12"
                   />
                   <button
@@ -123,16 +116,24 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {errors.password && (
+                  <p className="text-destructive text-xs">{errors.password.message}</p>
+                )}
               </div>
 
-              {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="remember"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) => setFormData({ ...formData, rememberMe: checked as boolean })}
-                    className="border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  <Controller
+                    control={form.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <Checkbox
+                        id="remember"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                        className="border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    )}
                   />
                   <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
                     로그인 상태 유지
@@ -143,10 +144,9 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || form.formState.isSubmitting}
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider skew-btn"
               >
                 <span className="flex items-center justify-center gap-2">
@@ -166,7 +166,6 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* Sign Up Notice */}
           <div className="text-center mt-6">
             <p className="text-muted-foreground text-sm">
               계정 등록은 관리자에게 문의하세요.
@@ -175,7 +174,6 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 p-6 text-center text-sm text-muted-foreground">
         <div className="flex items-center justify-center gap-1">
           <Shield className="w-4 h-4 text-primary" />

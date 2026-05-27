@@ -13,7 +13,7 @@ export interface MatchTeam {
   members: MatchTeamMember[]
 }
 
-export interface MatchTeamMember {
+interface MatchTeamMember {
   id: string
   userId: string
   username: string
@@ -53,26 +53,30 @@ export interface SettleMatchDto {
 
 export const matchesApi = {
   list: (params?: MatchListParams): Promise<AdminMatch[]> =>
-    api.get('/admin/matches', { params }).then((r) => r.data),
+    api.get<AdminMatch[]>('/admin/matches', { params }).then((r) => r.data),
 
   detail: (id: string): Promise<AdminMatch> =>
-    api.get(`/admin/matches/${id}`).then((r) => r.data),
+    api.get<AdminMatch>(`/admin/matches/${id}`).then((r) => r.data),
 
   create: (dto: CreateMatchDto): Promise<AdminMatch> =>
-    api.post('/admin/matches', dto).then((r) => r.data),
+    api.post<AdminMatch>('/admin/matches', dto).then((r) => r.data),
 
   addTeam: (matchId: string, dto: CreateTeamDto): Promise<MatchTeam> =>
-    api.post(`/admin/matches/${matchId}/teams`, dto).then((r) => r.data),
+    api
+      .post<MatchTeam>(`/admin/matches/${matchId}/teams`, dto)
+      .then((r) => r.data),
 
   open: (id: string): Promise<AdminMatch> =>
-    api.post(`/admin/matches/${id}/open`).then((r) => r.data),
+    api.post<AdminMatch>(`/admin/matches/${id}/open`).then((r) => r.data),
 
   lock: (id: string): Promise<AdminMatch> =>
-    api.post(`/admin/matches/${id}/lock`).then((r) => r.data),
+    api.post<AdminMatch>(`/admin/matches/${id}/lock`).then((r) => r.data),
 
   settle: (id: string, dto: SettleMatchDto): Promise<AdminMatch> =>
-    api.post(`/admin/matches/${id}/settle`, dto).then((r) => r.data),
+    api
+      .post<AdminMatch>(`/admin/matches/${id}/settle`, dto)
+      .then((r) => r.data),
 
   cancel: (id: string): Promise<AdminMatch> =>
-    api.post(`/admin/matches/${id}/cancel`).then((r) => r.data),
+    api.post<AdminMatch>(`/admin/matches/${id}/cancel`).then((r) => r.data),
 }

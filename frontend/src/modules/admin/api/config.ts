@@ -14,11 +14,13 @@ export interface UpdateConfigDto {
 
 export const configApi = {
   list: (): Promise<SystemConfig[]> =>
-    api.get('/admin/config').then((r) => r.data),
+    api.get<SystemConfig[]>('/admin/config').then((r) => r.data),
 
   get: (key: string): Promise<SystemConfig> =>
-    api.get(`/admin/config/${key}`).then((r) => r.data),
+    api.get<SystemConfig>(`/admin/config/${key}`).then((r) => r.data),
 
   update: (key: string, dto: UpdateConfigDto): Promise<SystemConfig> =>
-    api.patch(`/admin/config/${key}`, dto).then((r) => r.data),
+    api
+      .patch<SystemConfig>(`/admin/config/${key}`, dto)
+      .then((r) => r.data),
 }

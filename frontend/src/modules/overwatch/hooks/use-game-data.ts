@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import api from '@/lib/api'
 import { handleApiError } from '@/lib/api-error'
-import type { Hero, HeroDetail, GameMap, Gamemode, Role } from '../types'
+import type { Hero, HeroDetail, GameMap, Gamemode } from '../types'
 
 export function useHeroes() {
   const [heroes, setHeroes] = useState<Hero[]>([])
@@ -96,23 +96,3 @@ export function useGamemodes() {
   return { gamemodes, isLoading }
 }
 
-export function useRoles() {
-  const [roles, setRoles] = useState<Role[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const res = await api.get<Role[]>('/overwatch/roles')
-        setRoles(res.data)
-      } catch (error) {
-        handleApiError(error, '역할 조회 실패')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchRoles()
-  }, [])
-
-  return { roles, isLoading }
-}

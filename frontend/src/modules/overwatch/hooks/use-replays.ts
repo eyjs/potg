@@ -50,29 +50,6 @@ export function useReplays(query?: ReplaysQuery) {
   return { replays, total, isLoading, refetch: fetchReplays }
 }
 
-export function useMyReplays() {
-  const [replays, setReplays] = useState<Replay[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const fetchReplays = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const res = await api.get<Replay[]>('/replays/mine')
-      setReplays(res.data)
-    } catch (error) {
-      handleApiError(error, '내 리플레이 조회 실패')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchReplays()
-  }, [fetchReplays])
-
-  return { replays, isLoading, refetch: fetchReplays }
-}
-
 export function useReplayStats() {
   const [stats, setStats] = useState<ReplayStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
