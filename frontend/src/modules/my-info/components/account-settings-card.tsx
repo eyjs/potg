@@ -1,7 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/common/components/ui/card"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/common/components/ui/card"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
@@ -10,6 +18,10 @@ import { ImageUploader } from "@/components/image-uploader"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/api-error"
+import {
+  updateProfileSchema,
+  type UpdateProfileFormValues,
+} from "@/modules/my-info/schemas/update-profile.schema"
 
 interface AccountSettingsCardProps {
   username: string
@@ -25,19 +37,22 @@ export function AccountSettingsCard({
   onSuccess,
 }: AccountSettingsCardProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    battleTag: initialBattleTag,
-    avatarUrl: initialAvatarUrl,
+  const form = useForm<UpdateProfileFormValues>({
+    resolver: zodResolver(updateProfileSchema),
+    mode: "onSubmit",
+    defaultValues: {
+      battleTag: initialBattleTag,
+      avatarUrl: initialAvatarUrl,
+    },
   })
+  const errors = form.formState.errors
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onValid = async (values: UpdateProfileFormValues) => {
     setIsLoading(true)
-
     try {
       await api.patch("/users/me", {
-        battleTag: formData.battleTag,
-        avatarUrl: formData.avatarUrl,
+        battleTag: values.battleTag,
+        avatarUrl: values.avatarUrl,
       })
       toast.success("프로필 정보가 저장되었습니다.")
       onSuccess?.()
@@ -57,7 +72,7 @@ export function AccountSettingsCard({
         <CardDescription>공개적으로 표시되는 정보를 변경합니다.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onValid)} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-xs uppercase font-bold text-muted-foreground">
@@ -75,24 +90,32 @@ export function AccountSettingsCard({
               </Label>
               <Input
                 id="battleTag"
-                value={formData.battleTag}
-                onChange={(e) => setFormData({ ...formData, battleTag: e.target.value })}
+                {...form.register("battleTag")}
                 className="bg-input border-border focus:border-primary transition-all"
               />
+              {errors.battleTag && (
+                <p className="text-destructive text-xs">{errors.battleTag.message}</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
             <Label className="text-xs uppercase font-bold text-primary">프로필 이미지</Label>
-            <ImageUploader
-              value={formData.avatarUrl ? [formData.avatarUrl] : []}
-              onChange={(urls) => setFormData({ ...formData, avatarUrl: urls[0] || "" })}
-              maxCount={1}
+            <Controller
+              control={form.control}
+              name="avatarUrl"
+              render={({ field }) => (
+                <ImageUploader
+                  value={field.value ? [field.value] : []}
+                  onChange={(urls) => field.onChange(urls[0] || "")}
+                  maxCount={1}
+                />
+              )}
             />
           </div>
           <div className="pt-2 flex justify-end">
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || form.formState.isSubmitting}
               className="bg-primary text-black font-black uppercase px-8 rounded-md h-11 transition-transform active:scale-95"
             >
               변경사항 저장
