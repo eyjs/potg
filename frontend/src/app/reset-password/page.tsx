@@ -1,10 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Eye, EyeOff, Shield, CheckCircle, XCircle, Check, X, KeyRound } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
@@ -12,6 +12,10 @@ import { Label } from "@/common/components/ui/label"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/api-error"
+import {
+  resetPasswordSchema,
+  type ResetPasswordFormValues,
+} from "@/modules/auth/schemas/reset-password.schema"
 
 function ResetPasswordContent() {
   const router = useRouter()
@@ -24,19 +28,22 @@ function ResetPasswordContent() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    password: "",
-    confirmPassword: "",
+
+  const form = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    mode: "onChange",
+    defaultValues: { password: "", confirmPassword: "" },
   })
 
+  // 실시간 체크리스트용 — RHF watch 로 매 입력마다 재계산.
+  const password = form.watch("password")
+  const confirmPassword = form.watch("confirmPassword")
   const passwordChecks = {
-    length: formData.password.length >= 8,
-    hasNumber: /\d/.test(formData.password),
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
-    match: formData.password === formData.confirmPassword && formData.confirmPassword.length > 0,
+    length: password.length >= 8,
+    hasNumber: /\d/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    match: password === confirmPassword && confirmPassword.length > 0,
   }
-
-  const isFormValid = passwordChecks.length && passwordChecks.hasNumber && passwordChecks.match
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -56,18 +63,16 @@ function ResetPasswordContent() {
       }
     }
 
-    verifyToken()
+    void verifyToken()
   }, [token])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!isFormValid || !token) return
-
+  const onValid = async (values: ResetPasswordFormValues) => {
+    if (!token) return
     setIsLoading(true)
     try {
       await api.post("/auth/reset-password", {
         token,
-        password: formData.password,
+        password: values.password,
       })
       setIsSuccess(true)
       toast.success("비밀번호가 성공적으로 변경되었습니다.")
@@ -149,6 +154,9 @@ function ResetPasswordContent() {
     )
   }
 
+  const confirmError = form.formState.errors.confirmPassword?.message
+  const passwordError = form.formState.errors.password?.message
+
   return (
     <div className="min-h-screen bg-[#0B0B0B] flex flex-col">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -204,7 +212,7 @@ function ResetPasswordContent() {
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={form.handleSubmit(onValid)} className="space-y-5" noValidate>
                 <div className="space-y-2">
                   <Label
                     htmlFor="password"
@@ -217,9 +225,7 @@ function ResetPasswordContent() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="새 비밀번호를 입력하세요"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
+                      {...form.register("password")}
                       className="bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12"
                     />
                     <button
@@ -235,6 +241,9 @@ function ResetPasswordContent() {
                     <PasswordCheck valid={passwordChecks.hasNumber} label="숫자 포함" />
                     <PasswordCheck valid={passwordChecks.hasSpecial} label="특수문자 포함 (선택)" />
                   </div>
+                  {passwordError && (
+                    <p className="text-destructive text-xs">{passwordError}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -249,11 +258,9 @@ function ResetPasswordContent() {
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="비밀번호를 다시 입력하세요"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      required
+                      {...form.register("confirmPassword")}
                       className={`bg-[#1a1a1a] border-border/50 focus:border-primary h-12 text-foreground placeholder:text-muted-foreground/50 pr-12 ${
-                        formData.confirmPassword && !passwordChecks.match ? "border-destructive" : ""
+                        confirmPassword && !passwordChecks.match ? "border-destructive" : ""
                       }`}
                     />
                     <button
@@ -264,17 +271,20 @@ function ResetPasswordContent() {
                       {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  {formData.confirmPassword && (
+                  {confirmPassword && (
                     <PasswordCheck
                       valid={passwordChecks.match}
                       label={passwordChecks.match ? "비밀번호 일치" : "비밀번호가 일치하지 않습니다"}
                     />
                   )}
+                  {confirmError && (
+                    <p className="text-destructive text-xs">{confirmError}</p>
+                  )}
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={isLoading || !isFormValid}
+                  disabled={isLoading || !form.formState.isValid}
                   className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider skew-btn disabled:opacity-50"
                 >
                   <span className="flex items-center justify-center gap-2">

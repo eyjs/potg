@@ -44,7 +44,8 @@
 | **팀나누기 단순화** | ✅ | `ceeb466` | 컨펌 버튼 + 현재 채널 재사용 + 빈 채널 자동 탐색 |
 | **Step UI Pt.1** | ✅ | `e3cbb60` | /베팅 /관리-정산 → 3-step Select+Modal+Button (UUID 입력 제거) |
 | **Step UI Pt.2 + 정산 DM** | ✅ | `6c52af2` | /구매 /순위예측 /관리-베팅마감 step UI + 베팅자 개인 DM (WON/LOST/REFUNDED) |
-| **출석 streak 보너스** | ✅ | (이번) | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
+| **출석 streak 보너스** | ✅ | `4fe8553` | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
+| **Frontend 정리 A+C** | ✅ | (이번) | reset-password zod+RHF + vitest 인프라 도입 + schema 단위 테스트 5건 |
 
 **현재 검증 상태**:
 - backend build ✅
