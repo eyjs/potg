@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Menu, Shield, LogIn, LogOut, User, Settings, Database, Film } from "lucide-react"
+import { Menu, Shield, LogIn, LogOut, Wrench, LayoutDashboard } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -13,10 +13,9 @@ import {
 } from "@/common/components/ui/dropdown-menu"
 
 const navItems = [
-  { href: "/", label: "로비" },
-  { href: "/auction", label: "경매장" },
-  { href: "/community", label: "커뮤니티" },
-  { href: "/utility", label: "유틸리티" },
+  { href: "/", label: "대시보드", icon: LayoutDashboard },
+  { href: "/admin", label: "운영", icon: Shield },
+  { href: "/utility", label: "유틸리티", icon: Wrench },
 ]
 
 export function Header() {
@@ -25,7 +24,6 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
-        {/* Logo */}
         <Link href={user ? "/" : "/login"} className="flex items-center gap-2">
           <div className="h-10 w-10 bg-primary skew-btn flex items-center justify-center">
             <span className="text-primary-foreground font-extrabold text-lg italic">P</span>
@@ -35,7 +33,6 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Desktop Navigation - Only show if logged in */}
         {user && (
           <nav className="hidden md:flex items-center gap-2">
             {navItems.map((item) => (
@@ -47,14 +44,16 @@ export function Header() {
                     "hover:bg-primary/20 hover:text-primary transition-all",
                   )}
                 >
-                  <span>{item.label}</span>
+                  <span className="flex items-center gap-2">
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </span>
                 </Button>
               </Link>
             ))}
           </nav>
         )}
 
-        {/* User & Admin Badge */}
         <div className="flex items-center gap-2">
           {user && isAdmin && (
             <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-destructive/20 border border-destructive/50 rounded text-xs text-destructive font-semibold">
@@ -71,33 +70,10 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-card border-border min-w-[150px]">
-                <Link href="/my-info">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <User className="w-4 h-4 mr-2" />
-                    내 정보
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/overwatch/database">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Database className="w-4 h-4 mr-2" />
-                    영웅/맵 DB
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/overwatch/replays">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Film className="w-4 h-4 mr-2" />
-                    리플레이 코드
-                  </DropdownMenuItem>
-                </Link>
-                {user.clanId && (user.clanRole === 'MASTER' || user.clanRole === 'MANAGER') && (
-                  <Link href="/clan/manage">
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
-                      클랜 관리
-                    </DropdownMenuItem>
-                  </Link>
-                )}
-                <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={logout}>
+                <DropdownMenuItem
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                  onClick={logout}
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   로그아웃
                 </DropdownMenuItem>

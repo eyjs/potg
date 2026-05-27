@@ -9,8 +9,6 @@ import { MotionProvider } from "@/providers/motion-provider"
 import { ConfirmProvider } from "@/common/components/confirm-dialog"
 import { Toaster } from "sonner"
 
-import { BottomNav } from "@/common/layouts/bottom-nav"
-
 const exo2 = Exo_2({
   subsets: ["latin"],
   variable: "--font-exo2",
@@ -35,14 +33,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${exo2.className} antialiased pb-16 md:pb-0`}>
+      <body className={`${exo2.className} antialiased`}>
         <QueryProvider>
           <AuthProvider>
             <ConfirmProvider>
               <MotionProvider>
                 {children}
               </MotionProvider>
-              <BottomNav />
               <Toaster position="top-center" richColors />
             </ConfirmProvider>
           </AuthProvider>

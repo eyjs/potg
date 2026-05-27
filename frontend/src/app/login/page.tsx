@@ -139,9 +139,6 @@ export default function LoginPage() {
                     로그인 상태 유지
                   </Label>
                 </div>
-                <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80 transition-colors">
-                  비밀번호 찾기
-                </Link>
               </div>
 
               <Button

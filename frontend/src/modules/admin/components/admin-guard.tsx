@@ -23,7 +23,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
     if (!isAdmin) {
       toast.error('권한 없음', { description: '관리자만 접근할 수 있습니다.' })
-      router.replace('/')
+      router.replace('/utility')
     }
   }, [user, isLoading, isAdmin, router])
 

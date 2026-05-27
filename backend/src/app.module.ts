@@ -18,17 +18,11 @@ import { UsersModule } from './modules/users/users.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ClansModule } from './modules/clans/clans.module';
-import { VotesModule } from './modules/votes/votes.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { BettingModule } from './modules/betting/betting.module';
-import { BlindDateModule } from './modules/blind-date/blind-date.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
-import { OverwatchModule } from './modules/overwatch/overwatch.module';
-import { ProfilesModule } from './modules/profiles/profiles.module';
-import { PostsModule } from './modules/posts/posts.module';
-import { ScrimResultsModule } from './modules/scrim-results/scrim-results.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { MatchesModule } from './modules/matches/matches.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
@@ -138,17 +132,11 @@ import { HealthModule } from './modules/health/health.module';
     UsersModule,
     ClansModule,
     AuctionsModule,
-    VotesModule,
     ShopModule,
     BettingModule,
-    BlindDateModule,
     WalletModule,
     UploadsModule,
     AttendanceModule,
-    OverwatchModule,
-    ProfilesModule,
-    PostsModule,
-    ScrimResultsModule,
     // === Phase 1 (Discord refactor) 신규 모듈 ===
     LedgerModule,
     MatchesModule,
