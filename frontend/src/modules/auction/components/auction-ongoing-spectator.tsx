@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/common/components/ui/card'
 import { Eye } from 'lucide-react'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
-import { TeamRosters } from './parts/team-rosters'
+import { TeamSidebar } from './parts/team-sidebar'
+import { PlayerQueue } from './parts/player-queue'
 import type { RoomState } from '../types'
 
 interface Props {
@@ -19,7 +20,7 @@ export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
   return (
     <div className="space-y-4">
       <Card className="bg-card border-border">
-        <CardContent className="py-4 flex items-center justify-between gap-4">
+        <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0 flex items-center gap-3">
             <Eye className="w-5 h-5 text-muted-foreground" />
             <div>
@@ -27,7 +28,7 @@ export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
                 {roomState.auction.title}
               </h2>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">
-                관전자 — {isAssigning ? '유찰자 배정 단계' : 'read only'}
+                관전자 — {isAssigning ? '유찰자 배정 중' : 'read only'}
               </p>
             </div>
           </div>
@@ -35,15 +36,32 @@ export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
         </CardContent>
       </Card>
 
-      {!isAssigning && (
-        <CurrentPlayerCard
-          player={roomState.currentPlayer}
-          currentBid={roomState.currentBid}
-          biddingPhase={phase}
-        />
-      )}
-
-      <TeamRosters teams={roomState.teams} showPrice />
+      <div className="grid grid-cols-12 gap-4">
+        <aside className="col-span-12 lg:col-span-3 space-y-2">
+          <TeamSidebar teams={roomState.teams} />
+        </aside>
+        <section className="col-span-12 lg:col-span-6">
+          {isAssigning ? (
+            <Card className="bg-card border-border">
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                마스터가 유찰자를 각 팀에 수동 배정 중입니다...
+              </CardContent>
+            </Card>
+          ) : (
+            <CurrentPlayerCard
+              player={roomState.currentPlayer}
+              currentBid={roomState.currentBid}
+              biddingPhase={phase}
+            />
+          )}
+        </section>
+        <aside className="col-span-12 lg:col-span-3">
+          <PlayerQueue
+            players={roomState.unsoldPlayers}
+            currentPlayerId={roomState.auction.currentBiddingPlayerId}
+          />
+        </aside>
+      </div>
     </div>
   )
 }

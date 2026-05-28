@@ -44,6 +44,7 @@ export interface RoomStateParticipant {
     id: string
     battleTag: string | null
     mainRole: string | null
+    avatarUrl: string | null
   } | null
 }
 
@@ -57,6 +58,11 @@ export interface RoomStatePlayer {
   id: string
   name: string
   role: string
+  avatarUrl: string | null
+}
+
+export interface RoomStateQueuePlayer extends RoomStatePlayer {
+  wasUnsold: boolean
 }
 
 export interface RoomStateTeam {
@@ -78,7 +84,7 @@ export interface RoomState {
   currentBid: RoomStateBid | null
   currentPlayer: RoomStatePlayer | null
   teams: RoomStateTeam[]
-  unsoldPlayers: RoomStatePlayer[] // 미할당 PLAYER 풀 (대기 + 유찰 포함)
+  unsoldPlayers: RoomStateQueuePlayer[] // 미할당 PLAYER 풀 (대기 + 유찰 포함)
 }
 
 /** GET /auctions 목록 응답 */

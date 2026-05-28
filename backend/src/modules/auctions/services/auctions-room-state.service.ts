@@ -35,6 +35,7 @@ export interface RoomState {
       id: string;
       battleTag: string | null;
       mainRole: string | null;
+      avatarUrl: string | null;
     } | null;
   }[];
   currentBid: {
@@ -46,6 +47,7 @@ export interface RoomState {
     id: string;
     name: string;
     role: string;
+    avatarUrl: string | null;
   } | null;
   teams: {
     captainId: string;
@@ -63,6 +65,8 @@ export interface RoomState {
     id: string;
     name: string;
     role: string;
+    avatarUrl: string | null;
+    wasUnsold: boolean;
   }[];
 }
 
@@ -140,7 +144,7 @@ export class AuctionsRoomStateService {
       }
     }
 
-    let currentPlayer: { id: string; name: string; role: string } | null = null;
+    let currentPlayer: RoomState['currentPlayer'] = null;
     if (auction.currentBiddingPlayerId) {
       const player = participants.find(
         (p) => p.userId === auction.currentBiddingPlayerId,
@@ -150,6 +154,7 @@ export class AuctionsRoomStateService {
           id: player.userId,
           name: player.user?.battleTag?.split('#')[0] || '선수',
           role: player.user?.mainRole?.toLowerCase() || 'flex',
+          avatarUrl: player.user?.avatarUrl ?? null,
         };
       }
     }
@@ -160,6 +165,8 @@ export class AuctionsRoomStateService {
         id: p.userId,
         name: p.user?.battleTag?.split('#')[0] || '선수',
         role: p.user?.mainRole?.toLowerCase() || 'flex',
+        avatarUrl: p.user?.avatarUrl ?? null,
+        wasUnsold: p.wasUnsold,
       }));
 
     return {
@@ -190,6 +197,7 @@ export class AuctionsRoomStateService {
               id: p.user.id,
               battleTag: p.user.battleTag ?? null,
               mainRole: p.user.mainRole ?? null,
+              avatarUrl: p.user.avatarUrl ?? null,
             }
           : null,
       })),

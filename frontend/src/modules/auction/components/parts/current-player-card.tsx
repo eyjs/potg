@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/common/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
 import { Gavel } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomStateBid, RoomStatePlayer } from '../../types'
@@ -49,42 +49,44 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
         biddingPhase === 'WAITING' && 'border-border',
       )}
     >
-      <CardContent className="p-6 flex items-center gap-6">
-        <Avatar className="w-24 h-24 border-2 border-primary/40">
-          <AvatarFallback className="bg-muted text-3xl font-black">
+      <CardContent className="p-8 flex flex-col items-center text-center gap-4">
+        <Avatar className="w-48 h-48 border-4 border-primary/40">
+          <AvatarImage src={player.avatarUrl ?? undefined} alt={player.name} />
+          <AvatarFallback className="bg-muted text-6xl font-black">
             {player.name[0]}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 min-w-0">
+        <div className="space-y-1">
           <Badge
             variant="outline"
             className={cn(
-              'mb-2 text-[10px]',
+              'text-xs',
               ROLE_COLORS[roleKey] || ROLE_COLORS.flex,
             )}
           >
             {player.role.toUpperCase()}
           </Badge>
-          <h3 className="text-3xl font-black italic uppercase tracking-tighter truncate">
+          <h3 className="text-4xl font-black italic uppercase tracking-tighter">
             {player.name}
           </h3>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
             {PHASE_LABEL[biddingPhase]}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+        <div className="w-full pt-3 border-t border-border/40 flex items-baseline justify-center gap-4">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">
             현재가
-          </p>
-          <p className="text-4xl font-black tabular-nums text-primary">
+          </span>
+          <span className="text-5xl font-black tabular-nums text-primary">
             {currentBid ? currentBid.amount.toLocaleString() : '0'}
-          </p>
-          {currentBid && (
-            <p className="text-xs text-muted-foreground mt-1">
-              입찰자: <span className="text-primary">{currentBid.bidderName}</span>
-            </p>
-          )}
+            <span className="text-2xl ml-1">P</span>
+          </span>
         </div>
+        {currentBid && (
+          <p className="text-sm text-muted-foreground">
+            입찰자: <span className="text-primary font-bold">{currentBid.bidderName}</span>
+          </p>
+        )}
       </CardContent>
     </Card>
   )
