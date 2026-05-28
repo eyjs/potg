@@ -298,7 +298,17 @@ export class AuctionsService {
     return this.auctionsRepository.save(auction);
   }
 
-  // 경매 삭제
+  /**
+   * 경매 삭제.
+   *
+   * 허용 status:
+   *   - PENDING/CANCELLED: setup 단계 또는 취소된 경매 정리
+   *   - COMPLETED: 마스터가 결과를 "버리기" 로 선택한 경우 (이력 누적 방지)
+   *
+   * 차단 status:
+   *   - ONGOING/PAUSED/ASSIGNING: 진행 중에는 reset/complete 만 허용
+   *     (실수로 진행 중 경매가 사라지는 사고 방지)
+   */
   async deleteAuction(auctionId: string, adminId: string) {
     const auction = await this.loadAsCreator(
       auctionId,
@@ -307,11 +317,13 @@ export class AuctionsService {
     );
     if (
       auction.status !== AuctionStatus.PENDING &&
-      auction.status !== AuctionStatus.CANCELLED
-    )
+      auction.status !== AuctionStatus.CANCELLED &&
+      auction.status !== AuctionStatus.COMPLETED
+    ) {
       throw new BadRequestException(
-        '대기 중이거나 취소된 경매만 삭제할 수 있습니다.',
+        '진행 중인 경매는 삭제할 수 없습니다. 먼저 종료하거나 취소하세요.',
       );
+    }
 
     // Delete all participants and bids (cascade should handle this)
     await this.participantsRepository.delete({ auctionId });

@@ -6,13 +6,14 @@ import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
-import { Trophy, RotateCcw, Download } from 'lucide-react'
+import { Trophy, Plus, Download, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/common/components/confirm-dialog'
 import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
 import { TeamRosters } from './parts/team-rosters'
 import { AuctionResultPoster } from './parts/auction-result-poster'
+import { CreateAuctionDialog } from './parts/create-auction-dialog'
 import type { RoomState } from '../types'
 
 interface Props {
@@ -23,28 +24,29 @@ interface Props {
 export function AuctionCompleted({ roomState, canRestart }: Props) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
-  const [isDeleting, setIsDeleting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [isDiscarding, setIsDiscarding] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const posterRef = useRef<HTMLDivElement>(null)
 
-  const handleNewAuction = async () => {
+  const handleDiscard = async () => {
     const ok = await confirm({
-      title: '새 경매를 시작하시겠습니까?',
+      title: '결과를 버리시겠습니까?',
       description:
-        '현재 경매 결과(팀 구성·낙찰가·미낙찰 명단)가 DB 에서 삭제됩니다. 결과 이미지를 미리 다운로드했는지 확인하세요.',
+        '이 경매의 모든 결과(팀 구성·낙찰가·미낙찰 명단)가 DB 에서 영구 삭제됩니다. 이력에 남지 않습니다. 결과 이미지를 미리 다운로드했는지 확인하세요.',
       variant: 'destructive',
-      confirmText: '결과 삭제 후 새 경매',
+      confirmText: '버리기 (영구 삭제)',
     })
     if (!ok) return
-    setIsDeleting(true)
+    setIsDiscarding(true)
     try {
       await auctionsApi.delete(roomState.auction.id)
       await queryClient.invalidateQueries({ queryKey: ['auction', 'current'] })
-      toast.success('정리되었습니다. 새 경매를 시작하세요.')
+      toast.success('결과를 버렸습니다.')
     } catch (error) {
-      handleApiError(error, '경매 정리 실패')
+      handleApiError(error, '결과 삭제 실패')
     } finally {
-      setIsDeleting(false)
+      setIsDiscarding(false)
     }
   }
 
@@ -83,7 +85,7 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
   return (
     <div className="space-y-6">
       <Card className="bg-card border-primary/30">
-        <CardContent className="py-6 flex items-center gap-4">
+        <CardContent className="py-6 flex flex-wrap items-center gap-4">
           <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center">
             <Trophy className="w-6 h-6 text-primary" />
           </div>
@@ -96,31 +98,61 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
               {unsold.length}명
             </p>
           </div>
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className={cn(
-              'skew-x-[-10deg] bg-ow-blue px-4 py-2 text-sm font-bold text-black',
-              'hover:bg-ow-blue/90 transition-colors',
-            )}
-          >
-            <span className="skew-x-[10deg] flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              {isDownloading ? '생성 중...' : '결과 이미지'}
-            </span>
-          </Button>
-          {canRestart && (
+
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
-              onClick={handleNewAuction}
-              disabled={isDeleting}
-              variant="outline"
-              className="border-primary text-primary hover:bg-primary/10"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className={cn(
+                'skew-x-[-10deg] bg-ow-blue px-4 py-2 text-sm font-bold text-black',
+                'hover:bg-ow-blue/90 transition-colors',
+              )}
             >
-              <RotateCcw className="w-4 h-4 mr-2" />새 경매
+              <span className="skew-x-[10deg] flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                {isDownloading ? '생성 중...' : '결과 이미지'}
+              </span>
             </Button>
-          )}
+            {canRestart && (
+              <>
+                <Button
+                  onClick={() => setCreateOpen(true)}
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  새 경매 (이력 저장)
+                </Button>
+                <Button
+                  onClick={handleDiscard}
+                  disabled={isDiscarding}
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  결과 버리기
+                </Button>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* 안내 — 마스터에게 보존/버리기 의미 명시 */}
+      {canRestart && (
+        <Card className="bg-card border-dashed border-border">
+          <CardContent className="py-3 text-xs text-muted-foreground space-y-1">
+            <p>
+              <span className="text-primary font-bold">새 경매 (이력 저장)</span> —
+              이번 결과는 DB 에 보존되어 향후 포인트 지급/이력 조회에 사용됩니다.
+            </p>
+            <p>
+              <span className="text-destructive font-bold">결과 버리기</span> —
+              테스트성 경매나 잘못된 결과는 영구 삭제하여 쓰레기 데이터 누적을 방지합니다.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <TeamRosters teams={roomState.teams} showPrice />
 
@@ -170,6 +202,8 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
           startingPoints={roomState.auction.startingPoints}
         />
       </div>
+
+      <CreateAuctionDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }
