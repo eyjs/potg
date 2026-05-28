@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
-import { Trophy, Plus, Download, Trash2 } from 'lucide-react'
+import { Trophy, Plus, Download, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/common/components/confirm-dialog'
 import { handleApiError } from '@/lib/api-error'
@@ -21,13 +21,24 @@ interface Props {
   canRestart: boolean
 }
 
+const HELP_DISMISS_KEY = 'auction-completed-help-seen'
+
 export function AuctionCompleted({ roomState, canRestart }: Props) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const [isDownloading, setIsDownloading] = useState(false)
   const [isDiscarding, setIsDiscarding] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [helpDismissed, setHelpDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem(HELP_DISMISS_KEY) === '1'
+  })
   const posterRef = useRef<HTMLDivElement>(null)
+
+  const handleDismissHelp = () => {
+    window.localStorage.setItem(HELP_DISMISS_KEY, '1')
+    setHelpDismissed(true)
+  }
 
   const handleDiscard = async () => {
     const ok = await confirm({
@@ -117,8 +128,9 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
               <>
                 <Button
                   onClick={() => setCreateOpen(true)}
+                  disabled={isDiscarding}
                   variant="outline"
-                  className="border-primary text-primary hover:bg-primary/10"
+                  className="border-primary text-primary hover:bg-primary/10 disabled:opacity-40"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   새 경매 (이력 저장)
@@ -138,18 +150,29 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
         </CardContent>
       </Card>
 
-      {/* 안내 — 마스터에게 보존/버리기 의미 명시 */}
-      {canRestart && (
+      {/* 안내 — 마스터에게 보존/버리기 의미 명시. 한 번 닫으면 localStorage 에 기억. */}
+      {canRestart && !helpDismissed && (
         <Card className="bg-card border-dashed border-border">
-          <CardContent className="py-3 text-xs text-muted-foreground space-y-1">
-            <p>
-              <span className="text-primary font-bold">새 경매 (이력 저장)</span> —
-              이번 결과는 DB 에 보존되어 향후 포인트 지급/이력 조회에 사용됩니다.
-            </p>
-            <p>
-              <span className="text-destructive font-bold">결과 버리기</span> —
-              테스트성 경매나 잘못된 결과는 영구 삭제하여 쓰레기 데이터 누적을 방지합니다.
-            </p>
+          <CardContent className="py-3 text-xs text-muted-foreground flex items-start gap-3">
+            <div className="space-y-1 flex-1">
+              <p>
+                <span className="text-primary font-bold">새 경매 (이력 저장)</span> —
+                이번 결과는 DB 에 보존되어 향후 포인트 지급/이력 조회에 사용됩니다.
+              </p>
+              <p>
+                <span className="text-destructive font-bold">결과 버리기</span> —
+                테스트성 경매나 잘못된 결과는 영구 삭제하여 쓰레기 데이터 누적을 방지합니다.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDismissHelp}
+              className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="안내 닫기"
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
           </CardContent>
         </Card>
       )}

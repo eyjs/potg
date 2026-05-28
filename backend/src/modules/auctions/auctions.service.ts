@@ -325,7 +325,7 @@ export class AuctionsService {
       );
     }
 
-    // Delete all participants and bids (cascade should handle this)
+    // entity cascade 설정과 무관하게 명시적으로 자식 row 부터 삭제 — 안전 보장
     await this.participantsRepository.delete({ auctionId });
     await this.bidsRepository.delete({ auctionId });
     await this.auctionsRepository.remove(auction);

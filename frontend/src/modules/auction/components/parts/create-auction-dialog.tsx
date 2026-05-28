@@ -26,8 +26,6 @@ import {
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 생성 완료 시 호출 — 추가 후처리가 필요한 부모용. 옵션. */
-  onCreated?: () => void
 }
 
 /**
@@ -35,9 +33,10 @@ interface Props {
  *
  * - AuctionNoActive 와 AuctionCompleted 모두 같은 흐름을 사용.
  * - 생성 후 react-query 의 ['auction', 'current'] 를 invalidate 하여
- *   useCurrentAuction 이 새 PENDING 을 자동 추적하게 함.
+ *   useCurrentAuction 이 새 PENDING 을 자동 추적하게 함 (active 가 COMPLETED 보다
+ *   우선 노출 → orchestrator 가 자동으로 PENDING 화면으로 전환).
  */
-export function CreateAuctionDialog({ open, onOpenChange, onCreated }: Props) {
+export function CreateAuctionDialog({ open, onOpenChange }: Props) {
   const queryClient = useQueryClient()
   const form = useForm<AuctionCreateFormValues>({
     resolver: zodResolver(auctionCreateSchema),
@@ -52,7 +51,6 @@ export function CreateAuctionDialog({ open, onOpenChange, onCreated }: Props) {
       form.reset(AUCTION_CREATE_DEFAULTS)
       onOpenChange(false)
       await queryClient.invalidateQueries({ queryKey: ['auction', 'current'] })
-      onCreated?.()
     } catch (error) {
       handleApiError(error, '경매방 생성 실패')
     }
