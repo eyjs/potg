@@ -12,8 +12,6 @@ import {
 } from 'nest-winston';
 import * as winston from 'winston';
 import { join } from 'path';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuctionsModule } from './modules/auctions/auctions.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -146,9 +144,7 @@ import { HealthModule } from './modules/health/health.module';
     // === Operations ===
     HealthModule,
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
     // 전역 Rate Limiting Guard
     {
       provide: APP_GUARD,

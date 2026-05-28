@@ -6,7 +6,6 @@ import {
   Request,
   Res,
   Get,
-  Query,
   UnauthorizedException,
   HttpCode,
   HttpStatus,
@@ -17,7 +16,7 @@ import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import { LoginDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 import type { User } from '../users/entities/user.entity';
 import { DiscordOAuthService } from './discord-oauth.service';
@@ -160,26 +159,5 @@ export class AuthController {
       totalPoints,
       lockedPoints: 0,
     };
-  }
-
-  @Post('forgot-password')
-  @ApiOperation({ summary: '비밀번호 재설정 이메일 발송' })
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto.email);
-  }
-
-  @Post('reset-password')
-  @ApiOperation({ summary: '비밀번호 재설정 (토큰 검증 + 변경)' })
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(
-      resetPasswordDto.token,
-      resetPasswordDto.password,
-    );
-  }
-
-  @Get('verify-reset-token')
-  @ApiOperation({ summary: '비밀번호 재설정 토큰 유효성 확인' })
-  async verifyResetToken(@Query('token') token: string) {
-    return this.authService.verifyResetToken(token);
   }
 }
