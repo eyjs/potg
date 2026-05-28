@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Menu, Shield, LogIn, LogOut, Wrench, LayoutDashboard } from "lucide-react"
+import { Menu, Shield, LogIn, LogOut, Wrench, LayoutDashboard, Gavel } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -14,6 +14,7 @@ import {
 
 const navItems = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
+  { href: "/auction", label: "경매", icon: Gavel },
   { href: "/admin", label: "운영", icon: Shield },
   { href: "/utility", label: "유틸리티", icon: Wrench },
 ]
