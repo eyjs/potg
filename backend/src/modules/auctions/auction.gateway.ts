@@ -319,6 +319,24 @@ export class AuctionGateway
     }
   }
 
+  @SubscribeMessage('resetAuction')
+  async handleResetAuction(
+    @MessageBody() payload: { auctionId: string; adminId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { auctionId, adminId } = payload;
+
+    try {
+      this.stopBiddingTimer(auctionId);
+      await this.auctionsService.reset(auctionId, adminId);
+      const roomState = await this.auctionsService.getRoomState(auctionId);
+
+      this.server.to(auctionId).emit('auctionReset', { roomState });
+    } catch (error) {
+      client.emit('error', { message: errMsg(error) });
+    }
+  }
+
   @SubscribeMessage('chatMessage')
   handleChatMessage(
     @MessageBody() payload: ChatMessagePayload,

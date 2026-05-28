@@ -20,6 +20,9 @@ export interface AuctionEmitFns {
   nextPlayer: () => void
   startAuction: () => void
   completeAuction: () => void
+  enterAssignmentPhase: () => void
+  manualAssignPlayer: (playerId: string, captainId: string) => void
+  resetAuction: () => void
 }
 
 interface UseAuctionSocketReturn {
@@ -78,6 +81,9 @@ export function useAuctionSocket(
     socket.on('auctionCompleted', handleRoomState)
     socket.on('auctionPaused', handleRoomState)
     socket.on('auctionResumed', handleRoomState)
+    socket.on('assignmentPhaseStarted', handleRoomState)
+    socket.on('playerManuallyAssigned', handleRoomState)
+    socket.on('auctionReset', handleRoomState)
 
     socket.on('timerUpdate', (payload: { remainingTime: number }) => {
       setTimerRemaining(payload.remainingTime)
@@ -137,6 +143,26 @@ export function useAuctionSocket(
   const completeAuction = useCallback(() => {
     socketRef.current?.emit('completeAuction', { auctionId, adminId: userId })
   }, [auctionId, userId])
+  const enterAssignmentPhase = useCallback(() => {
+    socketRef.current?.emit('enterAssignmentPhase', {
+      auctionId,
+      adminId: userId,
+    })
+  }, [auctionId, userId])
+  const manualAssignPlayer = useCallback(
+    (playerId: string, captainId: string) => {
+      socketRef.current?.emit('manualAssignPlayer', {
+        auctionId,
+        adminId: userId,
+        playerId,
+        captainId,
+      })
+    },
+    [auctionId, userId],
+  )
+  const resetAuction = useCallback(() => {
+    socketRef.current?.emit('resetAuction', { auctionId, adminId: userId })
+  }, [auctionId, userId])
 
   const emit = useMemo<AuctionEmitFns>(
     () => ({
@@ -147,6 +173,9 @@ export function useAuctionSocket(
       nextPlayer,
       startAuction,
       completeAuction,
+      enterAssignmentPhase,
+      manualAssignPlayer,
+      resetAuction,
     }),
     [
       placeBid,
@@ -156,6 +185,9 @@ export function useAuctionSocket(
       nextPlayer,
       startAuction,
       completeAuction,
+      enterAssignmentPhase,
+      manualAssignPlayer,
+      resetAuction,
     ],
   )
 

@@ -87,6 +87,12 @@ export class AuctionsController {
     return this.auctionsService.complete(id, req.user.userId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/reset')
+  reset(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.auctionsService.reset(id, req.user.userId);
+  }
+
   // ========== 경매 마스터 기능 ==========
 
   // 매물 등록 (클랜원을 경매에 추가)

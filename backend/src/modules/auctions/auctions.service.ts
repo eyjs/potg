@@ -393,6 +393,62 @@ export class AuctionsService {
     return this.roomStateService.getRoomState(auctionId);
   }
 
+  /**
+   * 진행 중 경매를 초기 상태로 리셋한다.
+   *
+   * 초기화: 매물 배정 (assignedTeamCaptainId/soldPrice/wasUnsold), 팀장 잔여 포인트,
+   *         currentBiddingPlayerId, biddingPhase, 전체 bids
+   * 유지:   teamCount, captains/players 등록, startingPoints/turnTimeLimit/title
+   *
+   * 마스터만 호출 가능. ONGOING 또는 ASSIGNING phase 에서만 동작.
+   */
+  async reset(auctionId: string, userId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const auction = await this.loadAsCreatorTx(
+        manager,
+        auctionId,
+        userId,
+        '관리자만 경매를 리셋할 수 있습니다.',
+      );
+      if (
+        auction.status !== AuctionStatus.ONGOING &&
+        auction.status !== AuctionStatus.ASSIGNING &&
+        auction.status !== AuctionStatus.PAUSED
+      ) {
+        throw new BadRequestException('진행 중인 경매만 리셋할 수 있습니다.');
+      }
+
+      // 1) 전체 bids 삭제
+      await manager.delete(AuctionBid, { auctionId });
+
+      // 2) participants 재초기화
+      const participants = await manager.find(AuctionParticipant, {
+        where: { auctionId },
+      });
+      for (const p of participants) {
+        if (p.role === AuctionRole.CAPTAIN) {
+          p.currentPoints = auction.startingPoints;
+        } else if (p.role === AuctionRole.PLAYER) {
+          p.assignedTeamCaptainId = null;
+          p.soldPrice = 0;
+          p.wasUnsold = false;
+        }
+      }
+      if (participants.length > 0) await manager.save(participants);
+
+      // 3) auction 상태 초기화
+      auction.status = AuctionStatus.ONGOING;
+      auction.biddingPhase = BiddingPhase.WAITING;
+      auction.currentBiddingPlayerId = null;
+      auction.currentBiddingEndTime = null;
+      auction.timerPaused = false;
+      auction.pausedTimeRemaining = null;
+      await manager.save(auction);
+
+      return auction;
+    });
+  }
+
   async complete(auctionId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
       const auction = await this.loadAsCreatorTx(

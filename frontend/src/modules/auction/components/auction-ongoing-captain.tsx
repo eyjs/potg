@@ -36,6 +36,7 @@ export function AuctionOngoingCaptain({
 
   const myPoints = me?.currentPoints ?? 0
   const phase = roomState.auction.biddingPhase
+  const isAssigning = roomState.auction.status === 'ASSIGNING'
   const currentBidAmount = roomState.currentBid?.amount ?? 0
   const isHighestBidder =
     roomState.currentBid?.bidderId === userId && phase === 'BIDDING'
@@ -88,8 +89,16 @@ export function AuctionOngoingCaptain({
         </CardContent>
       </Card>
 
+      {isAssigning && (
+        <Card className="bg-card border-primary/30">
+          <CardContent className="py-4 text-center text-sm text-muted-foreground">
+            마스터가 유찰자를 각 팀에 수동 배정 중입니다...
+          </CardContent>
+        </Card>
+      )}
+
       {/* 메인 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className={cn('grid grid-cols-1 lg:grid-cols-3 gap-4', isAssigning && 'hidden')}>
         <div className="lg:col-span-2">
           <CurrentPlayerCard
             player={roomState.currentPlayer}

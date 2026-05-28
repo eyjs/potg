@@ -73,19 +73,20 @@ export function TeamRosters({ teams, myCaptainId, showPrice = true }: Props) {
                         >
                           {m.role.toUpperCase()}
                         </Badge>
-                        <span className="truncate">{m.name}</span>
+                        <span className="truncate font-semibold">{m.name}</span>
                       </div>
                       {showPrice && (
-                        <span
+                        <Badge
+                          variant="outline"
                           className={cn(
-                            'shrink-0 text-xs font-mono tabular-nums',
+                            'shrink-0 font-bold tabular-nums text-[11px] px-2',
                             m.wasUnsold
-                              ? 'text-muted-foreground'
-                              : 'text-primary',
+                              ? 'border-muted-foreground/40 text-muted-foreground'
+                              : 'border-primary/50 bg-primary/10 text-primary',
                           )}
                         >
-                          {m.price.toLocaleString()}P
-                        </span>
+                          {m.wasUnsold ? '유찰배정' : `${m.price.toLocaleString()}P`}
+                        </Badge>
                       )}
                     </li>
                   ))}

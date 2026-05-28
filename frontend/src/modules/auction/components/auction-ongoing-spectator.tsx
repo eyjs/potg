@@ -14,6 +14,7 @@ interface Props {
 
 export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
   const phase = roomState.auction.biddingPhase
+  const isAssigning = roomState.auction.status === 'ASSIGNING'
 
   return (
     <div className="space-y-4">
@@ -26,19 +27,21 @@ export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
                 {roomState.auction.title}
               </h2>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">
-                관전자 — read only
+                관전자 — {isAssigning ? '유찰자 배정 단계' : 'read only'}
               </p>
             </div>
           </div>
-          <BidTimer remainingTime={timerRemaining} />
+          {!isAssigning && <BidTimer remainingTime={timerRemaining} />}
         </CardContent>
       </Card>
 
-      <CurrentPlayerCard
-        player={roomState.currentPlayer}
-        currentBid={roomState.currentBid}
-        biddingPhase={phase}
-      />
+      {!isAssigning && (
+        <CurrentPlayerCard
+          player={roomState.currentPlayer}
+          currentBid={roomState.currentBid}
+          biddingPhase={phase}
+        />
+      )}
 
       <TeamRosters teams={roomState.teams} showPrice />
     </div>
