@@ -65,6 +65,8 @@ export function useAuctionSocket(
       setRoomState(payload.roomState)
     }
 
+    // socket.io-client 가 자동 재연결 시 'connect' 이벤트가 다시 발화하므로
+    // joinRoom 도 매 재연결마다 다시 emit 되어 room membership 이 자동 복원된다.
     socket.on('connect', () => {
       setIsConnected(true)
       socket.emit('joinRoom', { auctionId, userId })

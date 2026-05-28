@@ -434,7 +434,7 @@ export class AuctionsService {
           p.wasUnsold = false;
         }
       }
-      if (participants.length > 0) await manager.save(participants);
+      await manager.save(participants);
 
       // 3) auction 상태 초기화
       auction.status = AuctionStatus.ONGOING;

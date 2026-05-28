@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
+import { Gavel } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomStateQueuePlayer } from '../../types'
 
@@ -18,9 +19,13 @@ const ROLE_COLORS: Record<string, string> = {
 
 /**
  * 우측 사이드 — 남은 매물(미할당 PLAYER) 큐.
- * 미시도 매물과 유찰된 매물을 구분 표시.
+ * 현재 진행 중인 매물은 최상단에 강조 표시.
+ * 대기(미시도) / 유찰을 그룹 분리.
  */
 export function PlayerQueue({ players, currentPlayerId }: Props) {
+  const current = currentPlayerId
+    ? players.find((p) => p.id === currentPlayerId) ?? null
+    : null
   const queueable = players.filter((p) => p.id !== currentPlayerId)
   const unattempted = queueable.filter((p) => !p.wasUnsold)
   const unsold = queueable.filter((p) => p.wasUnsold)
@@ -34,14 +39,27 @@ export function PlayerQueue({ players, currentPlayerId }: Props) {
           </h3>
           <span className="text-xs tabular-nums">
             <span className="text-primary font-bold">{queueable.length}</span>
-            <span className="text-muted-foreground">/{players.length}</span>
+            <span className="text-muted-foreground">
+              {' '}대기 {current ? '+ 1 진행' : ''}
+            </span>
           </span>
         </div>
 
+        {current && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+              <Gavel className="w-3 h-3" /> 진행 중
+            </p>
+            <PlayerRow player={current} highlighted />
+          </div>
+        )}
+
         {queueable.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">
-            큐가 비었습니다.
-          </p>
+          !current && (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              큐가 비었습니다.
+            </p>
+          )
         ) : (
           <div className="space-y-3">
             {unattempted.length > 0 && (
@@ -78,15 +96,20 @@ export function PlayerQueue({ players, currentPlayerId }: Props) {
 function PlayerRow({
   player,
   dimmed = false,
+  highlighted = false,
 }: {
   player: RoomStateQueuePlayer
   dimmed?: boolean
+  highlighted?: boolean
 }) {
   const roleKey = player.role.toLowerCase()
   return (
-    <li
+    <div
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 rounded-sm bg-muted/20',
+        'flex items-center gap-2 px-2 py-1.5 rounded-sm',
+        highlighted
+          ? 'bg-primary/10 border border-primary/40'
+          : 'bg-muted/20',
         dimmed && 'opacity-60',
       )}
     >
@@ -106,6 +129,6 @@ function PlayerRow({
       >
         {player.role.toUpperCase()}
       </Badge>
-    </li>
+    </div>
   )
 }

@@ -147,7 +147,7 @@ export function AssignmentPanel({ roomState, emit }: Props) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const unassignedUnsold = useMemo(
+  const unassignedPlayers = useMemo(
     () =>
       roomState.participants.filter(
         (p) =>
@@ -158,7 +158,7 @@ export function AssignmentPanel({ roomState, emit }: Props) {
   )
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const draggingParticipant = unassignedUnsold.find((p) => p.userId === draggingId)
+  const draggingParticipant = unassignedPlayers.find((p) => p.userId === draggingId)
 
   const handleDragStart = (event: DragStartEvent) => {
     setDraggingId(String(event.active.id))
@@ -183,15 +183,15 @@ export function AssignmentPanel({ roomState, emit }: Props) {
         <Card className="bg-card border-border">
           <CardContent className="p-3 space-y-2">
             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2">
-              미배정 ({unassignedUnsold.length})
+              미배정 ({unassignedPlayers.length})
             </h3>
-            {unassignedUnsold.length === 0 ? (
+            {unassignedPlayers.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">
                 모두 배정 완료
               </p>
             ) : (
               <ul className="space-y-1.5">
-                {unassignedUnsold.map((p) => (
+                {unassignedPlayers.map((p) => (
                   <li key={p.userId}>
                     <PlayerCard participant={p} />
                   </li>

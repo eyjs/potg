@@ -237,13 +237,21 @@ export function AuctionOngoingMaster({ roomState, timerRemaining, emit }: Props)
 
                 {/* 사이클 완료 안내 → 배정 진입 */}
                 {cycleComplete && unsoldOnly.length > 0 && phase === 'WAITING' && (
-                  <Button
-                    onClick={handleEnterAssignment}
-                    className="w-full bg-primary text-black font-bold hover:bg-primary/90"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    유찰자 배정 단계로 ({unsoldOnly.length}명)
-                  </Button>
+                  <div className="rounded-sm border-2 border-primary bg-primary/10 p-3 space-y-2 ring-2 ring-primary/30 animate-pulse-slow">
+                    <p className="text-xs font-bold uppercase tracking-widest text-primary">
+                      ⚠ 한 사이클 완료
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      유찰 {unsoldOnly.length}명을 각 팀에 수동 배정하면 경매 종료가 가능합니다.
+                    </p>
+                    <Button
+                      onClick={handleEnterAssignment}
+                      className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      유찰자 배정 단계로 ({unsoldOnly.length}명)
+                    </Button>
+                  </div>
                 )}
 
                 {/* 리셋 + 종료 */}

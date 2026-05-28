@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
 import { Trophy, RotateCcw, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/common/components/confirm-dialog'
 import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
 import { TeamRosters } from './parts/team-rosters'
@@ -21,11 +22,20 @@ interface Props {
 
 export function AuctionCompleted({ roomState, canRestart }: Props) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const posterRef = useRef<HTMLDivElement>(null)
 
   const handleNewAuction = async () => {
+    const ok = await confirm({
+      title: '새 경매를 시작하시겠습니까?',
+      description:
+        '현재 경매 결과(팀 구성·낙찰가·미낙찰 명단)가 DB 에서 삭제됩니다. 결과 이미지를 미리 다운로드했는지 확인하세요.',
+      variant: 'destructive',
+      confirmText: '결과 삭제 후 새 경매',
+    })
+    if (!ok) return
     setIsDeleting(true)
     try {
       await auctionsApi.delete(roomState.auction.id)
@@ -137,14 +147,18 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
         </Card>
       )}
 
-      {/* 캡처 대상 — 화면 밖으로 빼서 사용자에게는 안 보이고 다운로드 시점에만 렌더 활용 */}
+      {/* 캡처 대상 — 사용자에게는 보이지 않지만 모바일에서도 1080px 폭이 잘리지 않도록
+          width/min-width 명시 + overflow hidden 으로 viewport 영향 차단. */}
       <div
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
+          width: 1080,
+          minWidth: 1080,
           transform: 'translate(-200%, -200%)',
           pointerEvents: 'none',
+          overflow: 'hidden',
         }}
         aria-hidden
       >

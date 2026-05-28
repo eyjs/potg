@@ -107,15 +107,9 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
           )}
         >
           {teams.map((team, idx) => {
-            const spent =
-              startingPoints -
-              team.points -
-              team.members.reduce((s, m) => (m.wasUnsold ? s : s + m.price), 0) +
-              startingPoints
             const totalSpent = team.members
               .filter((m) => !m.wasUnsold)
               .reduce((s, m) => s + m.price, 0)
-            void spent
             return (
               <div
                 key={team.captainId}

@@ -13,6 +13,64 @@ import { TeamSidebar } from './parts/team-sidebar'
 import { PlayerQueue } from './parts/player-queue'
 import type { RoomState } from '../types'
 
+/**
+ * 입찰 input + 버튼.
+ * 매물 변경 시 부모가 key={targetPlayerId} 로 재마운트 → 직전 매물에 입력했던
+ * 잔여 값이 자동 초기화된다 (setState-in-effect 없이).
+ */
+function BidInputRow({
+  disabled,
+  minBid,
+  maxBid,
+  onSubmit,
+}: {
+  disabled: boolean
+  minBid: number
+  maxBid: number
+  onSubmit: (amount: number) => void
+}) {
+  const [value, setValue] = useState('')
+  const parsed = parseInt(value, 10)
+  const isValid =
+    !isNaN(parsed) && parsed >= minBid && parsed <= maxBid && !disabled
+
+  const handleSubmit = () => {
+    if (!isValid) return
+    onSubmit(parsed)
+    setValue('')
+  }
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        type="number"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && isValid) handleSubmit()
+        }}
+        disabled={disabled}
+        placeholder={String(minBid)}
+        min={minBid}
+        className="bg-background text-2xl font-bold tabular-nums h-14 flex-1"
+      />
+      <Button
+        onClick={handleSubmit}
+        disabled={!isValid}
+        className={cn(
+          'h-14 px-6 skew-x-[-10deg] bg-primary font-bold text-black',
+          'hover:bg-primary/90 disabled:opacity-40',
+        )}
+      >
+        <span className="skew-x-[10deg] flex items-center gap-2">
+          <Gavel className="w-5 h-5" />
+          입찰
+        </span>
+      </Button>
+    </div>
+  )
+}
+
 interface AuctionEmitFns {
   placeBid: (bidderId: string, targetPlayerId: string, amount: number) => void
 }
@@ -44,22 +102,15 @@ export function AuctionOngoingCaptain({
   const targetPlayerId = roomState.auction.currentBiddingPlayerId
 
   const minBid = currentBidAmount + 1
-  const [bidInput, setBidInput] = useState<string>('')
+  const bidDisabled =
+    phase !== 'BIDDING' ||
+    targetPlayerId === null ||
+    !userId ||
+    isHighestBidder
 
-  const bidAmount = parseInt(bidInput, 10)
-  const isValidAmount =
-    !isNaN(bidAmount) && bidAmount > currentBidAmount && bidAmount <= myPoints
-  const canBid =
-    phase === 'BIDDING' &&
-    targetPlayerId !== null &&
-    !!userId &&
-    isValidAmount &&
-    !isHighestBidder
-
-  const handleBid = () => {
-    if (!canBid || !userId || !targetPlayerId) return
-    emit.placeBid(userId, targetPlayerId, bidAmount)
-    setBidInput('')
+  const handleBid = (amount: number) => {
+    if (bidDisabled || !userId || !targetPlayerId) return
+    emit.placeBid(userId, targetPlayerId, amount)
   }
 
   return (
@@ -118,30 +169,13 @@ export function AuctionOngoingCaptain({
                 <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
                   입찰 금액 (최소 {minBid.toLocaleString()}P · 최대 {myPoints.toLocaleString()}P)
                 </Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    value={bidInput}
-                    onChange={(e) => setBidInput(e.target.value)}
-                    disabled={phase !== 'BIDDING' || isHighestBidder}
-                    placeholder={String(minBid)}
-                    min={minBid}
-                    className="bg-background text-2xl font-bold tabular-nums h-14 flex-1"
-                  />
-                  <Button
-                    onClick={handleBid}
-                    disabled={!canBid}
-                    className={cn(
-                      'h-14 px-6 skew-x-[-10deg] bg-primary font-bold text-black',
-                      'hover:bg-primary/90 disabled:opacity-40',
-                    )}
-                  >
-                    <span className="skew-x-[10deg] flex items-center gap-2">
-                      <Gavel className="w-5 h-5" />
-                      입찰
-                    </span>
-                  </Button>
-                </div>
+                <BidInputRow
+                  key={targetPlayerId ?? 'none'}
+                  disabled={bidDisabled}
+                  minBid={minBid}
+                  maxBid={myPoints}
+                  onSubmit={handleBid}
+                />
               </div>
 
               {phase === 'WAITING' && (
