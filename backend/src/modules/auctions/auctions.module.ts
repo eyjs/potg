@@ -9,7 +9,10 @@ import { AuctionParticipant } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
 import { AuctionsBiddingService } from './services/auctions-bidding.service';
 import { AuctionsRoomStateService } from './services/auctions-room-state.service';
+import { AuctionsAdminService } from './services/auctions-admin.service';
+import { AdminAuctionsController } from './admin-auctions.controller';
 import { AuthModule } from '../auth/auth.module';
+import { LedgerModule } from '../ledger/ledger.module';
 import { WsJwtGuard } from '../../common/guards/ws-jwt.guard';
 
 @Module({
@@ -17,12 +20,14 @@ import { WsJwtGuard } from '../../common/guards/ws-jwt.guard';
     TypeOrmModule.forFeature([Auction, AuctionParticipant, AuctionBid]),
     ConfigModule,
     AuthModule, // JwtModule(JwtService) 재사용 — 소켓 인증
+    LedgerModule, // LedgerService(mint) — 경매 보상 지급
   ],
-  controllers: [AuctionsController],
+  controllers: [AuctionsController, AdminAuctionsController],
   providers: [
     AuctionsService,
     AuctionsBiddingService,
     AuctionsRoomStateService,
+    AuctionsAdminService,
     AuctionGateway,
     WsJwtGuard,
   ],

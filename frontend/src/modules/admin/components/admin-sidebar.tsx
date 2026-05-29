@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   BookOpen,
   Settings,
+  Gavel,
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { href: '/admin/members', label: '회원 관리', icon: <Users className="size-4" /> },
   { href: '/admin/products', label: '상품 관리', icon: <ShoppingBag className="size-4" /> },
   { href: '/admin/orders', label: '주문 관리', icon: <ClipboardList className="size-4" /> },
+  { href: '/admin/auctions', label: '경매 이력', icon: <Gavel className="size-4" /> },
   { href: '/admin/attendance', label: '출석 업로드', icon: <CalendarCheck className="size-4" /> },
   { href: '/admin/ledger', label: '포인트 원장', icon: <BookOpen className="size-4" /> },
   { href: '/admin/config', label: '시스템 설정', icon: <Settings className="size-4" /> },

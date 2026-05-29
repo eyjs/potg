@@ -23,7 +23,8 @@
 | **5-F.4 리뷰 1차 fix** | ✅ | `4412215` | 새 경매 confirm + `unassignedPlayers` rename + captain key 기반 input 재마운트 + queue 진행 표시 |
 | **5-F.5 이력 보존 흐름** | ✅ | `10f5ba7` | 마스터가 [새 경매(저장)] vs [결과 버리기] 명시 선택. backend deleteAuction COMPLETED 허용 |
 | **5-F.6 리뷰 Critical fix** | ✅ | `0f0b666` | useCurrentAuction 우선순위 (ACTIVE → COMPLETED fallback) + 안내 카드 dismissible |
-| **5-F.7 보안·동시성·멱등성 하드닝** | ✅ | (미커밋) | 경매 소켓 JWT 인증 + 식별자 위조 차단 + 입찰 경로 통일 + 경매 단위 pessimistic 잠금 + PointTx 멱등성 키 |
+| **5-F.7 보안·동시성·멱등성 하드닝** | ✅ | `0399625` | 경매 소켓 JWT 인증 + 식별자 위조 차단 + 입찰 경로 통일 + 경매 단위 pessimistic 잠금 + PointTx 멱등성 키 |
+| **5-G. 경매 이력 페이지 + 참가자 보상 지급** | ✅ | (미커밋) | `/admin/auctions` 이력 리스트+상세 + 전체 참가자 정액 지급(멱등 AUCTION_PAYOUT) |
 
 ---
 
@@ -254,31 +255,20 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 
 ## 5. 다음 세션 백로그
 
-### 우선순위 1 — 경매 이력 관리 페이지 (Phase 5-G)
+### ✅ 완료 — 우선순위 1 (Phase 5-G) + bidderId 위조 방지 (5-F.7)
 
-사용자 요구: "DB 에 이력 보존하는 이유는 나중에 포인트 지급해주려고". 따라서 이력 페이지 + 포인트 지급 흐름 필요.
+- **경매 이력 페이지** (`/admin/auctions`): COMPLETED 리스트 + 상세(팀 로스터/낙찰가/미배정) + **전체 참가자 정액 보상 지급**.
+  - 지급 모델: **전체 참가자(PLAYER+CAPTAIN) 1인당 관리자 입력 정액**. 멱등 키 `AUCTION_PAYOUT:{auctionId}:{userId}` (PointTx.idempotencyKey 부분 유니크). 이미 지급된 인원 자동 skip.
+  - 백엔드: `AdminAuctionsController` (`GET /admin/auctions`, `GET :id`, `POST :id/payout`) + `AuctionsAdminService`.
+  - 미구현(선택): 상세에서 결과 이미지(poster) 재다운로드 — AuctionResultPoster 재사용 가능하나 현재 상세는 자체 팀 로스터 렌더.
+- **bidderId/adminId 위조 방지**: 5-F.7 에서 소켓 인증으로 전면 해결.
 
-1. **`/admin/auctions` 페이지 신설** — 경매 이력 리스트
-   - GET `/auctions` 의 COMPLETED 만 필터링 → table 렌더
-   - 컬럼: 제목, 종료일, 팀 수, 영입 인원, 마스터, status
-   - row 클릭 → 상세 (panel 또는 `/admin/auctions/[id]`)
-2. **이력 상세 view** — TeamRosters/AuctionResultPoster 재사용
-   - 팀별 영입 + 낙찰가 + 미낙찰 명단
-   - **결과 이미지 재다운로드** (이미 만든 poster + html-to-image)
-3. **포인트 지급 흐름** — LedgerService.mint 활용
-   - "이 경매 영입 선수들에게 보상 지급" 버튼 → DTO (per-팀 또는 per-매물 amount + reason) → 일괄 mint
-   - Idempotency: PointTx.reason 에 `AUCTION_REWARD:{auctionId}:{userId}` 같은 패턴
-   - PointTx 조회로 중복 지급 방지
-4. **이력 페이지 진입점**:
-   - Header 또는 `/admin` 대시보드에 [경매 이력] 링크
+### 우선순위 2 — 잔여 UX/a11y 보강
 
-### 우선순위 2 — Critical UX/보안 보강
-
-1. **bidderId 위조 방지** — socket.io gateway 의 `placeBid` 가 payload `bidderId` 와 socket auth user 일치 검증
-   - 현재 v1 모델은 마스터+팀장 신뢰 가정. 보강 권장
-2. **타이머 0 도달 시각화** — 자동 낙찰 순간 전체 화면 flash 또는 소리 (현재 BidTimer 색상 분기만)
-3. **@dnd-kit KeyboardSensor** — a11y. ASSIGNING 패널에서 키보드만으로 배정 가능
-4. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지
+1. **타이머 0 도달 시각화** — 자동 낙찰 순간 전체 화면 flash 또는 소리 (현재 BidTimer 색상 분기만)
+2. **@dnd-kit KeyboardSensor** — a11y. ASSIGNING 패널에서 키보드만으로 배정 가능
+3. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지
+4. **gateway 파일 분할** — `auction.gateway.ts` 에서 AuctionTimerService 추출 (5-F.7 에서 의도적 보류)
 
 ### 우선순위 3 — 잔여 정리 (선택)
 
