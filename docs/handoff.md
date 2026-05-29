@@ -265,10 +265,10 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 
 ### 우선순위 2 — 잔여 UX/a11y 보강
 
-1. **타이머 0 도달 시각화** — 자동 낙찰 순간 전체 화면 flash 또는 소리 (현재 BidTimer 색상 분기만)
-2. **@dnd-kit KeyboardSensor** — a11y. ASSIGNING 패널에서 키보드만으로 배정 가능
-3. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지
-4. **gateway 파일 분할** — `auction.gateway.ts` 에서 AuctionTimerService 추출 (5-F.7 에서 의도적 보류)
+1. ✅ **타이머 0 도달 시각화** — BidTimer 5초 이하 긴급(pulse+ring), 0초 "종료" flash, `role=timer`+`aria-live` 스크린리더 안내. (소리는 미구현 — 에셋 필요)
+2. ✅ **@dnd-kit KeyboardSensor** — ASSIGNING 패널 키보드 배정 + 한국어 스크린리더 announcements + focus ring.
+3. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지 (런타임 시각 검증 필요 — 미실행)
+4. **gateway 파일 분할** — `auction.gateway.ts` 에서 AuctionTimerService 추출 (의도적 보류 — 런타임 회귀 검증 불가)
 
 ### 우선순위 3 — 잔여 정리 (선택)
 

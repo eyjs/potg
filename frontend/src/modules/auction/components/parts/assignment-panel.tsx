@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -55,6 +57,7 @@ function PlayerCard({
       {...(isOverlay ? {} : listeners)}
       className={cn(
         'flex items-center gap-2 px-2 py-2 rounded-sm border bg-card cursor-grab active:cursor-grabbing',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         isDragging && !isOverlay && 'opacity-30',
         isOverlay && 'border-primary bg-card shadow-lg scale-105',
       )}
@@ -143,8 +146,10 @@ function TeamDropZone({
 }
 
 export function AssignmentPanel({ roomState, emit }: Props) {
+  // PointerSensor: 드래그앤드롭 / KeyboardSensor: 키보드만으로 배정 (a11y)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
   )
 
   const unassignedPlayers = useMemo(
@@ -156,6 +161,29 @@ export function AssignmentPanel({ roomState, emit }: Props) {
       ),
     [roomState],
   )
+
+  // 스크린리더 안내용 id → 표시명 (선수 또는 팀장).
+  const labelFor = (id: string | number | null | undefined): string => {
+    if (id == null) return ''
+    const key = String(id)
+    const player = roomState.participants.find((p) => p.userId === key)
+    if (player) return player.user?.battleTag?.split('#')[0] ?? '선수'
+    const team = roomState.teams.find((t) => t.captainId === key)
+    return team ? `${team.captainName} 팀` : key
+  }
+
+  const announcements: Announcements = {
+    onDragStart: ({ active }) =>
+      `${labelFor(active.id)} 선수를 들었습니다. 방향키로 팀 위로 이동한 뒤 스페이스로 배정하세요.`,
+    onDragOver: ({ over }) =>
+      over ? `${labelFor(over.id)} 위입니다.` : '배정 영역 밖입니다.',
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `${labelFor(active.id)} 선수를 ${labelFor(over.id)}에 배정했습니다.`
+        : '배정이 취소되었습니다.',
+    onDragCancel: ({ active }) =>
+      `${labelFor(active.id)} 선수 배정을 취소했습니다.`,
+  }
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const draggingParticipant = unassignedPlayers.find((p) => p.userId === draggingId)
@@ -175,8 +203,16 @@ export function AssignmentPanel({ roomState, emit }: Props) {
   return (
     <DndContext
       sensors={sensors}
+      accessibility={{
+        announcements,
+        screenReaderInstructions: {
+          draggable:
+            '스페이스 또는 엔터로 선수를 들고, 방향키로 팀 위로 이동한 뒤 다시 스페이스로 배정합니다. ESC로 취소합니다.',
+        },
+      }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setDraggingId(null)}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 유찰 풀 (드래그 소스) */}
