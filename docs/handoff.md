@@ -1,484 +1,429 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
-> 최종 갱신: 2026-05-26 (런칭 Phase + Step UI + DM + Streak 보너스 완료)
-> 진행 상태: **Phase 1 → 7 + 런칭 인프라 (P0/P1) + Discord 봇 UX 전면 개편 완료**
-> 운영 배포 환경 없음 → **테스트 커버리지 + knip으로 회귀/잔재 방어**
+> 최종 갱신: 2026-05-29 (Phase 5-E/F 완료 — 사용자 채널 디스코드 이관 + 단발성 경매 페이지 신규)
+> 진행 상태: **웹은 운영자 전용 + /auction 경매 전용. 사용자 도메인은 100% Discord 봇으로 이관**
+> 운영 배포 환경 없음 → **테스트 커버리지 + 코드 리뷰 사이클로 회귀 방어**
 
 ---
 
-## 1. 한눈에 보기
+## 1. 한눈에 보기 — 누적 Phase
 
 | Phase | 상태 | 커밋 | 주요 산출 |
 |-------|------|------|-----------|
-| 1. 기반 (Entity + Migration) | ✅ | `2a0a0e1` | TypeORM 마이그레이션 인프라, PointTx/Match/BettingMarket 등 신규 엔티티 |
-| 2. 핵심 로직 | ✅ | `2a0a0e1` | LedgerService, BettingService, ShopService, MatchService, MarketGate |
-| 3. Discord Bot + OAuth2 | ✅ | `8ab9dd4`, `f81f0eb` | discord.js 14.26, 슬래시 명령 7종 |
-| 4.1. 백엔드 admin API | ✅ | `f226e0d` | /admin/matches, members, attendance, config, ledger |
-| 4.2-T1. 인증 통합 | ✅ | `d9ca612` | HttpOnly 쿠키 통일, JwtStrategy 듀얼 extractor, /auth/logout |
-| 4.2-T2~T12. admin 페이지 | ✅ | `b57e078` | /admin 11종 페이지 |
-| 4.2-TEST. 단위 테스트 | ✅ | `384c6c8` | 신규 spec 5종 + 기존 spec 복구 |
-| 5-A. 프론트 사용자 페이지 폐기 | ✅ | `9c6538d` | betting/shop/wallet/ranking/quiz/gallery/signup 삭제 (−5732 LOC) |
-| 5-B. Games 백엔드 + 인증 마무리 | ✅ | `b278509` | Games 모듈 제거, /auth/register 제거, WS 쿠키 가드 (−4891 LOC) |
-| 5-C. 단일 클랜 전환 (포인트) | ✅ | `800123d` | ClanMember 포인트 컬럼 DROP, clanId HTTP 흐름 1차 |
-| **5-D. 잔여 정리** | ✅ | `f0e4a35` | Bearer 제거, Discord OAuth 직접 구현 교체, Swagger, timeseries endpoint |
-| **5-D.2. Dead code** | ✅ | `e54df05` | 24 dead files + 23 unused deps + wallet 슬림화 |
-| **5-D.3. Track B-1** | ✅ | `e05aff1` | ws-jwt.guard 제거, ClanRolesGuard 단일 클랜 전제 |
-| **5-D.4. Track B-3** | ✅ | `c7d97b6` | Entity clanId 9개 컬럼 DROP + 마이그레이션 + Service/Controller 단순화 |
-| **5-D.5. Frontend 정리** | ✅ | `e24d7dd` | hooks/pages ?clanId= cosmetic cleanup |
-| **6.1. lint config 확장** | ✅ | `506d314` | 잔여 unused/redundant-type 정리 |
-| **6.2. lint error 0** | ✅ | `3050d6a` | unsafe-* / misused-promises / enum 비교 |
-| **6.3. controller spec 추가** | ✅ | `70bd4ee` | system-config + match controller spec |
-| **6.4. TS strict 강화** | ✅ | `10a1e5e` | noImplicitAny + strictBindCallApply + nullability 1차 |
-| **6.5. Entity nullability 감사** | ✅ | `912657d` | 15 entity, 38 필드를 `T \| null`로 정정 |
-| **7-A. Controller InjectRepository 제거** | ✅ | `367c611` | 5 controller → Service 위임, strict:true 활성, /context 통합 |
-| **7-B5. 핵심 service spec 추가** | ✅ | `1e6fbd7` | auctions 24 tests + clans 26 tests (+50) |
-| **7-B1. AuctionsService 분할** | ✅ | `0c51e4f` | 1168 → 626줄, BiddingService(435) + RoomStateService(202) |
-| **7-B2. ClansService.getActivities 분리** | ✅ | `eca7e8a` | 130줄 → ClanActivityFeedService (180줄) |
-| **7-A보강. 권한 helper 추출** | ✅ | `9ff79a8` | creatorId 체크 17건 → loadAsCreator(Tx) 통합 |
-| **7-B3. 페이지네이션 상수화** | ✅ | `3f4b6cb` | DEFAULT_PAGE/PAGE_SIZE 공통 + 도메인 특화 2건 |
-| **7-C5. knip dead code** | ✅ | `aa7eefc` | PointTxReason / SystemConfigKey 미사용 타입 제거 |
-| **런칭 P0+P1 Stage 0~6** | ✅ | `b34be4c`~`88f3542` | JWT_SECRET 강제, helmet, /health, 채널 화이트리스트, 관리자 명령 5종, 음성출석, 자동 정산, 운영 가이드 |
-| **런칭 Critical fix** | ✅ | `2a2ee11` | 정산 알림 SettleSummary 합산 + Voice attendance 무한 polling 방지 |
-| **런칭 High C+F** | ✅ | `3f647bf` | createBettingScenario 트랜잭션화 + attendance SELECT FOR UPDATE 시리얼화 |
-| **신규 명령 3종** | ✅ | `e2c8069` | /송금, /최근베팅, /팀나누기 (음성채널 인원 분할 + 자동 이동) |
-| **팀나누기 단순화** | ✅ | `ceeb466` | 컨펌 버튼 + 현재 채널 재사용 + 빈 채널 자동 탐색 |
-| **Step UI Pt.1** | ✅ | `e3cbb60` | /베팅 /관리-정산 → 3-step Select+Modal+Button (UUID 입력 제거) |
-| **Step UI Pt.2 + 정산 DM** | ✅ | `6c52af2` | /구매 /순위예측 /관리-베팅마감 step UI + 베팅자 개인 DM (WON/LOST/REFUNDED) |
-| **출석 streak 보너스** | ✅ | `4fe8553` | 3/5/10 연속 출석 자동 보너스 mint + STREAK_BONUS reason |
-| **Frontend 정리 A+C** | ✅ | `c818758` | reset-password zod+RHF + vitest 인프라 도입 + schema 단위 테스트 5건 |
-| **Frontend Phase A~C** | ✅ | `c72c4ab` | Tier 1 dead code 제거 + /login/security-settings RHF + admin API generic + map-randomizer custom hook (19 tests pass) |
-| **Frontend Tier 3+4** | ✅ | (이번) | auction page 746→592 분할 + RTL/hook 테스트 + hex 토큰화(66건) + clan-create RHF (36 tests pass) |
-
-**현재 검증 상태**:
-- backend build ✅
-- frontend build ✅
-- **unit test 194 PASS + 1 skipped** (21 suites, +76 from baseline 118)
-- integration/e2e 7 suite 실패 — DB 미연결 환경 이슈 (회귀 아님)
-- lint: 0 error / 0 warning
-- TS `strict: true` 전면 활성 (strictPropertyInitialization만 false — TypeORM 보호)
-- Controller `@InjectRepository` 0건 / `throw new Error` 0건 / `any` 0건
-- Entity nullability: 15 파일 38 필드 `T | null` (overwatch/replay/user는 `?:` 컨벤션 유지)
-- knip: 의도적 false positive 외 0건 (마이그레이션/e2e/Shadcn UI/MainRole 보존)
-
-**Phase 7 핵심 변경 요약**:
-| Service | Before | After | Helper 신설 |
-|---------|--------|-------|------------|
-| auctions.service.ts | 1168줄 | 626줄 (∆ -542) | AuctionsBiddingService (435), AuctionsRoomStateService (202) |
-| clans.service.ts | 641줄 | 497줄 (∆ -144) | ClanActivityFeedService (180) |
-
-- facade 패턴 유지 — 외부 API 변경 0건 (gateway, controller, 다른 모듈 import 무영향)
-- 권한 helper: `loadAsCreator` / `loadAsCreatorTx` (4줄 분기 → 1번 호출)
-- 페이지네이션 매직넘버: `DEFAULT_PAGE` / `DEFAULT_PAGE_SIZE` 공통 상수
+| 1~4. 기반·핵심·Bot·Admin | ✅ | `2a0a0e1`~`b57e078` | TypeORM/PointTx/Match/BettingMarket, LedgerService, Discord Bot 14.26, /admin 11종 |
+| 5-A~D. 사용자 페이지 폐기 + 인증 통합 + 단일 클랜 전환 | ✅ | `9c6538d`~`e24d7dd` | betting/shop/wallet 등 폐기, 쿠키 단일, clanId 9 컬럼 DROP |
+| 6. 타입 안전성 + lint | ✅ | `506d314`~`912657d` | strict:true, lint 0, Entity nullability 38필드 |
+| 7. 클린 아키텍처 정돈 | ✅ | `367c611`~`aa7eefc` | Controller 격리, AuctionsService 분할, 권한 helper |
+| 런칭 P0+P1 + Step UI + 출석 streak | ✅ | `b34be4c`~`4fe8553` | helmet/health/채널 화이트리스트, 3-step UI, streak 보너스 |
+| Frontend 정리 A+C / Tier3+4 / 통계 페이지 분할 | ✅ | `c818758`~`ca4c07e` | vitest 인프라 + RHF 표준화 + auction 746→592 |
+| **5-E. 사용자 채널 → Discord 봇 전면 이관** | ✅ | `ebc624e`, `7ac9387` | 사용자 페이지/모듈/엔티티 폐기 (−19,339 LOC) + DB drop migration |
+| **5-F.1 단발성 경매 페이지 v1** | ✅ | `abafeea` | `/auction` 단일 URL — 마스터/캡틴/관전자 3-role view, socket.io |
+| **5-F.2 ASSIGNING + 리셋 + PNG + 가격 배지** | ✅ | `eb5d782` | 드래그앤드롭 유찰자 배정 (@dnd-kit) + 경매 리셋 + 결과 이미지 다운로드 (html-to-image) |
+| **5-F.3 3-column 레이아웃 + 매물 아바타 + 남은 매물 큐** | ✅ | `fc36953` | 좌 팀카드 / 중 매물+컨트롤 / 우 큐. RoomState 에 avatarUrl 노출 |
+| **5-F.4 리뷰 1차 fix** | ✅ | `4412215` | 새 경매 confirm + `unassignedPlayers` rename + captain key 기반 input 재마운트 + queue 진행 표시 |
+| **5-F.5 이력 보존 흐름** | ✅ | `10f5ba7` | 마스터가 [새 경매(저장)] vs [결과 버리기] 명시 선택. backend deleteAuction COMPLETED 허용 |
+| **5-F.6 리뷰 Critical fix** | ✅ | `0f0b666` | useCurrentAuction 우선순위 (ACTIVE → COMPLETED fallback) + 안내 카드 dismissible |
 
 ---
 
-## 2. 아키텍처 현황 (반드시 숙지)
+## 2. 현재 시스템 구조 (반드시 숙지)
 
-### 2.1 도메인 SSOT
+### 2.1 도메인 분담
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Discord 봇 (사용자 도메인 — 베팅/출석/상점/송금/팀나누기)  │
+│  슬래시 명령 15종 + 음성 출석 자동 + 정산 DM             │
+└─────────────────────────────────────────────────────────┘
+                       ↑ 단일 SSOT: User.pointsBalance + PointTx
+                       ↓
+┌─────────────────────────────────────────────────────────┐
+│  웹 (운영자 + 경매 전용)                                  │
+│  /admin/* — 관리자 대시보드 7개 (attendance/config/      │
+│             ledger/matches/members/orders/products)      │
+│  /auction — 단발성 실시간 경매 (마스터+팀장 로그인)        │
+│  /utility — 팀나누기/유틸 + Discord 화면공유 송출 화면     │
+│  /login   — 마스터+팀장 진입점                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 2.2 도메인 SSOT
 
 | 도메인 | SSOT | 비고 |
 |--------|------|------|
 | 포인트 잔액 | `User.pointsBalance` (BigInt) | LedgerService.computeBalanceFromLedger 검증 |
 | 회계 원장 | `PointTx` (복식부기) | LedgerService.mint/burn/transfer 경유 필수 |
 | 내전 상태 | `Match.status` 상태머신 | DRAFT → BETTING_OPEN → LOCKED → SETTLED |
-| 인증 토큰 | HttpOnly 쿠키 `access_token` | **쿠키 단일** (Bearer fallback 제거됨) |
+| **경매 상태** | `Auction.status + biddingPhase` | PENDING → ONGOING (WAITING/BIDDING/SOLD 사이클) → ASSIGNING → COMPLETED |
+| 인증 토큰 | HttpOnly 쿠키 `access_token` | **쿠키 단일** (Bearer 제거) |
 | 디스코드 가입 | `User.discordId` (unique) | DiscordMemberService.findOrCreate 멱등 |
-| 베팅 잠금 | `BettingStake.amount` 합산 | UNIQUE 미적용 |
-| 클랜 멤버십 | `ClanMember.clanId` | 단일 클랜이라도 row는 유지 (membership 본질) |
+| 클랜 멤버십 | `ClanMember.clanId` | 단일 클랜이라도 row 유지 |
 
-### 2.2 인증 흐름 (5-D 갱신)
+### 2.3 경매 페이지 — `/auction` 단일 URL
+
+**페이지 라우팅**: `/auction` 단일. `[id]` 동적 라우트 없음. `useCurrentAuction()` 이 자동으로 1건 추적:
+1. **ACTIVE** (PENDING/ONGOING/PAUSED/ASSIGNING) 중 최근 1건 우선
+2. 없으면 최근 **COMPLETED** 1건 (결과 화면 유지용)
+3. 그것도 없으면 null → `AuctionNoActive` 화면
+
+**View 분기** (orchestrator: `frontend/src/app/auction/page.tsx`):
+
+| status \ role | master (creatorId 일치) | captain (CAPTAIN role) | spectator |
+|--|--|--|--|
+| no auction | `<AuctionNoActive canCreate />` | 동일 (비활성 안내) | 동일 |
+| PENDING | setup 대시보드 (팀장/매물 incremental) | "마스터 준비 중" 명단 view | 동일 |
+| ONGOING | 3-column 흐름 조율 패널 | 3-column 입찰 패널 (본인 잔여P) | 3-column read-only |
+| ASSIGNING | 드래그앤드롭 유찰자 배정 | "마스터 수동 배정 중" 안내 | 동일 |
+| COMPLETED | 결과 + 3 액션 (이미지/새 경매/버리기) | 결과 view | 동일 |
+
+**3-column 레이아웃** (ONGOING):
+```
+┌─ 헤더 (제목 · 미배정 N/M · 타이머) ──────────────────────┐
+├─ 좌 (col-3) ──┬─ 중앙 (col-6) ────────┬─ 우 (col-3) ─────┤
+│ 팀 카드 (세로) │ 매물 카드 (192px 아바타) │ 남은 매물 큐    │
+│  - 잔여 P     │   + 디스코드명           │  · 진행 중      │
+│  - 영입 멤버  │   + 역할 배지            │  · 대기 그룹    │
+│    + 낙찰가  │ 경매조작/입찰 패널         │  · 유찰 그룹    │
+└──────────────┴────────────────────────┴─────────────────┘
+```
+
+**경매 진행 정책**:
+- 매물 1개 당 타이머 **30~60초** (default 30) — 마스터 매물 설명 시간 확보
+- 타이머 만료 시 backend 가 자동 처리: `currentBid` 있으면 자동 confirmBid, 없으면 자동 passPlayer
+- **다음 매물 진행은 명시적 [다음] 클릭**으로만 (자동 X) — 매물 간 휴식 시간 자유
+- **종료 조건**: 모든 PLAYER 가 팀에 배정되어야만 [경매 종료] 활성. 유찰자 남으면 ASSIGNING phase 진입 필요
+- **리셋**: 진행 중 언제든 마스터가 모든 매물 배정/입찰/잔여P 초기화 (팀 수/팀장/매물 등록은 유지)
+
+**이력 보존 흐름** (COMPLETED 화면):
+- **[결과 이미지]** (Cyan) — PNG 다운로드 (`html-to-image` 1080px 오프스크린 캡처)
+- **[새 경매 (이력 저장)]** — 현재 결과는 DB 보존 + 새 PENDING 생성 (= 자동 이력 누적)
+- **[결과 버리기]** (destructive ghost) — confirm 후 DB 영구 삭제 (쓰레기 데이터 방지)
+- 안내 카드 — 첫 진입 시 보존/삭제 의미 노출, `localStorage('auction-completed-help-seen')` 로 1회 dismiss
+
+### 2.4 인증 흐름 (변경 없음)
 
 ```
-[자체 로그인]
-POST /auth/login → HttpOnly 쿠키 set (7일) + { ok: true }
-  → 프론트: AuthContext가 GET /auth/profile로 user 정보 fetch
+[자체 로그인 — 마스터+팀장 경매 진입]
+POST /auth/login → HttpOnly 쿠키 (7일) + { ok: true }
+  → 프론트: AuthContext 가 GET /auth/profile 로 user fetch
 
-[Discord OAuth — passport-discord 교체됨 (5-D)]
-GET /auth/discord → DiscordOAuthService.getAuthUrl + state 쿠키(5분) + 302
-GET /auth/discord/callback → DiscordOAuthGuard:
-   1) state 쿠키 vs query.state timingSafeEqual 비교 (CSRF)
-   2) code → access_token 교환 (axios)
-   3) /users/@me 프로필 조회
-   4) DiscordMemberService.findOrCreate (봇과 동일 멱등 경로)
-   5) req.user에 User entity 주입
-  → HttpOnly 쿠키 set (7일, 자체 로그인과 동일) + redirect
+[Discord OAuth — 사용자 도메인이지만 웹 진입 시도 시 사용 가능]
+GET /auth/discord → state 쿠키 + 302
+GET /auth/discord/callback → DiscordOAuthGuard (state CSRF + code 교환 + 멱등 user 생성)
 
-[JWT 추출]
-JwtStrategy: cookieExtractor 단일 (Bearer fallback 제거)
-WsJwtGuard: 삭제됨 (consumer 0 — auction.gateway는 accessCode 자체 인증)
-
-[로그아웃]
-POST /auth/logout → res.clearCookie('access_token')
-```
-
-### 2.3 단일 클랜 전환 완료 (5-C → 5-D.4)
-
-**Entity 변경 누적**:
-- 5-C: `ClanMember.{totalPoints, lockedPoints}` 컬럼 DROP (마이그레이션 1747900005000)
-- 5-D.4: 9개 테이블에서 `clanId` 컬럼 + Clan FK 제거 (마이그레이션 1747900006000)
-  - 대상: `posts`, `votes`, `shop_products`, `blind_date_listings`, `point_rules`,
-    `announcements`, `clan_join_requests`, `hall_of_fame`, `replays`
-  - **보존**: `clan_members.clanId` (멤버십 본질), `clans` 테이블
-
-**HTTP 흐름**:
-- ClanRolesGuard: request.clanId 추출 로직 제거 → userId만으로 ClanMember 조회
-- Service/Controller/DTO에서 clanId 파라미터 정리 (attendance, shop, votes, posts, blind-date, profiles, clans, overwatch/replay)
-- `/clans/:clanId/...` URL **prefix는 유지** (historical resource path, frontend 호환)
-- JWT payload + AuthenticatedRequest.user.clanId **유지** (frontend가 user.clanId로 URL 생성)
-
-### 2.4 폴더 구조 (현재)
-
-```
-backend/src/
-├── modules/
-│   ├── auth/                 # discord-oauth.service/guard (5-D 신규)
-│   ├── users/                # admin-users.controller
-│   ├── ledger/               # /admin/ledger/timeseries (5-D 추가)
-│   ├── matches/              # 내전 상태머신
-│   ├── betting/              # 패리뮤추얼
-│   ├── shop/                 # ShopProduct (clanId 제거됨)
-│   ├── system-config/        # 경제 파라미터 KV
-│   ├── attendance/           # 출석 + xlsx 업로드
-│   ├── discord-bot/          # 슬래시 명령 7종
-│   ├── clans/                # 멤버십/role
-│   ├── wallet/               # ranking + addPoints (5-D.2 슬림화)
-│   ├── auctions/             # 경매 + auction.gateway
-│   ├── posts/, votes/, blind-date/, profiles/, overwatch/, scrim-results/, uploads/, my-info/
-├── database/migrations/      # 5개 파일 (Baseline + Phase1/2 + 5-C + 5-D.4)
-└── common/
-    ├── guards/{jwt-auth,roles,market-gate,clan-roles}.guard.ts  # ws-jwt 삭제됨
-    └── services/market-gate.service.ts
-
-frontend/src/
-├── app/
-│   ├── admin/                # Phase 4.2 산출물 (11개)
-│   ├── auction/, clan/, community/, my-info/, overwatch/, profile/, vote/, utility/
-│   ├── login/, forgot-password/, reset-password/
-│   └── page.tsx              # 대시보드
-├── modules/
-│   ├── admin/, auction/, attendance/, blind-date/, chat/, clan/, community/, my-info/,
-│   │   overwatch/, profiles/, scrim-result/, utility/, vote/
-│   └── (betting, shop, wallet, games, user 모듈 삭제됨)
-└── common/components/ui/     # Shadcn (수정 금지)
+[제거됨]
+- /auth/forgot-password, /auth/reset-password, /auth/verify-reset-token (Phase 5-E 잔여 정리)
+- EmailService, PasswordReset entity
 ```
 
 ---
 
-## 3. 테스트 현황
+## 3. 이번 세션의 핵심 변경 상세
 
-### 3.1 통과 spec (16 suites, 118 PASS + 1 skipped)
+### 3.1 Phase 5-E — 사용자 채널 폐기 (커밋 `ebc624e`, `7ac9387`)
 
+**삭제된 frontend 페이지** (12개):
+`vote/`, `community/`, `clan/`, `my-info/`, `profile/`, `overwatch/`, `forgot-password/`,
+`reset-password/`, `auction/[id]/`, 그리고 `auction/page.tsx` (목록 페이지)
+
+**삭제된 frontend 모듈** (12개):
+`community`, `clan`, `my-info`, `profiles`, `overwatch`, `statistics`, `blind-date`,
+`chat`, `vote`, `auction` (기존), `scrim-result`, `attendance` (frontend)
+
+**삭제된 backend 모듈** (6개):
+`posts`, `profiles`, `overwatch`, `blind-date`, `votes`, `scrim-results`
+
+**삭제된 백엔드 잔여물**:
+- `app.controller/service/spec` (Hello World 스캐폴드)
+- `auth.controller`: forgot-password/reset-password/verify-reset-token 3개 엔드포인트
+- `auth.service`: forgotPassword/resetPassword/verifyResetToken 메서드
+- `auth/email.service.ts`, `auth/entities/password-reset.entity.ts`
+- `auth.module`: `EmailService` provider, `PasswordReset` TypeOrm 등록 해제
+- `users.service`: `findByEmail`, `updatePassword` (forgot 전용)
+
+**DB 마이그레이션** `1747900007000-DropUserChannelTables.ts`:
+- 10개 dead 테이블 drop (`posts`, `post_comments`, `votes`, `vote_records`, `blind_date_listings`,
+  `member_profiles`, `overwatch_profiles`, `replays`, `scrim_results`, `password_resets`)
+- CASCADE + IF EXISTS 멱등
+
+**Header/layout 정리**:
+- BottomNav 컴포넌트 완전 제거 (모바일 사용자 X)
+- Header navItems → 4개 (대시보드/경매/운영/유틸리티)
+- `/` → 자동 redirect: ADMIN→`/admin`, 일반→`/utility`, 비인증→`/login`
+
+**누적 변경량**: 153 파일 / **−19,339 LOC**
+
+### 3.2 Phase 5-F — 단발성 경매 페이지 신규 (커밋 `abafeea`~`0f0b666`)
+
+**신규 frontend 모듈**: `src/modules/auction/` 18 파일
 ```
-src/app.controller.spec.ts                                ✅
-src/modules/attendance/attendance-upload.controller.spec  ✅  96% cov
-src/modules/auth/auth.controller.spec                     ✅  쿠키/Discord/logout
-src/modules/auth/discord-oauth.service.spec               ✅  5-D 신규
-src/modules/betting/betting.service.spec                  ✅
-src/modules/discord-bot/discord-member.service.spec       ✅
-src/modules/ledger/ledger.service.spec                    ✅
-src/modules/ledger/ledger.controller.spec                 ✅  5-D 신규 timeseries
-src/modules/matches/match.service.spec                    ✅  76% cov
-src/modules/posts/posts-bulk-like.service.spec            ✅
-src/modules/profiles/profiles-equip.service.spec          ✅
-src/modules/shop/admin-products.controller.spec           ✅  94% cov (1 skipped: clanId 필터 케이스)
-src/modules/shop/shop-profile-items.service.spec          ✅
-src/modules/users/admin-users.controller.spec             ✅  잔액 조정 Ledger 검증
-test/unit/auth/auth.service.spec                          ✅
-test/unit/clans/clans.service.spec                        ✅
+types.ts                                    백엔드 RoomState 미러
+api/auctions.ts                             /auctions REST wrapper + usersApi
+schemas/auction-create.schema.ts            zod (turnTimeLimit 30~60)
+hooks/
+  use-current-auction.ts                    ACTIVE 우선 + COMPLETED fallback
+  use-auction-socket.ts                     io('/auction') + 17 이벤트 구독
+  use-auction-role.ts                       master/captain/spectator
+components/
+  auction-no-active.tsx                     빈 상태 + 새 경매 CTA
+  auction-pending-master.tsx                setup 대시보드 (incremental 추가)
+  auction-pending-waiting.tsx               비-마스터 대기 view
+  auction-ongoing-{master,captain,spectator}.tsx  3-role × 3-column
+  auction-completed.tsx                     결과 + 3 액션 + 안내 카드
+  parts/
+    create-auction-dialog.tsx               신규 경매 폼 (재사용)
+    team-sidebar.tsx                        좌측 세로 팀 카드
+    player-queue.tsx                        우측 매물 큐 (진행/대기/유찰)
+    current-player-card.tsx                 매물 대형 카드 (192px 아바타)
+    bid-timer.tsx                           20s/10s 색상 분기
+    assignment-panel.tsx                    @dnd-kit 드래그앤드롭
+    auction-result-poster.tsx               1080px PNG 캡처용
+    user-picker-dialog.tsx                  매물/팀장 multi-select
+    participant-list.tsx                    팀장/매물 명단 + 제거
+src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 ```
 
-### 3.2 실패 spec (DB 환경 의존)
+**백엔드 변경** (모듈 `backend/src/modules/auctions/`):
+- `AuctionsService.reset(auctionId, userId)` 신규 — 트랜잭션으로 bids 삭제 + participants 재초기화 + auction state 복원. 마스터(creator) 전용. ONGOING/PAUSED/ASSIGNING 만 허용
+- `AuctionsService.deleteAuction()` status 가드 확장: PENDING/CANCELLED → **PENDING/CANCELLED/COMPLETED**. ONGOING/PAUSED/ASSIGNING 여전히 차단
+- Gateway 신규 이벤트: `'resetAuction'` 핸들러 → `stopBiddingTimer` + service.reset + broadcast `'auctionReset'`
+- `auctions-room-state.service.ts` 확장: `participants[].user.avatarUrl`, `currentPlayer.avatarUrl`, `unsoldPlayers[].avatarUrl + wasUnsold` 노출
 
-```
-test/integration/{auctions,auth,betting,clans,scrims,votes}/*.e2e-spec
-test/app.e2e-spec
-```
+**신규 의존성** (frontend):
+- `socket.io-client@^4.8.3` (사용 시작)
+- `html-to-image@^1.11.13` (PNG 캡처)
+- `@dnd-kit/core` (드래그앤드롭)
 
-다음 진입자: PostgreSQL + `npm run migration:run` 후 재실행. fixture 필요할 수 있음.
+### 3.3 코드 리뷰 사이클
 
-### 3.3 커버리지 (unit only)
-- 전체 ~22% statements
-- 신규 핵심 모듈 60~96% 커버
-- 미커버 (Phase 6 백로그):
-  - `system-config.controller/service` (0/25%)
-  - `match.controller`
-  - 프론트엔드 (vitest/RTL 미설치)
+3회 리뷰 → 즉시 수정:
+- 리뷰 1 (`fc36953` 직후) → `4412215`: dead code, 네이밍, 캡처 wrapper, captain input key 기반 reset, queue 진행 표시
+- 리뷰 2 (`10f5ba7` 직후) → `0f0b666`: **Critical** useCurrentAuction COMPLETED fallback + 안내 카드 dismissible + cascade 주석 정정 + isDiscarding mutex
 
 ---
 
-## 4. 최근 변경 상세 (이번 세션 5개 커밋)
+## 4. 현재 검증 상태
 
-### 4.1 `f0e4a35` — Phase 5-D 잔여 정리
+| 항목 | 결과 |
+|------|------|
+| backend typecheck (strict:true) | ✅ 0 error |
+| backend lint | ✅ 0 error |
+| backend build (nest build) | ✅ |
+| backend unit test | ✅ **9건** (auth 4 + clans 5) |
+| frontend typecheck | ✅ 0 error |
+| frontend lint | ✅ 0 error (2 unrelated warnings — image-uploader) |
+| frontend build (next build) | ✅ 14 routes 정상 |
+| frontend vitest | ✅ **9건** (login.schema + utility hooks) |
 
-- **Bearer fallback 제거**: `jwt.strategy.ts` cookieExtractor 단일, `ws-jwt.guard.ts` 쿠키 1순위만
-- **Discord 쿠키 maxAge 통일**: 1시간 → 7일, `buildAccessTokenCookieOptions(isProd)` 추출
-- **passport-discord 교체**: deprecated 패키지 제거. 직접 구현 2파일 신규
-  - `discord-oauth.service.ts` — getAuthUrl/exchangeCode/fetchProfile (axios)
-  - `discord-oauth.guard.ts` — state CSRF (timingSafeEqual) + DiscordMemberService.findOrCreate
-- **`/admin/ledger/timeseries`** endpoint 추가 (bucket=day, days 1~90 clamp)
-  - 프론트 대시보드 `buildChartData` 제거 → 서버 집계 사용
-- **Swagger 데코**: 7개 컨트롤러(admin 6 + auth) @ApiTags/@ApiOperation/@ApiCookieAuth 부착
-  - `main.ts`: addBearerAuth → addCookieAuth('access_token')
-
-### 4.2 `e54df05` — Dead code + 의존성 정리
-
-- **프론트 dead 파일 24개 삭제**:
-  - `components/dashboard/*` 7종 (페이지 폐기 후 잔재)
-  - `modules/user/` 전체 (참조 0)
-  - `modules/vote/components/{create,edit}-vote-modal, vote-card`
-  - `modules/blind-date/{components/hero-card, types}`
-  - `modules/profiles/{index, components/shop-item-card}`
-  - `modules/scrim-result/components/scrim-ranking-table`
-  - `modules/admin/components/empty-state, hooks/*, schemas/config-update`
-  - `common/components/{action-buttons, toggle-filter}`
-- **백엔드 unused export**: `IS_COMPONENTS_V2`, `POINT_TX_REASON` re-export, `PlacementDto`, `SyncProfileDto`, `SlashCommandDefinition`, overfast-api 내부 인터페이스
-- **wallet 슬림화**: balance/send/history endpoint + 메서드 + DTO 제거. `ranking` + 내부 `addPoints`만 유지
-- **의존성 제거**:
-  - backend: `swagger-ui-express`, `@eslint/eslintrc`, `@types/uuid`, `source-map-support`, `ts-loader` / `multer` 명시 등록
-  - frontend: radix 14종 + `cmdk`, `embla-carousel-react`, `input-otp`, `next-themes`, `react-day-picker`, `react-loading-skeleton`, `react-resizable-panels`, `vaul`, `tailwindcss-animate`, `autoprefixer`
-
-### 4.3 `e05aff1` — Track B-1
-
-- `ws-jwt.guard.ts` 삭제 (Games 폐기 후 consumer 0건)
-- `ClanRolesGuard`: request.{params,body,query}.clanId 추출 로직 제거 → userId만으로 ClanMember 조회 (단일 클랜 전제)
-
-### 4.4 `c7d97b6` — Track B-3 (DB schema 영구 변경)
-
-- **Entity**: 9개 테이블에서 `clanId` 컬럼 + Clan FK 제거
-- **마이그레이션** `1747900006000-Phase5D3DropClanIdFKs`:
-  - FK/index 동적 탐색 후 안전 삭제
-  - 롤백: nullable uuid 컬럼 복원 (이전 데이터 복구 불가 — 단일 클랜이라 무의미)
-- **Service/Controller/DTO**:
-  - `attendance`: clanId 파라미터 전부 제거
-  - `shop.createProduct/findAll`: clanId 제거, CreateProductDto.clanId 제거
-  - `votes.findAll`: clanId 제거, CreateVoteDto.clanId 제거
-  - `posts.getCommunityFeed/getFeed/createPost`: clanId 제거
-  - `blind-date.findAll/CreateListingDto`: clanId 제거
-  - `profiles.getMemberIdByUserId(userId)`: 시그니처 축소
-  - `clans.{getClanRequests, approve/reject, announcement, hallOfFame}`: 단일 클랜 전제
-  - `overwatch/replay`: `findByClan→findAll`, `getClanStats→getStats`, req.user.clanId 검증 제거
-- **URL**: `/replays/clan/:clanId`, `/replays/stats/:clanId` → `/replays`, `/replays/stats`
-- **유지**: `/clans/:clanId/...` URL prefix, ClanMember.clanId, JWT clanId, AuthenticatedRequest.user.clanId
-
-### 4.5 `e24d7dd` — Frontend cosmetic cleanup
-
-- hooks 정리: `use-community` (6 함수), `use-replays`, `use-scrim-result` (2 함수)
-- 페이지 정리: `profile/[memberId]` 12개 ?clanId=, `community/page`, `vote/page`, `overwatch/replays/page`
-- 컴포넌트 정리: `post-detail`, `post-write-form`
-- 유지: `dashboard/{announcements,hall-of-fame}`, `clan-manage`, `attendance hooks`의 URL path `/clans/${clanId}/...` (route prefix는 backend가 유지)
+**참고**: backend 의 integration/e2e 7 suite 는 DB 미연결로 인한 사전 실패 (회귀 아님). frontend test 가 일부 축소된 것은 사용자 페이지 폐기 영향.
 
 ---
 
-## 5. 마이그레이션 현황
+## 5. 다음 세션 백로그
 
-```
-backend/src/database/migrations/
-├── 1747900000000-Baseline.ts                       placeholder
-├── 1747900001000-Phase1DiscordRefactor.ts          신규 도메인 테이블
-├── 1747900002000-Phase2CoreLogic.ts                폐기 4종 DROP
-├── 1747900005000-Phase5CDropClanMemberPoints.ts    ClanMember 포인트 컬럼
-└── 1747900006000-Phase5D3DropClanIdFKs.ts          9개 테이블 clanId 컬럼/FK
-```
+### 우선순위 1 — 경매 이력 관리 페이지 (Phase 5-G)
 
-**클린 DB 부팅** 절차:
-1. PostgreSQL 띄우고 .env 설정
-2. 둘 중 택일:
-   - `SYNC_SCHEMA=true npm run start:dev` 1회 (entities 기반)
-   - `npm run migration:run` (5개 체인)
+사용자 요구: "DB 에 이력 보존하는 이유는 나중에 포인트 지급해주려고". 따라서 이력 페이지 + 포인트 지급 흐름 필요.
 
----
+1. **`/admin/auctions` 페이지 신설** — 경매 이력 리스트
+   - GET `/auctions` 의 COMPLETED 만 필터링 → table 렌더
+   - 컬럼: 제목, 종료일, 팀 수, 영입 인원, 마스터, status
+   - row 클릭 → 상세 (panel 또는 `/admin/auctions/[id]`)
+2. **이력 상세 view** — TeamRosters/AuctionResultPoster 재사용
+   - 팀별 영입 + 낙찰가 + 미낙찰 명단
+   - **결과 이미지 재다운로드** (이미 만든 poster + html-to-image)
+3. **포인트 지급 흐름** — LedgerService.mint 활용
+   - "이 경매 영입 선수들에게 보상 지급" 버튼 → DTO (per-팀 또는 per-매물 amount + reason) → 일괄 mint
+   - Idempotency: PointTx.reason 에 `AUCTION_REWARD:{auctionId}:{userId}` 같은 패턴
+   - PointTx 조회로 중복 지급 방지
+4. **이력 페이지 진입점**:
+   - Header 또는 `/admin` 대시보드에 [경매 이력] 링크
 
-## 6. 환경 변수 (Discord 봇 활성화 시)
+### 우선순위 2 — Critical UX/보안 보강
 
-```
-# DB
-DATABASE_URL=postgresql://...
-SYNC_SCHEMA=false
-
-# JWT
-JWT_SECRET=<강력한 키>
-NODE_ENV=development|production
-
-# Discord 봇
-DISCORD_BOT_ENABLED=true
-DISCORD_BOT_TOKEN=<...>
-DISCORD_CLIENT_ID=<...>
-DISCORD_CLIENT_SECRET=<...>
-DISCORD_GUILD_ID=<...>
-
-# Discord OAuth (웹 로그인)
-DISCORD_OAUTH_ENABLED=true
-DISCORD_OAUTH_REDIRECT_URI=https://potg.joonbi.co.kr/auth/discord/callback
-DISCORD_OAUTH_SUCCESS_REDIRECT=/
-```
-
----
-
-## 7. 다음 세션 백로그
-
-### 우선순위 1 — 운영 환경 셋업 (DB + Discord 봇 토큰 필요)
-1. PostgreSQL + 5개 마이그레이션 적용
-2. `.env` 채우기 (`.env.example` 참고)
-   - JWT_SECRET (16+ chars)
-   - DISCORD_BOT_TOKEN / DISCORD_CLIENT_ID / DISCORD_GUILD_ID
-   - DISCORD_COMMAND_CHANNEL_IDS (콤마 분리)
-   - DISCORD_BETTING_NOTIFY_CHANNEL_ID
-   - DISCORD_VOICE_ATTENDANCE_MIN_MINUTES=10
-3. Discord Developer Portal:
-   - SERVER MEMBERS INTENT ON (팀나누기 명령)
-   - Bot Permissions: Send Messages, Embed Links, View Channels, Connect, **Move Members**
-4. 첫 ADMIN 사용자 지정: `UPDATE users SET role='ADMIN' WHERE discord_id='...'`
-5. V1~V10 수동 검증 — `docs/operations.md` 참조
-
-### 우선순위 2 — 프론트엔드 일관성 (Phase 7-C)
-1. **C1. 폼 표준화**: zod + react-hook-form 적용 (reset-password, clan/create, community/write — 현재 수동 정규식)
-2. **C2. ClanSettingsFormProps 12 props 분해** → 객체 그룹 + custom hook
-3. **C3. `/app/auction/[id]/page.tsx` 746줄** → custom hooks 분리 (`useAuctionRoom`, `useAuctionBidding`)
-4. **C4. inline 색상/임의값** → tailwind 토큰 (`teamColors`, `max-w-[200px]` 등)
-5. **프론트엔드 vitest + RTL** 인프라 도입
-6. admin 페이지 컴포넌트 테스트
+1. **bidderId 위조 방지** — socket.io gateway 의 `placeBid` 가 payload `bidderId` 와 socket auth user 일치 검증
+   - 현재 v1 모델은 마스터+팀장 신뢰 가정. 보강 권장
+2. **타이머 0 도달 시각화** — 자동 낙찰 순간 전체 화면 flash 또는 소리 (현재 BidTimer 색상 분기만)
+3. **@dnd-kit KeyboardSensor** — a11y. ASSIGNING 패널에서 키보드만으로 배정 가능
+4. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지
 
 ### 우선순위 3 — 잔여 정리 (선택)
+
 1. **MainRole.TANK/SUPPORT/FLEX enum 결정** — DB 컬럼 영향 확인 후 정리
-2. **Bearer Swagger 흔적 정리** — `addBearerAuth` 미사용 (이미 cookie로 교체됨)
+2. **Bearer Swagger 흔적 정리** — `addBearerAuth` 미사용 (이미 cookie)
 3. **MarketGateGuard 캐시 무효화** 정책 명확화
-4. **BettingStake UNIQUE 적용** 검토
-5. **RANK 마켓 정산 정책** 재정의 (`winningOption='1'` 단순화 → 정책 합의 필요)
-6. **B4 모듈 경계 DTO**: clans/posts → ledger.PointTx 직접 import 등 cross-module entity 누출 (38건) — over-engineering 위험 평가 후 선택적 진행
+4. **RANK 마켓 정산 정책** 재정의
 
 ---
 
-## 8. 주의사항 (자주 잊는 것)
+## 6. 주의사항 (자주 잊는 것)
 
 ### 회계 무결성 (CRITICAL)
 - `User.pointsBalance` 직접 UPDATE 금지
 - 반드시 `LedgerService.{mint, burn, transfer}` 경유
-- admin 잔액 조정도 LedgerService (admin-users.controller.spec.ts 보장)
+- **포인트 지급 시 Idempotency 보장** — PointTx.reason 에 식별 가능한 key 포함
 
 ### 인증
-- **Bearer fallback 완전 제거됨** (5-D). 쿠키만 사용
-- Discord OAuth는 passport 의존 없음 — `DiscordOAuthService/Guard` 직접 구현
+- 쿠키 단일 — Bearer 완전 제거됨
+- Discord OAuth: `DiscordOAuthService/Guard` 직접 구현 (passport 미사용)
 - ws-jwt.guard 삭제됨 — 신규 WebSocket 생기면 직접 구현 필요
 
+### 경매 상태 변경 시 주의
+- `AuctionStatus` 추가/삭제 시 `useCurrentAuction` 의 `ACTIVE_STATES` 갱신 필요
+- 신규 socket 이벤트 추가 시 `use-auction-socket.ts` 의 `on()` 등록 + emit fn 추가
+- 마스터 전용 mutation 은 backend gateway 에서 `adminId === creatorId` 검증 — 클라이언트 분기는 UX 만
+
 ### Entity 변경
-- 마이그레이션 동반 필수 (timestamp는 1747900006000보다 커야 함)
+- 마이그레이션 동반 필수. 신규 timestamp는 `1747900007000` 보다 커야 함
 - 신규 마이그레이션 파일명: `{timestamp}-{PascalCaseName}.ts`
-- ERD 업데이트 (`docs/ERD.md` 있다면)
+- ERD 업데이트 (`docs/ERD.md`)
 
 ### 단일 클랜
-- 새 entity에 clanId 추가 금지 — ClanMember를 통한 멤버십으로 표현
-- URL path `/clans/:clanId/...`는 유지하되 service에서는 무시
-- 프론트 `user.clanId`는 URL 생성용으로 계속 사용 가능
+- 새 entity 에 `clanId` 추가 금지 — ClanMember 를 통한 멤버십으로 표현
+- URL path `/clans/:clanId/...` 는 유지하되 service 에서는 무시
+
+### Frontend 경매 페이지 변경 시
+- COMPLETED 화면을 손대면 **useCurrentAuction 의 fallback 정책** 영향 검토 (Critical 회귀 가능)
+- 새 socket 이벤트 추가 → `AuctionEmitFns` interface + `emit.xxx` 함수 추가 필수
+- 백엔드 RoomState DTO 변경 시 frontend `types.ts` 미러 동기화 필수
 
 ### lint
-- 0 error / 0 warning (Phase 7 완료)
-
-### 코드 구조 (Phase 7 이후)
-- AuctionsService는 **facade** — 입찰/RoomState는 helper service로 위임 (services/ 디렉토리)
-- 외부에서 `AuctionsService` 그대로 import (호환성). 새 입찰 로직은 `AuctionsBiddingService`에 직접 추가
-- ClansService도 동일 — getActivities는 `ClanActivityFeedService`에 위임
-- 경매 권한 체크: `loadAsCreator` / `loadAsCreatorTx` helper 사용 (creator + status 패턴)
-- 페이지네이션 default: `common/constants/pagination.ts` 임포트 (도메인 특화는 모듈 내부 상수)
-
-### 결정 사항 누적
-- RANK 마켓 정산: `winningOption='1'` 단순화 (정책 모호)
-- BettingStake UNIQUE 미적용
-- Components V2 embed fallback (discord.js 정식 지원 시 builder 교체)
-- 인증 쿠키 단일 (Bearer 완전 제거 — Phase 5-D)
-- Shadcn `accordion/popover` 미사용이지만 보존 (재사용 가능성)
-- `MainRole.TANK/SUPPORT/FLEX` enum 보존 (DB 영향 확인 후 처리)
-- 프론트 일부 ?clanId= 잔존 (URL path만 사용, cosmetic — 무영향)
+- 0 error / 0 warning (image-uploader 의 `<img>` warning 2건만 사전 존재)
 
 ---
 
-## 9. 파일 맵 (IDE 북마크 추천)
+## 7. 파일 맵 (IDE 북마크)
 
-### 백엔드 핵심 (5-D 갱신)
+### 백엔드 핵심
 ```
 backend/src/
 ├── app.module.ts                                       # 모듈 등록 SSOT
-├── main.ts                                             # cookieParser, addCookieAuth Swagger
-├── common/
-│   ├── guards/{jwt-auth,roles,market-gate,clan-roles}.guard.ts
-│   └── services/market-gate.service.ts
+├── main.ts                                             # helmet + cookieParser
+├── common/guards/{jwt-auth,roles,market-gate,clan-roles}.guard.ts
 ├── modules/auth/
-│   ├── auth.controller.ts                              # /login(쿠키), /logout, /discord*, /profile
-│   ├── auth.service.ts                                 # validateUser, login, forgot/reset
+│   ├── auth.controller.ts                              # /login, /logout, /discord*, /profile
+│   ├── auth.service.ts                                 # validateUser + login
 │   ├── jwt.strategy.ts                                 # cookieExtractor 단일
-│   ├── discord-oauth.service.ts                        # ★ 5-D 신규
-│   ├── discord-oauth.guard.ts                          # ★ 5-D 신규 (state CSRF)
-│   └── auth.controller.spec.ts
+│   └── discord-oauth.{service,guard}.ts                # 5-D
+├── modules/auctions/
+│   ├── auctions.service.ts                             # facade + reset()
+│   ├── services/auctions-bidding.service.ts            # placeBid/selectPlayer/confirmBid/autoConfirmOnTimeout
+│   ├── services/auctions-room-state.service.ts         # RoomState DTO (avatarUrl 포함)
+│   ├── auction.gateway.ts                              # 17 socket 이벤트
+│   ├── auctions.controller.ts                          # 14 REST endpoints
+│   └── entities/{auction,auction-participant,auction-bid}.entity.ts
 ├── modules/ledger/
 │   ├── ledger.service.ts                               # mint/burn/transfer
-│   ├── ledger.controller.ts                            # list/summary/timeseries
-│   └── ledger.controller.spec.ts                       # ★ 5-D 신규
-├── modules/matches/match.service.ts                    # 상태머신
-├── modules/users/admin-users.controller.ts             # 잔액 조정
-├── modules/shop/admin-products.controller.ts
-├── modules/wallet/                                     # ranking + addPoints만
-├── modules/discord-bot/                                # 슬래시 명령 7종
-└── database/migrations/                                # 5개 파일
+│   └── ledger.controller.ts
+├── modules/discord-bot/                                # 슬래시 명령 15종
+└── database/migrations/                                # 7개 (최신: 1747900007000)
 ```
 
 ### 프론트엔드 핵심
 ```
 frontend/src/
-├── app/admin/                                          # 관리자 UI 11종
-├── modules/admin/                                      # 관리자 공통 모듈
+├── app/
+│   ├── page.tsx                                        # / → role-based redirect
+│   ├── auction/page.tsx                                # 경매 orchestrator
+│   ├── admin/*                                         # 운영 페이지 7종
+│   ├── utility/page.tsx                                # 팀나누기/유틸
+│   └── login/page.tsx                                  # 마스터+팀장 진입
+├── modules/auction/                                    # 신규 — 단발성 경매 모듈
+│   ├── types.ts                                        # RoomState 미러
+│   ├── api/auctions.ts
+│   ├── hooks/{use-current-auction,use-auction-socket,use-auction-role}.ts
+│   ├── schemas/auction-create.schema.ts
+│   └── components/{auction-*, parts/*}.tsx
+├── modules/admin/                                      # 관리자 공통
+├── modules/utility/                                    # 팀나누기/맵 추첨
+├── modules/auth/schemas/login.schema.ts                # 로그인 폼 zod
 ├── context/auth-context.tsx                            # /auth/profile 기반
 ├── lib/api.ts                                          # axios + withCredentials
+├── common/layouts/header.tsx                           # 4개 navItem
 └── providers/query-provider.tsx                        # TanStack Query
 ```
 
 ---
 
-## 10. 빠른 시작 (다음 진입자용)
+## 8. 빠른 시작 (다음 진입자용)
 
 ```bash
 # 1. 상태 파악
 cd /c/Users/USER/dev/potg
-git log --oneline -8
-cat docs/handoff.md | head -150
+git log --oneline -12
+head -100 docs/handoff.md
 
 # 2. 빌드 검증
-cd backend && npm run build
-cd frontend && npm run build
+cd backend && npm run build && npm run test:unit
+cd ../frontend && npm run build && npx vitest run
 
-# 3. 단위 테스트
-cd backend && npx jest --testPathIgnorePatterns='test/integration|test/app.e2e'
-# 기대: 118 pass + 1 skipped, 16 suites
+# 3. 운영 환경 셋업 (DB + 봇 토큰 필요)
+cd backend
+# .env 설정 후
+npm run migration:run   # 7개 마이그레이션
+npm run start:dev       # 포트 3000 (외부 8100)
 
-# 4. knip (dead code 재확인)
-cd backend && npx -y knip --reporter compact
-cd frontend && npx -y knip --reporter compact
+cd ../frontend
+npm run dev             # 포트 3000 (외부 3001)
+
+# 4. 첫 ADMIN 지정 (DB 콘솔)
+# UPDATE users SET role='ADMIN' WHERE discord_id='...';
 
 # 5. 다음 작업 선택
-# - 우선순위 1: 운영 환경 + V1~V10 (사용자 작업 필요)
-# - 우선순위 2: system-config/match controller spec / 프론트 vitest
-# - 우선순위 3: cosmetic 잔여 / MainRole 결정
+# - 우선순위 1: /admin/auctions 이력 페이지 + 포인트 지급
+# - 우선순위 2: bidderId 위조 방지 + 타이머 0 강조 + a11y
+# - 우선순위 3: cosmetic 잔여
 ```
 
 ---
 
-## 11. 변경 회피 가이드
+## 9. 변경 회피 가이드
 
 | 절대 건드리지 말 것 | 이유 |
 |--------------------|------|
 | `frontend/src/common/components/ui/*` | Shadcn — 일관성 보존 |
 | `backend/src/modules/*/*.entity.ts` (마이그레이션 없이) | DB 스키마 |
 | `.env`, `.env.local` | 시크릿 |
-| LedgerService 직접 호출 외의 잔액 변경 | 회계 무결성 |
-| `Clan`, `ClanMember` Entity | 멤버십/role 필요 |
-| `/clans/:clanId/...` URL prefix | frontend 호환 |
+| LedgerService 외 잔액 변경 | 회계 무결성 |
+| `useCurrentAuction` 의 `ACTIVE_STATES` 정책 | 경매 화면 전이 |
+| `RoomState` DTO 형상 (frontend 미러 동기) | 클라/서버 형상 깨짐 |
 
 | 변경 시 동반 작업 필수 | 동반 사항 |
 |----------------------|---------|
 | Entity 변경 | 마이그레이션 + ERD + spec 영향 검토 |
 | auth 흐름 변경 | auth.controller.spec / auth.service.spec |
 | 신규 admin API | RolesGuard + ADMIN role + Swagger 데코 + spec |
-| Phase 백로그 진입 | `.pipeline/`에 plan 작성 권장 |
+| 경매 socket 이벤트 추가 | gateway 핸들러 + use-auction-socket emit + RoomState |
+| RoomState 필드 추가 | backend service + frontend types 동시 |
+
+---
+
+## 10. 결정 사항 누적 (역사적 컨텍스트)
+
+### 사용자 채널 이관 (Phase 5-A → 5-E)
+- 전체 사용자 페이지를 점진적으로 폐기 → 최종적으로 Discord 봇이 단일 사용자 인터페이스
+- 웹 = 운영자 + 경매 + 유틸 진입점만
+- 사용자 OAuth 가입은 유지 (Discord 만)
+
+### 경매 모델 결정
+- **단발성** (사용자 발언: "두 건 이상 동시 진행 X")
+- **마스터+팀장 로그인 필수** (마스터는 Discord 화면공유로 송출)
+- **팀장이 본인 입찰** (마스터는 흐름 조율만 — UX 가 더 재미있음)
+- **자동 낙찰 + 명시적 다음 진행** (마스터 설명 시간 확보)
+- **유찰자 수동 배정** (ASSIGNING phase + 드래그앤드롭)
+- **전체 배정 후에만 종료** (미배정 0 조건)
+- **이력 보존** (포인트 지급 위한 DB 영속) + **마스터 저장/버리기 선택** (쓰레기 데이터 방지)
+
+### 그 외
+- `MainRole.TANK/SUPPORT/FLEX` enum 보존 (DB 영향 확인 후 처리)
+- BettingStake UNIQUE 미적용
+- RANK 마켓 정산: `winningOption='1'` 단순화
+- 인증 쿠키 단일 (Bearer 완전 제거)
+- Shadcn `accordion/popover` 미사용이지만 보존
 
 ---
 
 이 핸드오프는 **세션 종료 직전 작성됨**. 다음 진입자가 컨텍스트 100% 복원 가능하도록 상세 기술.
 운영 배포 없는 환경 — 문서가 유일한 외부 메모리.
+
+마지막 커밋: `0f0b666 fix(auction): 리뷰 Critical/Med/Low 일괄 처리`
