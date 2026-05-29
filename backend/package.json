@@ -14,7 +14,7 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
-    "test:unit": "jest --testPathPatterns=test/unit",
+    "test:unit": "jest --testPathIgnorePatterns /node_modules/ test/integration test/app.e2e-spec.ts",
     "test:integration": "jest --testPathPatterns=test/integration --runInBand",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

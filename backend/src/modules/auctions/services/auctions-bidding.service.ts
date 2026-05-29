@@ -19,12 +19,13 @@ import { AuctionBid } from '../entities/auction-bid.entity';
  * 외부에서는 AuctionsService(facade)를 통해 호출되며 직접 의존하지 않는다.
  *
  * 다루는 비즈니스:
+ *  모든 변이 메서드는 경매 행에 pessimistic_write 잠금을 걸어 직렬화한다.
+ *
  *  - selectPlayer        : 마스터가 다음 입찰 대상 선수 지정
- *  - placeBid            : (레거시) 단순 입찰 — 잔액에서 즉시 차감
  *  - placeBidWithValidation : 정식 입찰 — 활성 입찰 합산 후 잔액 검증, 타이머 연장
- *  - confirmCurrentBid   : 최고가 입찰 낙찰 확정 (마스터)
+ *  - confirmCurrentBid   : 최고가 입찰 낙찰 확정 (마스터) — 멱등 (중복 시 confirmed:false)
  *  - passCurrentPlayer   : 유찰 처리
- *  - autoConfirmOnTimeout: 타이머 만료 시 자동 낙찰
+ *  - autoConfirmOnTimeout: 타이머 만료 시 자동 낙찰 — 멱등
  *  - checkAutoConfirm    : 경쟁자 잔액 검증 후 자동 낙찰 가능 여부 판정
  */
 @Injectable()
@@ -44,8 +45,10 @@ export class AuctionsBiddingService {
     adminId: string,
     forbiddenMsg: string,
   ): Promise<Auction> {
+    // pessimistic_write: 동일 경매에 대한 모든 변이 작업을 직렬화 (자동/수동/타이머 낙찰 경합 방지)
     const auction = await manager.findOne(Auction, {
       where: { id: auctionId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
     if (auction.creatorId !== adminId)
@@ -87,39 +90,6 @@ export class AuctionsBiddingService {
     });
   }
 
-  async placeBid(
-    auctionId: string,
-    bidderId: string,
-    targetPlayerId: string,
-    amount: number,
-  ) {
-    return this.dataSource.transaction(async (manager) => {
-      const participant = await manager.findOne(AuctionParticipant, {
-        where: { auctionId, userId: bidderId },
-      });
-      if (!participant || participant.role !== AuctionRole.CAPTAIN) {
-        throw new BadRequestException('Only captains can bid');
-      }
-      if (participant.currentPoints < amount) {
-        throw new BadRequestException('Not enough points');
-      }
-
-      const bid = manager.create(AuctionBid, {
-        auctionId,
-        bidderId,
-        targetPlayerId,
-        amount,
-      });
-
-      await manager.save(bid);
-
-      participant.currentPoints -= amount;
-      await manager.save(participant);
-
-      return bid;
-    });
-  }
-
   async placeBidWithValidation(
     auctionId: string,
     bidderId: string,
@@ -127,8 +97,10 @@ export class AuctionsBiddingService {
     amount: number,
   ) {
     return this.dataSource.transaction(async (manager) => {
+      // pessimistic_write: 동시 입찰의 잔여 포인트 lost-update 방지 (경매 단위 직렬화)
       const auction = await manager.findOne(Auction, {
         where: { id: auctionId },
+        lock: { mode: 'pessimistic_write' },
       });
 
       if (!auction) {
@@ -215,8 +187,14 @@ export class AuctionsBiddingService {
         adminId,
         '관리자만 낙찰을 확정할 수 있습니다.',
       );
-      if (!auction.currentBiddingPlayerId)
-        throw new BadRequestException('현재 입찰 중인 선수가 없습니다.');
+
+      // 멱등 가드: 이미 낙찰 처리된 경우(경합으로 자동/타이머 낙찰이 선행) no-op
+      if (
+        auction.biddingPhase === BiddingPhase.SOLD ||
+        !auction.currentBiddingPlayerId
+      ) {
+        return { confirmed: false as const };
+      }
 
       const highestBid = await manager.findOne(AuctionBid, {
         where: {
@@ -235,6 +213,11 @@ export class AuctionsBiddingService {
         where: { auctionId, userId: auction.currentBiddingPlayerId },
       });
 
+      // 이미 배정된 선수면 중복 차감 방지 (방어)
+      if (player?.assignedTeamCaptainId) {
+        return { confirmed: false as const };
+      }
+
       if (player) {
         player.assignedTeamCaptainId = highestBid.bidderId;
         player.soldPrice = highestBid.amount;
@@ -248,21 +231,18 @@ export class AuctionsBiddingService {
       if (captain) {
         captain.currentPoints -= highestBid.amount;
         await manager.save(captain);
-
-        const previousBids = await manager.find(AuctionBid, {
-          where: {
-            auctionId,
-            bidderId: highestBid.bidderId,
-            targetPlayerId: auction.currentBiddingPlayerId,
-            isActive: true,
-          },
-        });
-
-        for (const bid of previousBids) {
-          bid.isActive = false;
-          await manager.save(bid);
-        }
       }
+
+      // 낙찰된 선수에 대한 모든 활성 입찰(승자/패자)을 비활성화 — 패자 포인트 잠금 해제
+      await manager.update(
+        AuctionBid,
+        {
+          auctionId,
+          targetPlayerId: auction.currentBiddingPlayerId,
+          isActive: true,
+        },
+        { isActive: false },
+      );
 
       const playerId = auction.currentBiddingPlayerId;
       auction.biddingPhase = BiddingPhase.SOLD;
@@ -270,6 +250,7 @@ export class AuctionsBiddingService {
       await manager.save(auction);
 
       return {
+        confirmed: true as const,
         playerId,
         captainId: highestBid.bidderId,
         amount: highestBid.amount,
@@ -308,16 +289,20 @@ export class AuctionsBiddingService {
 
   async autoConfirmOnTimeout(auctionId: string) {
     return this.dataSource.transaction(async (manager) => {
+      // pessimistic_write: 수동 confirm / 다른 타이머 만료와의 경합 방지
       const auction = await manager.findOne(Auction, {
         where: { id: auctionId },
+        lock: { mode: 'pessimistic_write' },
       });
 
+      // 멱등 가드: 이미 낙찰(SOLD)됐거나 진행 중이 아니면 no-op
       if (
         !auction ||
         auction.status !== AuctionStatus.ONGOING ||
+        auction.biddingPhase === BiddingPhase.SOLD ||
         !auction.currentBiddingPlayerId
       ) {
-        return { confirmed: false };
+        return { confirmed: false as const };
       }
 
       const highestBid = await manager.findOne(AuctionBid, {
@@ -333,12 +318,17 @@ export class AuctionsBiddingService {
         auction.currentBiddingPlayerId = null;
         auction.currentBiddingEndTime = null;
         await manager.save(auction);
-        return { confirmed: false };
+        return { confirmed: false as const };
       }
 
       const player = await manager.findOne(AuctionParticipant, {
         where: { auctionId, userId: auction.currentBiddingPlayerId },
       });
+
+      // 이미 배정된 선수면 중복 차감 방지 (방어)
+      if (player?.assignedTeamCaptainId) {
+        return { confirmed: false as const };
+      }
 
       if (player) {
         player.assignedTeamCaptainId = highestBid.bidderId;
@@ -371,7 +361,7 @@ export class AuctionsBiddingService {
       await manager.save(auction);
 
       return {
-        confirmed: true,
+        confirmed: true as const,
         playerId,
         captainId: highestBid.bidderId,
         amount: highestBid.amount,

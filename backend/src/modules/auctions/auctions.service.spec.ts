@@ -443,6 +443,7 @@ describe('AuctionsService', () => {
       expect(auction.biddingPhase).toBe(BiddingPhase.SOLD);
       expect(auction.currentBiddingEndTime).toBeNull();
       expect(result).toEqual({
+        confirmed: true,
         playerId: 'player-1',
         captainId: 'captain-1',
         amount: 500,
@@ -463,14 +464,26 @@ describe('AuctionsService', () => {
       ).rejects.toThrow('입찰 내역');
     });
 
-    it('currentBiddingPlayerId가 없으면 거부', async () => {
+    it('currentBiddingPlayerId가 없으면 멱등 no-op (confirmed:false)', async () => {
       (manager.findOne as jest.Mock).mockResolvedValueOnce(
         baseAuction({ status: AuctionStatus.ONGOING }),
       );
 
-      await expect(
-        service.confirmCurrentBid('auction-1', 'admin-1'),
-      ).rejects.toThrow('현재 입찰');
+      const result = await service.confirmCurrentBid('auction-1', 'admin-1');
+      expect(result).toEqual({ confirmed: false });
+    });
+
+    it('이미 SOLD phase 면 멱등 no-op (중복 낙찰 방지)', async () => {
+      (manager.findOne as jest.Mock).mockResolvedValueOnce(
+        baseAuction({
+          status: AuctionStatus.ONGOING,
+          currentBiddingPlayerId: 'player-1',
+          biddingPhase: BiddingPhase.SOLD,
+        }),
+      );
+
+      const result = await service.confirmCurrentBid('auction-1', 'admin-1');
+      expect(result).toEqual({ confirmed: false });
     });
 
     it('creatorId 불일치 시 거부', async () => {

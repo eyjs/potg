@@ -23,6 +23,7 @@
 | **5-F.4 리뷰 1차 fix** | ✅ | `4412215` | 새 경매 confirm + `unassignedPlayers` rename + captain key 기반 input 재마운트 + queue 진행 표시 |
 | **5-F.5 이력 보존 흐름** | ✅ | `10f5ba7` | 마스터가 [새 경매(저장)] vs [결과 버리기] 명시 선택. backend deleteAuction COMPLETED 허용 |
 | **5-F.6 리뷰 Critical fix** | ✅ | `0f0b666` | useCurrentAuction 우선순위 (ACTIVE → COMPLETED fallback) + 안내 카드 dismissible |
+| **5-F.7 보안·동시성·멱등성 하드닝** | ✅ | (미커밋) | 경매 소켓 JWT 인증 + 식별자 위조 차단 + 입찰 경로 통일 + 경매 단위 pessimistic 잠금 + PointTx 멱등성 키 |
 
 ---
 
@@ -118,6 +119,38 @@ GET /auth/discord/callback → DiscordOAuthGuard (state CSRF + code 교환 + 멱
 
 ---
 
+## 2.5 Phase 5-F.7 — 보안·동시성·멱등성 하드닝 (미커밋)
+
+평가에서 도출된 경매 도메인 사각지대(인증 부재 + 권한 위조 + 락 누락)를 원장 수준으로 끌어올림.
+
+**경매 소켓 인증 (P0)**
+- 신규 `backend/src/common/guards/ws-jwt.guard.ts`: 핸드셰이크 `access_token` 쿠키 검증 헬퍼 `authenticateSocket()` + `WsJwtGuard`. 기존 HTTP JWT 인프라(JwtService/JWT_SECRET) 재사용.
+- `auction.gateway.ts`: `handleConnection`에서 인증 → `client.data.user`. 미인증 즉시 disconnect. `@UseGuards(WsJwtGuard)` 클래스 적용.
+- **모든 핸들러가 페이로드 `bidderId`/`adminId`/`userId` 대신 인증 소켓 사용자(`requireUser`)를 사용** → 위조 불가. 페이로드 식별자 필드 제거 (클린 브레이크).
+- CORS `origin:'*'` → 공유 allowlist `common/config/cors-origins.ts` (main.ts와 동일 SSOT).
+- AuthModule이 `JwtModule` export, AuctionsModule이 AuthModule import.
+
+**프론트 클린 브레이크**: `use-auction-socket.ts` emit 페이로드에서 식별자 제거 + `placeBid(targetPlayerId, amount)` 시그니처 변경. `auction-ongoing-captain.tsx`가 hook의 `AuctionEmitFns` import.
+
+**입찰 경로 통일 (P0)**: 레거시 `placeBid`(즉시 차감) 제거. REST `/bid` → `placeBidWithValidation` 위임. 소켓/REST 단일 모델.
+
+**경매 동시성 (P1)**: `placeBidWithValidation`/`confirmCurrentBid`/`autoConfirmOnTimeout` + facade `loadAsCreatorTx`가 auction 행에 `pessimistic_write` 잠금 → 모든 변이 직렬화. `confirmCurrentBid`/`autoConfirmOnTimeout`는 **멱등** (`biddingPhase===SOLD` 또는 이미 배정 시 `{confirmed:false}` no-op) → 자동·수동·타이머 3중 경합에서 1회만 낙찰. confirmCurrentBid가 낙찰 선수의 **모든** 활성 입찰(패자 포함) 비활성화 (패자 포인트 잠금 해제 버그 수정).
+
+**타이머 버그**: gateway 타이머가 하드코딩 `60` 대신 `turnTimeLimit` 사용.
+
+**멱등성 (P1)**: 
+- `shop.service.ts` 일반 구매 — 주문 먼저 생성 후 burn에 `refId: order.id` (추적 + 트랜잭션 롤백 일관성).
+- `PointTx.idempotencyKey` 컬럼 신규 + **부분 유니크 인덱스** (`WHERE idempotency_key IS NOT NULL`). 마이그레이션 `1747900008000-AddPointTxIdempotencyKey.ts`. LedgerService `mint/burn/transfer` opts에 `idempotencyKey` 추가. **null 기본 → 기존 흐름 무영향**. 향후 경매 보상(Phase 5-G)이 `AUCTION_REWARD:{auctionId}:{userId}` 형태로 사용.
+  - 주의: `(reason, refType, refId)` 전역 유니크는 다건 허용 흐름(멀티 스테이크/스테이크별 payout)을 깨므로 **채택 안 함**. opt-in key 방식이 안전.
+
+**Med 정리**: `BET_REFUND` reason 신설(취소 환불을 BET_PAYOUT과 구분), RoomState `currentBiddingEndTime` `Date→string` 직렬화 계약 명시(frontend 미러 일치), 타이머 만료 실패 시 room에 error+상태 브로드캐스트(무음 삼킴 제거).
+
+**검증**: backend tsc 0 / lint 0 / build OK / **test:unit 19 suite 177 test**(스크립트 패턴 수정으로 src 16 spec 포함 — 기존 9→177), frontend tsc 0 / build 14 routes / lint 0(warn 2 사전존재) / vitest 9.
+
+**보류**: gateway 파일 분할(AuctionTimerService 추출) — 고churn/저가치로 의도적 미실행.
+
+---
+
 ## 3. 이번 세션의 핵심 변경 상세
 
 ### 3.1 Phase 5-E — 사용자 채널 폐기 (커밋 `ebc624e`, `7ac9387`)
@@ -209,13 +242,13 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 | backend typecheck (strict:true) | ✅ 0 error |
 | backend lint | ✅ 0 error |
 | backend build (nest build) | ✅ |
-| backend unit test | ✅ **9건** (auth 4 + clans 5) |
+| backend unit test (`test:unit`) | ✅ **177건 / 19 suite** (스크립트 수정으로 src 16 spec 포함 — 기존 9건은 test/unit만 실행하던 설정 오류) |
 | frontend typecheck | ✅ 0 error |
 | frontend lint | ✅ 0 error (2 unrelated warnings — image-uploader) |
 | frontend build (next build) | ✅ 14 routes 정상 |
 | frontend vitest | ✅ **9건** (login.schema + utility hooks) |
 
-**참고**: backend 의 integration/e2e 7 suite 는 DB 미연결로 인한 사전 실패 (회귀 아님). frontend test 가 일부 축소된 것은 사용자 페이지 폐기 영향.
+**참고**: `test:unit`이 이제 src 의 16 spec + test/unit 2 spec + ws-jwt.guard spec = 19 suite 를 실행 (integration/e2e 는 `testPathIgnorePatterns`로 제외 — DB 의존). integration/e2e 는 여전히 DB 미연결 시 사전 실패 (회귀 아님).
 
 ---
 
@@ -316,7 +349,7 @@ backend/src/
 │   ├── ledger.service.ts                               # mint/burn/transfer
 │   └── ledger.controller.ts
 ├── modules/discord-bot/                                # 슬래시 명령 15종
-└── database/migrations/                                # 7개 (최신: 1747900007000)
+└── database/migrations/                                # 7개 (최신: 1747900008000 PointTx 멱등성 키)
 ```
 
 ### 프론트엔드 핵심

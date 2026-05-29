@@ -13,7 +13,7 @@ interface ErrorPayload {
 }
 
 export interface AuctionEmitFns {
-  placeBid: (bidderId: string, targetPlayerId: string, amount: number) => void
+  placeBid: (targetPlayerId: string, amount: number) => void
   selectPlayer: (playerId: string) => void
   confirmBid: () => void
   passPlayer: () => void
@@ -67,9 +67,10 @@ export function useAuctionSocket(
 
     // socket.io-client 가 자동 재연결 시 'connect' 이벤트가 다시 발화하므로
     // joinRoom 도 매 재연결마다 다시 emit 되어 room membership 이 자동 복원된다.
+    // 식별자는 백엔드가 HttpOnly 쿠키(access_token)로 검증 — 페이로드로 보내지 않는다.
     socket.on('connect', () => {
       setIsConnected(true)
-      socket.emit('joinRoom', { auctionId, userId })
+      socket.emit('joinRoom', { auctionId })
     })
     socket.on('disconnect', () => setIsConnected(false))
 
@@ -99,7 +100,7 @@ export function useAuctionSocket(
     })
 
     return () => {
-      socket.emit('leaveRoom', { auctionId, userId })
+      socket.emit('leaveRoom', { auctionId })
       socket.removeAllListeners()
       socket.disconnect()
       socketRef.current = null
@@ -109,11 +110,11 @@ export function useAuctionSocket(
     }
   }, [auctionId, userId])
 
+  // 마스터/입찰자 식별자는 백엔드가 인증 소켓에서 도출한다 — payload 로 보내지 않는다.
   const placeBid = useCallback(
-    (bidderId: string, targetPlayerId: string, amount: number) => {
+    (targetPlayerId: string, amount: number) => {
       socketRef.current?.emit('placeBid', {
         auctionId,
-        bidderId,
         targetPlayerId,
         amount,
       })
@@ -124,47 +125,44 @@ export function useAuctionSocket(
     (playerId: string) => {
       socketRef.current?.emit('selectPlayer', {
         auctionId,
-        adminId: userId,
         playerId,
       })
     },
-    [auctionId, userId],
+    [auctionId],
   )
   const confirmBid = useCallback(() => {
-    socketRef.current?.emit('confirmBid', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('confirmBid', { auctionId })
+  }, [auctionId])
   const passPlayer = useCallback(() => {
-    socketRef.current?.emit('passPlayer', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('passPlayer', { auctionId })
+  }, [auctionId])
   const nextPlayer = useCallback(() => {
-    socketRef.current?.emit('nextPlayer', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('nextPlayer', { auctionId })
+  }, [auctionId])
   const startAuction = useCallback(() => {
-    socketRef.current?.emit('startAuction', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('startAuction', { auctionId })
+  }, [auctionId])
   const completeAuction = useCallback(() => {
-    socketRef.current?.emit('completeAuction', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('completeAuction', { auctionId })
+  }, [auctionId])
   const enterAssignmentPhase = useCallback(() => {
     socketRef.current?.emit('enterAssignmentPhase', {
       auctionId,
-      adminId: userId,
     })
-  }, [auctionId, userId])
+  }, [auctionId])
   const manualAssignPlayer = useCallback(
     (playerId: string, captainId: string) => {
       socketRef.current?.emit('manualAssignPlayer', {
         auctionId,
-        adminId: userId,
         playerId,
         captainId,
       })
     },
-    [auctionId, userId],
+    [auctionId],
   )
   const resetAuction = useCallback(() => {
-    socketRef.current?.emit('resetAuction', { auctionId, adminId: userId })
-  }, [auctionId, userId])
+    socketRef.current?.emit('resetAuction', { auctionId })
+  }, [auctionId])
 
   const emit = useMemo<AuctionEmitFns>(
     () => ({

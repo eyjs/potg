@@ -178,14 +178,7 @@ export class ShopService {
       const unitPrice = BigInt(product.price);
       const totalPrice = unitPrice * BigInt(quantity);
 
-      // 사용자 → SINK 소각.
-      await this.ledger.burn(userId, totalPrice, POINT_TX_REASON.MARKET_BUY, {
-        refType: 'MarketOrder',
-        memo: `product=${product.id} qty=${quantity}`,
-        manager,
-      });
-
-      // 주문 생성.
+      // 주문을 먼저 생성해 id 확보 (같은 트랜잭션이라 이후 burn 실패 시 함께 롤백).
       const order = manager.create(MarketOrder, {
         productId: product.id,
         buyerId: userId,
@@ -195,6 +188,14 @@ export class ShopService {
         status: MarketOrderStatus.COMPLETED,
       });
       const saved = await manager.save(order);
+
+      // 사용자 → SINK 소각. refId 로 주문과 연결(원장 추적/멱등 키).
+      await this.ledger.burn(userId, totalPrice, POINT_TX_REASON.MARKET_BUY, {
+        refType: 'MarketOrder',
+        refId: saved.id,
+        memo: `product=${product.id} qty=${quantity}`,
+        manager,
+      });
 
       // VOUCHER 카테고리 자동 쿠폰 할당.
       if (product.category === ProductCategory.VOUCHER) {

@@ -16,6 +16,8 @@ export const POINT_TX_REASON = {
   BET_STAKE: 'BET_STAKE',
   BET_PAYOUT: 'BET_PAYOUT',
   BET_RAKE: 'BET_RAKE',
+  /** 마켓 취소 시 스테이크 전액 환불 (정산 payout 과 구분). */
+  BET_REFUND: 'BET_REFUND',
   MARKET_BUY: 'MARKET_BUY',
   MARKET_REFUND: 'MARKET_REFUND',
   ADMIN_ADJUST: 'ADMIN_ADJUST',

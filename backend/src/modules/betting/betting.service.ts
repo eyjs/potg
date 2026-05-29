@@ -362,7 +362,7 @@ export class BettingService {
           await this.ledger.mint(
             stake.userId,
             amount,
-            POINT_TX_REASON.BET_PAYOUT,
+            POINT_TX_REASON.BET_REFUND,
             {
               refType: 'BettingMarket',
               refId: market.id,

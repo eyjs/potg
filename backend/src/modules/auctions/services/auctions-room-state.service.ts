@@ -18,7 +18,8 @@ export interface RoomState {
     turnTimeLimit: number;
     teamCount: number;
     currentBiddingPlayerId: string | null;
-    currentBiddingEndTime: Date | null;
+    // socket.io 직렬화 계약: ISO 문자열 (frontend types.ts 미러와 일치)
+    currentBiddingEndTime: string | null;
     timerPaused: boolean;
     pausedTimeRemaining: number | null;
     creatorId: string;
@@ -179,7 +180,8 @@ export class AuctionsRoomStateService {
         turnTimeLimit: auction.turnTimeLimit,
         teamCount: auction.teamCount,
         currentBiddingPlayerId: auction.currentBiddingPlayerId,
-        currentBiddingEndTime: auction.currentBiddingEndTime,
+        currentBiddingEndTime:
+          auction.currentBiddingEndTime?.toISOString() ?? null,
         timerPaused: auction.timerPaused,
         pausedTimeRemaining: auction.pausedTimeRemaining,
         creatorId: auction.creatorId,

@@ -23,6 +23,12 @@ import {
 @Index(['toAccount'])
 @Index(['refType', 'refId'])
 @Index(['createdAt'])
+// 멱등성 키 — 같은 key 로 두 번 기록되는 것을 DB 레벨에서 차단(중복 보상/정산 방지).
+// 부분 유니크: key 가 null 인 일반 거래(스테이크/이체 등 다건 허용)는 제약 대상 아님.
+@Index('uq_point_tx_idempotency_key', ['idempotencyKey'], {
+  unique: true,
+  where: '"idempotency_key" IS NOT NULL',
+})
 export class PointTx {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -52,6 +58,19 @@ export class PointTx {
   /** 메모/디스코드 메시지 ID 등 (선택). */
   @Column({ type: 'text', nullable: true })
   memo: string | null;
+
+  /**
+   * 멱등성 키 (선택). 보상/정산처럼 "정확히 1회" 가 보장돼야 하는 흐름에서
+   * 결정적 문자열(ex: `AUCTION_REWARD:{auctionId}:{userId}`)을 지정한다.
+   * 동일 key 재기록 시 DB 유니크 제약 위반 → 중복 지급 차단.
+   */
+  @Column({
+    name: 'idempotency_key',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
+  idempotencyKey: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

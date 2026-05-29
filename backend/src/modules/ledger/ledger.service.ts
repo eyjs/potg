@@ -16,6 +16,8 @@ export interface TransferParams {
   refType?: string;
   refId?: string;
   memo?: string;
+  /** 멱등성 키 (선택). 지정 시 동일 key 중복 기록을 DB 유니크 제약으로 차단. */
+  idempotencyKey?: string;
   /** 트랜잭션 내 호출 시 외부 EntityManager 주입 (없으면 self-managed transaction). */
   manager?: EntityManager;
 }
@@ -138,6 +140,7 @@ export class LedgerService {
         refType: params.refType ?? null,
         refId: params.refId ?? null,
         memo: params.memo ?? null,
+        idempotencyKey: params.idempotencyKey ?? null,
       });
 
       return manager.getRepository(PointTx).save(tx);
@@ -154,7 +157,10 @@ export class LedgerService {
     toAccount: string,
     amount: bigint,
     reason: string,
-    opts: Pick<TransferParams, 'refType' | 'refId' | 'memo' | 'manager'> = {},
+    opts: Pick<
+      TransferParams,
+      'refType' | 'refId' | 'memo' | 'manager' | 'idempotencyKey'
+    > = {},
   ): Promise<PointTx> {
     return this.transfer({
       fromAccount: SINK_ACCOUNT_ID,
@@ -170,7 +176,10 @@ export class LedgerService {
     fromAccount: string,
     amount: bigint,
     reason: string,
-    opts: Pick<TransferParams, 'refType' | 'refId' | 'memo' | 'manager'> = {},
+    opts: Pick<
+      TransferParams,
+      'refType' | 'refId' | 'memo' | 'manager' | 'idempotencyKey'
+    > = {},
   ): Promise<PointTx> {
     return this.transfer({
       fromAccount,

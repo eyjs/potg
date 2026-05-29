@@ -12,6 +12,7 @@ import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
 import { PlayerQueue } from './parts/player-queue'
 import type { RoomState } from '../types'
+import type { AuctionEmitFns } from '../hooks/use-auction-socket'
 
 /**
  * 입찰 input + 버튼.
@@ -71,10 +72,6 @@ function BidInputRow({
   )
 }
 
-interface AuctionEmitFns {
-  placeBid: (bidderId: string, targetPlayerId: string, amount: number) => void
-}
-
 interface Props {
   roomState: RoomState
   timerRemaining: number | null
@@ -110,7 +107,7 @@ export function AuctionOngoingCaptain({
 
   const handleBid = (amount: number) => {
     if (bidDisabled || !userId || !targetPlayerId) return
-    emit.placeBid(userId, targetPlayerId, amount)
+    emit.placeBid(targetPlayerId, amount)
   }
 
   return (

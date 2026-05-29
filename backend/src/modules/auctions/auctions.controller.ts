@@ -57,7 +57,8 @@ export class AuctionsController {
     @Body() bidDto: BidDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.placeBid(
+    // 소켓 경로와 동일한 검증/잠금 모델 사용 (즉시 차감 레거시 제거)
+    return this.auctionsService.placeBidWithValidation(
       id,
       req.user.userId,
       bidDto.targetPlayerId,

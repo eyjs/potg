@@ -6,55 +6,68 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { AuctionsService } from './auctions.service';
+import {
+  authenticateSocket,
+  WsJwtGuard,
+  SocketUser,
+} from '../../common/guards/ws-jwt.guard';
+import { CORS_ALLOWED_ORIGINS } from '../../common/config/cors-origins';
 
+// 식별자(bidderId/adminId/userId)는 페이로드가 아닌 인증 소켓(client.data.user)에서 도출한다.
 interface JoinRoomPayload {
   auctionId: string;
-  userId: string;
   accessCode?: string;
 }
 
 interface PlaceBidPayload {
   auctionId: string;
-  bidderId: string;
   targetPlayerId: string;
   amount: number;
 }
 
 interface SelectPlayerPayload {
   auctionId: string;
-  adminId: string;
   playerId: string;
 }
 
-interface ConfirmBidPayload {
+interface AuctionIdPayload {
   auctionId: string;
-  adminId: string;
-}
-
-interface PassPlayerPayload {
-  auctionId: string;
-  adminId: string;
 }
 
 interface ChatMessagePayload {
   auctionId: string;
-  userId: string;
-  userName: string;
   message: string;
 }
+
+interface PlayerActionPayload {
+  auctionId: string;
+  playerId: string;
+}
+
+interface ManualAssignPayload {
+  auctionId: string;
+  playerId: string;
+  captainId: string;
+}
+
+const DEFAULT_TURN_SECONDS = 60;
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
 @Injectable()
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: CORS_ALLOWED_ORIGINS,
     credentials: true,
   },
   namespace: '/auction',
@@ -72,10 +85,28 @@ export class AuctionGateway
   > = new Map();
   private auctionTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(private readonly auctionsService: AuctionsService) {}
+  constructor(
+    private readonly auctionsService: AuctionsService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    try {
+      const secret = this.configService.get<string>('JWT_SECRET');
+      if (!secret) {
+        throw new WsException('서버 인증 설정 오류');
+      }
+      const user = authenticateSocket(client, this.jwtService, secret);
+      (client.data as { user?: SocketUser }).user = user;
+      this.logger.log(`Client connected: ${client.id} (user ${user.userId})`);
+    } catch (e) {
+      this.logger.warn(
+        `Unauthenticated socket ${client.id} rejected: ${errMsg(e)}`,
+      );
+      client.emit('error', { message: '인증이 필요합니다.' });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket) {
@@ -83,14 +114,24 @@ export class AuctionGateway
     this.connectedUsers.delete(client.id);
   }
 
+  /** 인증 소켓 사용자. connection 에서 세팅됨. 없으면 거부. */
+  private requireUser(client: Socket): SocketUser {
+    const user = (client.data as { user?: SocketUser }).user;
+    if (!user?.userId) {
+      throw new WsException('인증이 필요합니다.');
+    }
+    return user;
+  }
+
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
     @MessageBody() payload: JoinRoomPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, userId, accessCode } = payload;
+    const { auctionId, accessCode } = payload;
 
     try {
+      const { userId } = this.requireUser(client);
       const auction = await this.auctionsService.findOne(auctionId);
       if (!auction) {
         client.emit('error', { message: '경매를 찾을 수 없습니다.' });
@@ -127,10 +168,11 @@ export class AuctionGateway
 
   @SubscribeMessage('leaveRoom')
   handleLeaveRoom(
-    @MessageBody() payload: { auctionId: string; userId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, userId } = payload;
+    const { auctionId } = payload;
+    const { userId } = this.requireUser(client);
     void client.leave(auctionId);
     this.connectedUsers.delete(client.id);
     client.to(auctionId).emit('userLeft', { userId });
@@ -138,7 +180,7 @@ export class AuctionGateway
 
   @SubscribeMessage('requestRoomState')
   async handleRequestRoomState(
-    @MessageBody() payload: { auctionId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
     const { auctionId } = payload;
@@ -156,9 +198,10 @@ export class AuctionGateway
     @MessageBody() payload: PlaceBidPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, bidderId, targetPlayerId, amount } = payload;
+    const { auctionId, targetPlayerId, amount } = payload;
 
     try {
+      const { userId: bidderId } = this.requireUser(client);
       const result = await this.auctionsService.placeBidWithValidation(
         auctionId,
         bidderId,
@@ -194,18 +237,21 @@ export class AuctionGateway
           );
           roomState = await this.auctionsService.getRoomState(auctionId);
 
-          this.server.to(auctionId).emit('bidConfirmed', {
-            playerId: confirmResult.playerId,
-            captainId: confirmResult.captainId,
-            amount: confirmResult.amount,
-            auto: true,
-            reason: autoConfirmCheck.reason,
-            roomState,
-          });
+          // 잠금 하 재검증으로 멱등 no-op 처리된 경우(이미 낙찰됨) 중복 emit 방지
+          if (confirmResult.confirmed) {
+            this.server.to(auctionId).emit('bidConfirmed', {
+              playerId: confirmResult.playerId,
+              captainId: confirmResult.captainId,
+              amount: confirmResult.amount,
+              auto: true,
+              reason: autoConfirmCheck.reason,
+              roomState,
+            });
+          }
         }
       } else {
         // Reset timer only if not auto-confirmed
-        this.resetBiddingTimer(auctionId);
+        this.resetBiddingTimer(auctionId, roomState.auction.turnTimeLimit);
       }
     } catch (error) {
       client.emit('bidError', { message: errMsg(error) });
@@ -217,15 +263,16 @@ export class AuctionGateway
     @MessageBody() payload: SelectPlayerPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId, playerId } = payload;
+    const { auctionId, playerId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.selectPlayer(auctionId, adminId, playerId);
 
-      // Start bidding timer
-      this.startBiddingTimer(auctionId);
-
       const roomState = await this.auctionsService.getRoomState(auctionId);
+      // Start bidding timer with the auction's configured turn time
+      this.startBiddingTimer(auctionId, roomState.auction.turnTimeLimit);
+
       this.server.to(auctionId).emit('playerSelected', {
         playerId,
         roomState,
@@ -237,12 +284,13 @@ export class AuctionGateway
 
   @SubscribeMessage('confirmBid')
   async handleConfirmBid(
-    @MessageBody() payload: ConfirmBidPayload,
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       // Stop timer
       this.stopBiddingTimer(auctionId);
 
@@ -252,12 +300,17 @@ export class AuctionGateway
       );
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
-      this.server.to(auctionId).emit('bidConfirmed', {
-        playerId: result.playerId,
-        captainId: result.captainId,
-        amount: result.amount,
-        roomState,
-      });
+      if (result.confirmed) {
+        this.server.to(auctionId).emit('bidConfirmed', {
+          playerId: result.playerId,
+          captainId: result.captainId,
+          amount: result.amount,
+          roomState,
+        });
+      } else {
+        // 이미 처리됨 — 최신 상태만 동기화
+        this.server.to(auctionId).emit('roomState', roomState);
+      }
     } catch (error) {
       client.emit('error', { message: errMsg(error) });
     }
@@ -265,12 +318,13 @@ export class AuctionGateway
 
   @SubscribeMessage('passPlayer')
   async handlePassPlayer(
-    @MessageBody() payload: PassPlayerPayload,
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       // Stop timer
       this.stopBiddingTimer(auctionId);
 
@@ -287,12 +341,13 @@ export class AuctionGateway
 
   @SubscribeMessage('startAuction')
   async handleStartAuction(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.start(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -304,12 +359,13 @@ export class AuctionGateway
 
   @SubscribeMessage('completeAuction')
   async handleCompleteAuction(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.complete(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -321,12 +377,13 @@ export class AuctionGateway
 
   @SubscribeMessage('resetAuction')
   async handleResetAuction(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       this.stopBiddingTimer(auctionId);
       await this.auctionsService.reset(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
@@ -340,14 +397,15 @@ export class AuctionGateway
   @SubscribeMessage('chatMessage')
   handleChatMessage(
     @MessageBody() payload: ChatMessagePayload,
-    @ConnectedSocket() _client: Socket,
+    @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, userId, userName, message } = payload;
+    const { auctionId, message } = payload;
+    const { userId, username } = this.requireUser(client);
 
     this.server.to(auctionId).emit('chatMessage', {
-      id: Date.now().toString(),
+      id: `${userId}-${Date.now()}`,
       userId,
-      userName,
+      userName: username,
       message,
       timestamp: new Date().toISOString(),
       type: 'chat',
@@ -358,12 +416,13 @@ export class AuctionGateway
 
   @SubscribeMessage('pauseAuction')
   async handlePauseAuction(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       this.stopBiddingTimer(auctionId);
       await this.auctionsService.pauseAuction(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
@@ -376,12 +435,13 @@ export class AuctionGateway
 
   @SubscribeMessage('resumeAuction')
   async handleResumeAuction(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.resumeAuction(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -405,12 +465,13 @@ export class AuctionGateway
 
   @SubscribeMessage('pauseTimer')
   async handlePauseTimer(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       this.stopBiddingTimer(auctionId);
       await this.auctionsService.pauseTimer(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
@@ -423,15 +484,18 @@ export class AuctionGateway
 
   @SubscribeMessage('resumeTimer')
   async handleResumeTimer(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       const auction = await this.auctionsService.findOne(auctionId);
       const remainingTime =
-        auction?.pausedTimeRemaining || auction?.turnTimeLimit || 60;
+        auction?.pausedTimeRemaining ||
+        auction?.turnTimeLimit ||
+        DEFAULT_TURN_SECONDS;
 
       await this.auctionsService.resumeTimer(auctionId, adminId);
       this.startBiddingTimerWithRemaining(auctionId, remainingTime);
@@ -445,13 +509,13 @@ export class AuctionGateway
 
   @SubscribeMessage('undoSoldPlayer')
   async handleUndoSoldPlayer(
-    @MessageBody()
-    payload: { auctionId: string; adminId: string; playerId: string },
+    @MessageBody() payload: PlayerActionPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId, playerId } = payload;
+    const { auctionId, playerId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.undoSoldPlayer(auctionId, adminId, playerId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -463,12 +527,13 @@ export class AuctionGateway
 
   @SubscribeMessage('nextPlayer')
   async handleNextPlayer(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.nextPlayer(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -480,12 +545,13 @@ export class AuctionGateway
 
   @SubscribeMessage('enterAssignmentPhase')
   async handleEnterAssignmentPhase(
-    @MessageBody() payload: { auctionId: string; adminId: string },
+    @MessageBody() payload: AuctionIdPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId } = payload;
+    const { auctionId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.enterAssignmentPhase(auctionId, adminId);
       const roomState = await this.auctionsService.getRoomState(auctionId);
 
@@ -497,18 +563,13 @@ export class AuctionGateway
 
   @SubscribeMessage('manualAssignPlayer')
   async handleManualAssignPlayer(
-    @MessageBody()
-    payload: {
-      auctionId: string;
-      adminId: string;
-      playerId: string;
-      captainId: string;
-    },
+    @MessageBody() payload: ManualAssignPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const { auctionId, adminId, playerId, captainId } = payload;
+    const { auctionId, playerId, captainId } = payload;
 
     try {
+      const { userId: adminId } = this.requireUser(client);
       await this.auctionsService.manualAssignPlayer(
         auctionId,
         adminId,
@@ -526,30 +587,19 @@ export class AuctionGateway
   }
 
   // Timer management
-  private startBiddingTimer(auctionId: string) {
-    this.stopBiddingTimer(auctionId);
-
-    const TIMER_INTERVAL = 1000;
-    let remainingTime = 60; // Default time limit, should come from auction settings
-
-    const timer = setInterval(() => {
-      remainingTime--;
-
-      // Broadcast timer update
-      this.server.to(auctionId).emit('timerUpdate', { remainingTime });
-
-      if (remainingTime <= 0) {
-        this.stopBiddingTimer(auctionId);
-        void this.handleTimerExpired(auctionId);
-      }
-    }, TIMER_INTERVAL);
-
-    this.auctionTimers.set(auctionId, timer);
+  private startBiddingTimer(
+    auctionId: string,
+    seconds: number = DEFAULT_TURN_SECONDS,
+  ) {
+    this.startBiddingTimerWithRemaining(auctionId, seconds);
   }
 
-  private resetBiddingTimer(auctionId: string) {
+  private resetBiddingTimer(
+    auctionId: string,
+    seconds: number = DEFAULT_TURN_SECONDS,
+  ) {
     // Reset timer when new bid placed
-    this.startBiddingTimer(auctionId);
+    this.startBiddingTimerWithRemaining(auctionId, seconds);
   }
 
   private startBiddingTimerWithRemaining(
@@ -559,7 +609,7 @@ export class AuctionGateway
     this.stopBiddingTimer(auctionId);
 
     const TIMER_INTERVAL = 1000;
-    let timeLeft = remainingTime;
+    let timeLeft = remainingTime > 0 ? remainingTime : DEFAULT_TURN_SECONDS;
 
     const timer = setInterval(() => {
       timeLeft--;
@@ -609,6 +659,18 @@ export class AuctionGateway
       }
     } catch (error) {
       this.logger.error(`Error handling timer expiry: ${errMsg(error)}`);
+      // 클라이언트에 실패를 알리고 최신 상태로 동기화 (무음 삼킴 방지)
+      this.server.to(auctionId).emit('error', {
+        message: `자동 낙찰 처리 실패: ${errMsg(error)}`,
+      });
+      try {
+        const roomState = await this.auctionsService.getRoomState(auctionId);
+        this.server.to(auctionId).emit('roomState', roomState);
+      } catch (stateError) {
+        this.logger.error(
+          `Failed to resync room state after timer error: ${errMsg(stateError)}`,
+        );
+      }
     }
   }
 

@@ -32,6 +32,6 @@ import { DiscordBotModule } from '../discord-bot/discord-bot.module';
   ],
   providers: [AuthService, JwtStrategy, DiscordOAuthService, DiscordOAuthGuard],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

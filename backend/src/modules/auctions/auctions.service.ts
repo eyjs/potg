@@ -81,8 +81,10 @@ export class AuctionsService {
     adminId: string,
     forbiddenMsg: string,
   ): Promise<Auction> {
+    // pessimistic_write: 마스터 변이 작업을 입찰/낙찰과 동일 경매 행에서 직렬화
     const auction = await manager.findOne(Auction, {
       where: { id: auctionId },
+      lock: { mode: 'pessimistic_write' },
     });
     if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
     if (auction.creatorId !== adminId)
@@ -331,20 +333,6 @@ export class AuctionsService {
     await this.auctionsRepository.remove(auction);
 
     return { deleted: true };
-  }
-
-  async placeBid(
-    auctionId: string,
-    bidderId: string,
-    targetPlayerId: string,
-    amount: number,
-  ) {
-    return this.biddingService.placeBid(
-      auctionId,
-      bidderId,
-      targetPlayerId,
-      amount,
-    );
   }
 
   async placeBidWithValidation(

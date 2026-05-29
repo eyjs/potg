@@ -19,7 +19,7 @@
 >
 > - `User` 확장: `discord_id` (UNIQUE, nullable), `points_balance` (bigint, PointTx 합 캐시), `market_gate_passed` (bool), `UserRole` enum에 `CAPTAIN` 추가
 > - 신규 엔티티 (8종):
->   - `PointTx` — 복식부기 원장 (append-only). `from_account`/`to_account`/`amount`/`reason`/`ref_type`/`ref_id`. SINK 계정 ID = `00000000-0000-0000-0000-000000000000`
+>   - `PointTx` — 복식부기 원장 (append-only). `from_account`/`to_account`/`amount`/`reason`/`ref_type`/`ref_id`/`idempotency_key`(부분 유니크). SINK 계정 ID = `00000000-0000-0000-0000-000000000000`
 >   - `Match`, `Team`, `TeamMember` — 내전 도메인 (상태머신: DRAFT → BETTING_OPEN → LOCKED → SETTLED, CANCELLED)
 >   - `BettingMarket` — 패리뮤추얼 마켓 (WIN | RANK). 개별 stake 엔티티는 Phase 2 추가 예정
 >   - `MarketOrder` — 즉시 차감 마켓 주문 (COMPLETED/DELIVERED/CANCELLED)
@@ -77,6 +77,7 @@ erDiagram
         string ref_type "Nullable; BettingMarket|MarketOrder|Match"
         uuid ref_id "Nullable"
         text memo "Nullable"
+        string idempotency_key "Nullable; 부분 유니크 — 중복 보상/정산 차단"
         timestamp created_at
     }
 
