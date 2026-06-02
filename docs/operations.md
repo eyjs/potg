@@ -61,7 +61,7 @@ docker-compose up -d db   # postgres 먼저
 docker exec potg-backend npm run migration:run
 ```
 
-`backend/src/database/migrations/` 의 5개 파일이 순차 적용. `typeorm_migrations` 테이블에 기록.
+`backend/src/database/migrations/` 의 7개 파일이 순차 적용 (Baseline → Phase1 → Phase2 → Phase5C → Phase5D3 → DropUserChannelTables → AddPointTxIdempotencyKey). `typeorm_migrations` 테이블에 기록.
 
 ### 신규 마이그레이션 추가
 

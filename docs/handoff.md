@@ -1,8 +1,39 @@
 # POTG Discord 리팩토링 — 세션 핸드오프
 
-> 최종 갱신: 2026-05-29 (Phase 5-E/F 완료 — 사용자 채널 디스코드 이관 + 단발성 경매 페이지 신규)
+> 최종 갱신: 2026-06-02 (테스트 커버리지 보강 완료 — 다음 작업: **백엔드 첫 운영 배포**)
 > 진행 상태: **웹은 운영자 전용 + /auction 경매 전용. 사용자 도메인은 100% Discord 봇으로 이관**
-> 운영 배포 환경 없음 → **테스트 커버리지 + 코드 리뷰 사이클로 회귀 방어**
+> **⚠️ 다음 세션 즉시 작업: 백엔드 첫 운영 배포** (아래 §0 참조). 이제껏 운영 배포 환경 없이 테스트+리뷰로 회귀 방어해 옴 — 이번에 실제 배포 진입.
+
+---
+
+## 0. 다음 세션 — 백엔드 첫 운영 배포 (최우선)
+
+운영 배포 절차의 SSOT는 **`docs/operations.md`**. 핵심 요약:
+
+**배포 전 체크리스트**
+1. `backend/.env` 작성 — `operations.md §2` 환경변수 표 기준. 특히:
+   - `NODE_ENV=production`, `JWT_SECRET` (32+ bytes, `openssl rand -base64 48`)
+   - `DATABASE_*` (docker-compose.yml env와 **반드시 동기화** — 현재 compose는 postgres/postgres/potg_db 기본값. 운영은 강한 패스워드로 교체)
+   - `DISCORD_BOT_ENABLED=true` + `DISCORD_BOT_TOKEN` + `DISCORD_CLIENT_ID` + `DISCORD_GUILD_ID` (봇 발급은 `operations.md §1`)
+2. Discord 봇 인텐트 — `SERVER MEMBERS INTENT` **ON** (팀나누기 음성 조회), 나머지 OFF
+3. `.env`가 `.gitignore`에 포함됐는지 확인 (시크릿 커밋 금지)
+
+**배포 실행**
+```bash
+docker-compose up -d db                          # postgres 먼저
+docker-compose build backend frontend
+docker-compose up -d
+docker exec potg-backend npm run migration:run   # 7개 마이그레이션 순차 적용
+curl http://localhost:8100/health                # status:ok, db:true, discord.ready:true 확인
+```
+- self-hosted runner CI/CD: `.github/workflows/deploy-backend.yml` 가 위 과정 자동 수행
+- 첫 ADMIN 지정: `UPDATE users SET role='ADMIN' WHERE discord_id='...';`
+
+**배포 주의 (이번이 첫 운영 가동)**
+- 마이그레이션 7개 모두 미적용 상태 → `migration:run` 1회로 전체 스키마 생성. `synchronize:false`라 마이그레이션이 유일한 스키마 소스
+- 헬스체크 `degraded` 고정 시 → `operations.md §5/§8` (보통 봇 토큰/네트워크)
+- 롤백: `docker exec potg-backend npm run migration:revert` (최근 1개씩, 데이터 손실 확인 후)
+- 미자동화: DB 백업(`operations.md §6` 수동 pg_dump), Sentry/APM — 운영 안정화 후 P2
 
 ---
 
@@ -24,7 +55,9 @@
 | **5-F.5 이력 보존 흐름** | ✅ | `10f5ba7` | 마스터가 [새 경매(저장)] vs [결과 버리기] 명시 선택. backend deleteAuction COMPLETED 허용 |
 | **5-F.6 리뷰 Critical fix** | ✅ | `0f0b666` | useCurrentAuction 우선순위 (ACTIVE → COMPLETED fallback) + 안내 카드 dismissible |
 | **5-F.7 보안·동시성·멱등성 하드닝** | ✅ | `0399625` | 경매 소켓 JWT 인증 + 식별자 위조 차단 + 입찰 경로 통일 + 경매 단위 pessimistic 잠금 + PointTx 멱등성 키 |
-| **5-G. 경매 이력 페이지 + 참가자 보상 지급** | ✅ | (미커밋) | `/admin/auctions` 이력 리스트+상세 + 전체 참가자 정액 지급(멱등 AUCTION_PAYOUT) |
+| **5-G. 경매 이력 페이지 + 참가자 보상 지급** | ✅ | `a824637` | `/admin/auctions` 이력 리스트+상세 + 전체 참가자 정액 지급(멱등 AUCTION_PAYOUT) |
+| **타이머 0 시각화 + 유찰배정 a11y** | ✅ | `17bcc46` | BidTimer 긴급 시각화 + @dnd-kit 키보드 배정 (백로그 P2) |
+| **테스트 커버리지 보강 (High #1~4)** | ✅ | `63ac829` | 경매 게이트웨이·입찰서비스·상점·베팅/경매 컨트롤러 유닛 테스트 (20→25 suite, 181→**261 test**) |
 
 ---
 
@@ -243,7 +276,7 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 | backend typecheck (strict:true) | ✅ 0 error |
 | backend lint | ✅ 0 error |
 | backend build (nest build) | ✅ |
-| backend unit test (`test:unit`) | ✅ **177건 / 19 suite** (스크립트 수정으로 src 16 spec 포함 — 기존 9건은 test/unit만 실행하던 설정 오류) |
+| backend unit test (`test:unit`) | ✅ **261건 / 25 suite** (2026-06-02 High 테스트 보강: gateway/bidding/shop/controllers 5 spec 추가) |
 | frontend typecheck | ✅ 0 error |
 | frontend lint | ✅ 0 error (2 unrelated warnings — image-uploader) |
 | frontend build (next build) | ✅ 14 routes 정상 |
@@ -263,12 +296,21 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
   - 미구현(선택): 상세에서 결과 이미지(poster) 재다운로드 — AuctionResultPoster 재사용 가능하나 현재 상세는 자체 팀 로스터 렌더.
 - **bidderId/adminId 위조 방지**: 5-F.7 에서 소켓 인증으로 전면 해결.
 
-### 우선순위 2 — 잔여 UX/a11y 보강
+### ✅ 완료 — High 테스트 커버리지 보강 (2026-06-02, `63ac829`)
 
-1. ✅ **타이머 0 도달 시각화** — BidTimer 5초 이하 긴급(pulse+ring), 0초 "종료" flash, `role=timer`+`aria-live` 스크린리더 안내. (소리는 미구현 — 에셋 필요)
-2. ✅ **@dnd-kit KeyboardSensor** — ASSIGNING 패널 키보드 배정 + 한국어 스크린리더 announcements + focus ring.
+시스템 분석 후 도출한 미커버 핵심 비즈니스/회계 경로에 회귀 안전망 추가. (20→25 suite, 181→**261 test**)
+- `auction.gateway.spec.ts` — 소켓 인증, **식별자 위조 차단(페이로드 아닌 소켓에서 도출)**, 자동낙찰/멱등 분기, 에러 통지
+- `auctions-bidding.service.spec.ts` — facade 미커버 분기: `selectPlayer` / `autoConfirmOnTimeout` / `checkAutoConfirm`(경쟁자 잔액 판정)
+- `shop.service.spec.ts` — purchase/cancel/markDelivered/profileItem, **모든 잔액변경 LedgerService 경유 assert**
+- `betting.controller.spec.ts` + `auctions.controller.spec.ts` — 라우트 위임 + `req.user.userId` 식별자 도출 검증
+- **분석 중 정정**: betting `settleMarket` / auction `confirmCurrentBid` 멱등성은 pessimistic lock + 상태가드로 **이미 방어됨** (별도 idempotency key 불필요). 테스트로 이 동작 고정.
+
+### 우선순위 2 — 구조 개선 + 잔여 UX (배포 안정화 후)
+
+1. **gateway/service 파일 분할** — `auction.gateway.ts`(682줄)에서 `AuctionTimerService` 추출, `auctions.service.ts`(706줄) 책임 분리. **이제 테스트(#1)가 있으니 안전하게 리팩토링 가능** (그간 런타임 회귀 검증 불가로 보류해 옴)
+2. **frontend socket 런타임 검증** — `use-auction-socket.ts`의 `roomState` 페이로드 무검증 → zod 런타임 검증 추가 (백엔드 RoomState 변경 시 조용한 undefined 방지)
 3. **결과 PNG 모바일 viewport 실측 검증** — 1080px wrapper 가 좁은 viewport 에서 잘리지 않는지 (런타임 시각 검증 필요 — 미실행)
-4. **gateway 파일 분할** — `auction.gateway.ts` 에서 AuctionTimerService 추출 (의도적 보류 — 런타임 회귀 검증 불가)
+4. **discord-bot 서비스 스펙** — voice-attendance / attendance-reward / betting-notify (음성출석→포인트 지급 경로 미검증)
 
 ### 우선순위 3 — 잔여 정리 (선택)
 
@@ -276,6 +318,7 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 2. **Bearer Swagger 흔적 정리** — `addBearerAuth` 미사용 (이미 cookie)
 3. **MarketGateGuard 캐시 무효화** 정책 명확화
 4. **RANK 마켓 정산 정책** 재정의
+5. **ERD 드리프트 정정** — `docs/ERD.md`의 ClanMember에 `totalPoints/lockedPoints` 잔존(Phase 5C에서 DROP됨), 실제는 `scrimPoints/penaltyCount`만
 
 ---
 
@@ -289,7 +332,7 @@ src/app/auction/page.tsx                    orchestrator (역할×상태 분기)
 ### 인증
 - 쿠키 단일 — Bearer 완전 제거됨
 - Discord OAuth: `DiscordOAuthService/Guard` 직접 구현 (passport 미사용)
-- ws-jwt.guard 삭제됨 — 신규 WebSocket 생기면 직접 구현 필요
+- **WebSocket 인증**: `common/guards/ws-jwt.guard.ts` 존재 (5-F.7 신규) — `authenticateSocket()` 헬퍼 + `WsJwtGuard`. 신규 게이트웨이는 이를 재사용. 핸드셰이크 쿠키 `access_token` 검증 → `client.data.user`
 
 ### 경매 상태 변경 시 주의
 - `AuctionStatus` 추가/삭제 시 `useCurrentAuction` 의 `ACTIVE_STATES` 갱신 필요
@@ -447,6 +490,6 @@ npm run dev             # 포트 3000 (외부 3001)
 ---
 
 이 핸드오프는 **세션 종료 직전 작성됨**. 다음 진입자가 컨텍스트 100% 복원 가능하도록 상세 기술.
-운영 배포 없는 환경 — 문서가 유일한 외부 메모리.
+다음 세션은 **백엔드 첫 운영 배포**부터 — §0 + `docs/operations.md` 참조.
 
-마지막 커밋: `0f0b666 fix(auction): 리뷰 Critical/Med/Low 일괄 처리`
+마지막 커밋: `63ac829 test(backend): 경매·상점·베팅 핵심 로직 유닛 테스트 보강`
