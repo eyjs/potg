@@ -16,6 +16,8 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=potg_db
+      # 서버 시간대 KST (타임스탬프는 UTC 저장, 서버 로컬시각·로그를 KST로)
+      - TZ=Asia/Seoul
       # JWT_SECRET은 gitignore된 루트 .env에서 주입 (시크릿 미커밋). master는 미설정 시 부팅 throw.
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in root .env}
     volumes:
@@ -51,6 +53,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: potg_db
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
