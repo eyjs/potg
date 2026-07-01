@@ -69,6 +69,26 @@ class CreateMemberDto {
   battleTag?: string;
 }
 
+class UpdateMemberDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  nickname?: string;
+
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  password?: string;
+}
+
 class UpdateUsernameDto {
   @IsString()
   @IsNotEmpty()
@@ -166,6 +186,18 @@ export class AdminUsersController {
       battleTag: dto.battleTag,
     });
     return { ...user, totalPoints: 0 };
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: '회원 정보 통합 수정 (아이디/닉네임/권한/비밀번호)',
+  })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMemberDto,
+  ) {
+    const user = await this.users.adminUpdate(id, dto);
+    return { ...user, totalPoints: Number(user.pointsBalance ?? 0) };
   }
 
   @Patch(':id/username')

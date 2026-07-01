@@ -197,6 +197,49 @@ export class UsersService {
     return saved;
   }
 
+  /**
+   * 관리자: 회원 정보 통합 수정 (제공된 필드만 반영).
+   * username/nickname/role/password를 한 번에 수정할 수 있다.
+   * password가 빈 문자열/undefined면 비밀번호는 그대로 둔다.
+   */
+  async adminUpdate(
+    id: string,
+    data: {
+      username?: string;
+      nickname?: string;
+      role?: UserRole;
+      password?: string;
+    },
+  ): Promise<User> {
+    const user = await this.adminFindOrFail(id);
+
+    if (data.username !== undefined) {
+      const username = data.username.trim();
+      if (!username) throw new BadRequestException('아이디를 입력하세요');
+      const existing = await this.findByUsername(username);
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('이미 존재하는 아이디입니다');
+      }
+      user.username = username;
+    }
+
+    if (data.nickname !== undefined) {
+      user.nickname = data.nickname.trim() || null;
+    }
+
+    if (data.role !== undefined) {
+      user.role = data.role;
+    }
+
+    if (data.password) {
+      user.password = await bcrypt.hash(data.password, 10);
+    }
+
+    const saved = await this.usersRepository.save(user);
+    saved.password = undefined;
+    return saved;
+  }
+
   /** 관리자: 로그인 아이디(username) 변경. */
   async adminUpdateUsername(id: string, usernameRaw: string): Promise<User> {
     const username = usernameRaw.trim();
