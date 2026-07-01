@@ -18,18 +18,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LoginDto } from './dto/auth.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
-import type { User } from '../users/entities/user.entity';
-import { DiscordOAuthService } from './discord-oauth.service';
-import {
-  DiscordOAuthGuard,
-  DISCORD_OAUTH_STATE_COOKIE,
-} from './discord-oauth.guard';
 import {
   ACCESS_TOKEN_COOKIE,
   buildAccessTokenCookieOptions,
 } from '../../common/config/access-token-cookie';
-
-const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,55 +30,7 @@ export class AuthController {
     private authService: AuthService,
     private usersService: UsersService,
     private configService: ConfigService,
-    private discordOAuth: DiscordOAuthService,
   ) {}
-
-  /**
-   * Discord OAuth2 진입점.
-   * state 토큰을 짧은 HttpOnly 쿠키에 저장 후 Discord 동의 페이지로 302.
-   */
-  @Get('discord')
-  @ApiOperation({ summary: 'Discord OAuth 진입 (state 쿠키 set + 302)' })
-  discordLogin(@Res() res: Response): void {
-    const state = this.discordOAuth.generateState();
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-    res.cookie(DISCORD_OAUTH_STATE_COOKIE, state, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: FIVE_MINUTES_MS,
-      path: '/',
-    });
-    res.redirect(this.discordOAuth.getAuthUrl(state));
-  }
-
-  /**
-   * Discord OAuth2 콜백.
-   * DiscordOAuthGuard가 state 검증 + code 교환 + 사용자 멱등 생성 후 req.user 주입.
-   * JWT는 HttpOnly 쿠키로만 전달하여 Referer/이력 누출을 막는다.
-   * 프론트는 별도 `GET /auth/profile` 호출로 세션 확인.
-   */
-  @Get('discord/callback')
-  @UseGuards(DiscordOAuthGuard)
-  @ApiOperation({
-    summary: 'Discord OAuth 콜백 (access_token 쿠키 set + 리다이렉트)',
-  })
-  async discordCallback(
-    @Request() req: AuthenticatedRequest & { user: User },
-    @Res() res: Response,
-  ): Promise<void> {
-    const tokens = await this.authService.login(req.user);
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-    res.cookie(
-      ACCESS_TOKEN_COOKIE,
-      tokens.access_token,
-      buildAccessTokenCookieOptions(isProd),
-    );
-    const redirect =
-      this.configService.get<string>('DISCORD_OAUTH_SUCCESS_REDIRECT') ??
-      '/auth/discord/success';
-    res.redirect(redirect);
-  }
 
   /**
    * 자체 로그인.

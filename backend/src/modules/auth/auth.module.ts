@@ -7,9 +7,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
-import { DiscordOAuthService } from './discord-oauth.service';
-import { DiscordOAuthGuard } from './discord-oauth.guard';
-import { DiscordBotModule } from '../discord-bot/discord-bot.module';
 import { TokenRefreshInterceptor } from '../../common/interceptors/token-refresh.interceptor';
 
 @Module({
@@ -17,7 +14,6 @@ import { TokenRefreshInterceptor } from '../../common/interceptors/token-refresh
     UsersModule,
     PassportModule,
     ConfigModule,
-    DiscordBotModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -35,8 +31,6 @@ import { TokenRefreshInterceptor } from '../../common/interceptors/token-refresh
   providers: [
     AuthService,
     JwtStrategy,
-    DiscordOAuthService,
-    DiscordOAuthGuard,
     // 전역 슬라이딩 세션: 인증 요청마다 access_token 쿠키를 새 토큰으로 재발급
     { provide: APP_INTERCEPTOR, useClass: TokenRefreshInterceptor },
   ],

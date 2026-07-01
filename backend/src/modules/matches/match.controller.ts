@@ -2,12 +2,10 @@ import {
   Body,
   Controller,
   Get,
-  Inject,
   Param,
   ParseUUIDPipe,
   Post,
   UseGuards,
-  forwardRef,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,8 +14,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { MatchService } from './match.service';
 import { CreateMatchDto, CreateTeamDto, SettleMatchDto } from './dto/match.dto';
-import { BettingNotifyService } from '../discord-bot/notifications/betting-notify.service';
-import { BettingService } from '../betting/betting.service';
 
 @ApiTags('admin-matches')
 @ApiCookieAuth('access_token')
@@ -25,13 +21,7 @@ import { BettingService } from '../betting/betting.service';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(UserRole.ADMIN)
 export class MatchController {
-  constructor(
-    private readonly matches: MatchService,
-    @Inject(forwardRef(() => BettingNotifyService))
-    private readonly notify: BettingNotifyService,
-    @Inject(forwardRef(() => BettingService))
-    private readonly betting: BettingService,
-  ) {}
+  constructor(private readonly matches: MatchService) {}
 
   @Get()
   @ApiOperation({ summary: '내전 목록 조회' })
@@ -87,46 +77,9 @@ export class MatchController {
       dto.winnerTeamId,
       dto.placements,
     );
-    const { match, settlements } = result;
+    const { match } = result;
 
-    // 정산 결과가 있는 마켓들만 합산하여 Discord 알림 (best-effort)
-    const settled = settlements.filter((s) => s.summary !== null);
-    if (settled.length > 0) {
-      try {
-        const withTeams = await this.matches.findOneWithTeams(match.id);
-        const winnerTeam = withTeams.teams.find(
-          (t) => t.id === dto.winnerTeamId,
-        );
-        const totalPool = settled.reduce(
-          (sum, s) => sum + (s.summary?.totalPool ?? 0n),
-          0n,
-        );
-        const payoutDistributed = settled.reduce(
-          (sum, s) => sum + (s.summary?.payoutDistributed ?? 0n),
-          0n,
-        );
-        const winnersCount = settled.reduce(
-          (sum, s) => sum + (s.summary?.winnersCount ?? 0),
-          0,
-        );
-        await this.notify.notifyMarketSettled({
-          matchId: match.id,
-          title: match.title,
-          winnerName: winnerTeam?.name ?? '?',
-          totalPool: totalPool.toString(),
-          payoutDistributed: payoutDistributed.toString(),
-          winnersCount,
-        });
-
-        // 베팅자 개인 DM (best-effort, 별도 try)
-        const stakes = await this.betting.findStakesForMatchSettlement(
-          match.id,
-        );
-        await this.notify.notifyStakeResultsToBettors(stakes, match.title);
-      } catch {
-        // notify 실패는 silent
-      }
-    }
+    // (Discord 봇 미연동으로 정산 알림은 비활성화됨)
     return match;
   }
 

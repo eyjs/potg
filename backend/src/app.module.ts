@@ -24,7 +24,8 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { MatchesModule } from './modules/matches/matches.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
-import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
+// DiscordBotModule: Discord 미연동으로 비활성화 (부팅 순환 의존 원인)
+// import { DiscordBotModule } from './modules/discord-bot/discord-bot.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -139,8 +140,8 @@ import { HealthModule } from './modules/health/health.module';
     LedgerModule,
     MatchesModule,
     SystemConfigModule,
-    // === Phase 3 (Discord Bot + OAuth) ===
-    DiscordBotModule,
+    // === Phase 3 (Discord Bot + OAuth) — 미연동으로 비활성화 ===
+    // DiscordBotModule,
     // === Operations ===
     HealthModule,
   ],
