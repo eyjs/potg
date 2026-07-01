@@ -26,7 +26,7 @@ export class Auction extends BaseEntity {
   @Column({ type: 'enum', enum: AuctionStatus, default: AuctionStatus.PENDING })
   status: AuctionStatus;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   accessCode: string | null;
 
   @Column()

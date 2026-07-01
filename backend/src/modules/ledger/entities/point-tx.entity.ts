@@ -48,7 +48,7 @@ export class PointTx {
   reason: string;
 
   /** 참조 도메인 (선택). ex) "BettingMarket", "MarketOrder", "Match" */
-  @Column({ name: 'ref_type', length: 32, nullable: true })
+  @Column({ type: 'varchar', name: 'ref_type', length: 32, nullable: true })
   refType: string | null;
 
   /** 참조 row id (선택). */

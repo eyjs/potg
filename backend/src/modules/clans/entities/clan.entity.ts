@@ -10,7 +10,7 @@ export class Clan extends BaseEntity {
   @Column({ unique: true })
   tag: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   description: string | null;
 
   @OneToMany(() => ClanMember, (member) => member.clan)

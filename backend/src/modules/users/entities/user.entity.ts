@@ -20,7 +20,7 @@ export class User extends BaseEntity {
   @Column({ unique: true })
   username: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   nickname: string | null;
 
   @Column({ unique: true, nullable: true })
@@ -41,7 +41,7 @@ export class User extends BaseEntity {
   @Column({ nullable: true }) // OverFastAPI 연동 후 실제 랭크 사용
   rating?: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   avatarUrl: string | null;
 
   @Column({ default: false })

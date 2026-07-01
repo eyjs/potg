@@ -23,7 +23,7 @@ export class ShopProduct extends BaseEntity {
   @Column()
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   description: string | null;
 
   @Column()
@@ -35,7 +35,7 @@ export class ShopProduct extends BaseEntity {
   @Column({ default: 0 })
   purchaseLimit: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   imageUrl: string | null;
 
   @Column({ type: 'enum', enum: ProductStatus, default: ProductStatus.ACTIVE })

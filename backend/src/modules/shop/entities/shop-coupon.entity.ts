@@ -18,7 +18,7 @@ export class ShopCoupon extends BaseEntity {
   @Column({ default: false })
   isUsed: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   assignedToUserId: string | null;
 
   @ManyToOne(() => User, { nullable: true })

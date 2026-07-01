@@ -10,7 +10,7 @@ export enum HallOfFameType {
 
 @Entity('hall_of_fame')
 export class HallOfFame extends BaseEntity {
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   userId: string | null;
 
   @ManyToOne(() => User, { nullable: true })
@@ -29,7 +29,7 @@ export class HallOfFame extends BaseEntity {
   @Column({ default: 0 })
   amount: number; // 포인트, 기부금액, 현상금 등
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   imageUrl: string | null;
 
   @Column({ default: true })

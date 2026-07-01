@@ -18,7 +18,7 @@ export class AttendanceRecord extends BaseEntity {
   @JoinColumn({ name: 'memberId' })
   member: ClanMember;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   scrimId: string | null;
 
   @Column({
@@ -34,7 +34,7 @@ export class AttendanceRecord extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   bonusPoints: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   bonusReason: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
