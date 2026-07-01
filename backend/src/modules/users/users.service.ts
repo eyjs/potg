@@ -163,4 +163,64 @@ export class UsersService {
     user.role = role;
     return this.usersRepository.save(user);
   }
+
+  /** 관리자: 회원 신규 생성 (username/password 필수, battleTag/nickname 선택). */
+  async adminCreate(data: {
+    username: string;
+    password: string;
+    role?: UserRole;
+    nickname?: string | null;
+    battleTag?: string | null;
+  }): Promise<User> {
+    const username = data.username.trim();
+    if (!username) throw new BadRequestException('username is required');
+    if (!data.password) throw new BadRequestException('password is required');
+
+    const existing = await this.findByUsername(username);
+    if (existing) throw new BadRequestException('이미 존재하는 아이디입니다');
+
+    const battleTag = data.battleTag?.trim() || undefined;
+    if (battleTag) {
+      const dup = await this.findByBattleTag(battleTag);
+      if (dup) throw new BadRequestException('이미 존재하는 배틀태그입니다');
+    }
+
+    const saved = await this.create({
+      username,
+      password: await bcrypt.hash(data.password, 10),
+      role: data.role ?? UserRole.USER,
+      nickname: data.nickname?.trim() || null,
+      battleTag,
+    });
+    // 응답에서 password 해시 제거
+    saved.password = undefined;
+    return saved;
+  }
+
+  /** 관리자: 로그인 아이디(username) 변경. */
+  async adminUpdateUsername(id: string, usernameRaw: string): Promise<User> {
+    const username = usernameRaw.trim();
+    if (!username) throw new BadRequestException('username is required');
+    const user = await this.adminFindOrFail(id);
+    const existing = await this.findByUsername(username);
+    if (existing && existing.id !== id) {
+      throw new BadRequestException('이미 존재하는 아이디입니다');
+    }
+    user.username = username;
+    return this.usersRepository.save(user);
+  }
+
+  /** 관리자: 비밀번호 재설정 (현재 비번 확인 없이 강제 변경). */
+  async adminUpdatePassword(id: string, password: string): Promise<void> {
+    if (!password) throw new BadRequestException('password is required');
+    const user = await this.adminFindOrFail(id);
+    user.password = await bcrypt.hash(password, 10);
+    await this.usersRepository.save(user);
+  }
+
+  /** 관리자: 회원 삭제. */
+  async adminDelete(id: string): Promise<void> {
+    const user = await this.adminFindOrFail(id);
+    await this.usersRepository.remove(user);
+  }
 }

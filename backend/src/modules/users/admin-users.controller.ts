@@ -2,23 +2,35 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  MinLength,
+} from 'class-validator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { LedgerService } from '../ledger/ledger.service';
 import { POINT_TX_REASON } from '../ledger/ledger.constants';
 import { UserRole } from './entities/user.entity';
 import { UsersService } from './users.service';
+import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 class UpdateRoleDto {
   @IsEnum(UserRole)
@@ -33,6 +45,40 @@ class AdjustBalanceDto {
   @IsOptional()
   @IsString()
   memo?: string;
+}
+
+class CreateMemberDto {
+  @IsString()
+  @IsNotEmpty()
+  username: string;
+
+  @IsString()
+  @MinLength(4)
+  password: string;
+
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
+
+  @IsOptional()
+  @IsString()
+  nickname?: string;
+
+  @IsOptional()
+  @IsString()
+  battleTag?: string;
+}
+
+class UpdateUsernameDto {
+  @IsString()
+  @IsNotEmpty()
+  username: string;
+}
+
+class UpdatePasswordDto {
+  @IsString()
+  @MinLength(4)
+  password: string;
 }
 
 @ApiTags('admin-members')
@@ -107,5 +153,52 @@ export class AdminUsersController {
     }
     const balance = await this.ledger.getBalance(user.id);
     return { id: user.id, delta: dto.delta, newBalance: balance.toString() };
+  }
+
+  @Post()
+  @ApiOperation({ summary: '회원 신규 생성 (아이디/비밀번호)' })
+  async create(@Body() dto: CreateMemberDto) {
+    const user = await this.users.adminCreate({
+      username: dto.username,
+      password: dto.password,
+      role: dto.role,
+      nickname: dto.nickname,
+      battleTag: dto.battleTag,
+    });
+    return { ...user, totalPoints: 0 };
+  }
+
+  @Patch(':id/username')
+  @ApiOperation({ summary: '로그인 아이디(username) 변경' })
+  async updateUsername(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUsernameDto,
+  ) {
+    return this.users.adminUpdateUsername(id, dto.username);
+  }
+
+  @Patch(':id/password')
+  @ApiOperation({ summary: '비밀번호 재설정' })
+  @HttpCode(HttpStatus.OK)
+  async updatePassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePasswordDto,
+  ) {
+    await this.users.adminUpdatePassword(id, dto.password);
+    return { message: '비밀번호가 변경되었습니다' };
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '회원 삭제' })
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    if (req.user.userId === id) {
+      throw new BadRequestException('자기 자신은 삭제할 수 없습니다');
+    }
+    await this.users.adminDelete(id);
+    return { message: '삭제되었습니다' };
   }
 }
