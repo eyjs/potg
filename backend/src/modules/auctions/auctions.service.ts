@@ -17,6 +17,8 @@ import {
   AuctionsRoomStateService,
   RoomState,
 } from './services/auctions-room-state.service';
+import { User } from '../users/entities/user.entity';
+import { randomUUID } from 'crypto';
 
 export type { RoomState };
 
@@ -29,6 +31,8 @@ export class AuctionsService {
     private participantsRepository: Repository<AuctionParticipant>,
     @InjectRepository(AuctionBid)
     private bidsRepository: Repository<AuctionBid>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
     private dataSource: DataSource,
     private readonly biddingService: AuctionsBiddingService,
     private readonly roomStateService: AuctionsRoomStateService,
@@ -160,6 +164,47 @@ export class AuctionsService {
       const participant = this.participantsRepository.create({
         auctionId,
         userId,
+        role: AuctionRole.PLAYER,
+        currentPoints: 0,
+      });
+      results.push(await this.participantsRepository.save(participant));
+    }
+    return results;
+  }
+
+  /**
+   * 게스트(비회원) 매물 수기 등록.
+   * 업로드한 이름마다 게스트 User(로그인 불가, isGuest=true)를 생성해 PLAYER로 추가한다.
+   * 회원 가입 없이 15명 등 대규모 명단을 매물로 올릴 수 있다.
+   */
+  async addGuestPlayers(auctionId: string, adminId: string, names: string[]) {
+    const auction = await this.loadAsCreator(
+      auctionId,
+      adminId,
+      '경매 마스터만 매물을 등록할 수 있습니다.',
+    );
+    if (auction.status !== AuctionStatus.PENDING)
+      throw new BadRequestException(
+        '대기 중인 경매에서만 매물을 등록할 수 있습니다.',
+      );
+
+    const results: AuctionParticipant[] = [];
+    for (const rawName of names) {
+      const name = rawName.trim();
+      if (!name) continue;
+
+      // 게스트 User 생성 (username은 충돌 없는 고유값, 표시명은 nickname)
+      const guest = await this.usersRepository.save(
+        this.usersRepository.create({
+          username: `guest_${randomUUID()}`,
+          nickname: name,
+          isGuest: true,
+        }),
+      );
+
+      const participant = this.participantsRepository.create({
+        auctionId,
+        userId: guest.id,
         role: AuctionRole.PLAYER,
         currentPoints: 0,
       });

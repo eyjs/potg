@@ -118,6 +118,17 @@ export class AuctionsController {
     return this.auctionsService.addPlayers(id, req.user.userId, userIds);
   }
 
+  // 게스트(비회원) 매물 수기 등록 — 이름 명단 업로드
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/players/guest')
+  addGuestPlayers(
+    @Param('id') id: string,
+    @Body('names') names: string[],
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.auctionsService.addGuestPlayers(id, req.user.userId, names);
+  }
+
   // 참가자 제거
   @UseGuards(AuthGuard('jwt'))
   @Post(':id/participants/:userId/remove')

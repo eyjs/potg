@@ -22,7 +22,8 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.usersRepository.find();
+    // 게스트(경매 수기 매물)는 회원 풀에서 제외
+    return this.usersRepository.find({ where: { isGuest: false } });
   }
 
   async findOne(id: string): Promise<User | null> {
@@ -135,6 +136,7 @@ export class UsersService {
     take: number,
   ): Promise<{ rows: User[]; total: number }> {
     const [rows, total] = await this.usersRepository.findAndCount({
+      where: { isGuest: false },
       select: [
         'id',
         'username',

@@ -61,6 +61,13 @@ export class User extends BaseEntity {
   @Column({ name: 'market_gate_passed', default: false })
   marketGatePassed: boolean;
 
+  /**
+   * 게스트 여부. 경매 매물로 수기 업로드된 비회원(로그인 불가, 비밀번호 없음).
+   * 회원 목록/풀(/users, /admin/members)에서 제외된다.
+   */
+  @Column({ name: 'is_guest', default: false })
+  isGuest: boolean;
+
   @OneToMany(() => ClanMember, (clanMember) => clanMember.user)
   clanMembers: ClanMember[];
 }
