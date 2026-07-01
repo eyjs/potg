@@ -75,6 +75,16 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
     }
   }
 
+  const handleAddGuestPlayers = async (names: string[]) => {
+    try {
+      await auctionsApi.addGuestPlayers(auctionId, names)
+      toast.success(`매물 ${names.length}명 추가됨`)
+      await refresh()
+    } catch (error) {
+      handleApiError(error, '매물 추가 실패')
+    }
+  }
+
   const handleRemoveCaptain = async (userId: string) => {
     try {
       await auctionsApi.removeCaptain(auctionId, userId)
@@ -265,6 +275,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
         mode="players"
         excludeIds={allParticipantUserIds}
         onConfirm={handleAddPlayers}
+        onConfirmGuests={handleAddGuestPlayers}
       />
     </div>
   )

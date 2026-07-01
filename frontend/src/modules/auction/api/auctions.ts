@@ -35,6 +35,12 @@ export const auctionsApi = {
       .post(`/auctions/${id}/players/bulk`, { userIds })
       .then(() => undefined),
 
+  /** 게스트(비회원) 매물 수기 등록 — 이름 명단 업로드. */
+  addGuestPlayers: (id: string, names: string[]): Promise<void> =>
+    api
+      .post(`/auctions/${id}/players/guest`, { names })
+      .then(() => undefined),
+
   removeParticipant: (id: string, userId: string): Promise<void> =>
     api
       .post(`/auctions/${id}/participants/${userId}/remove`)
