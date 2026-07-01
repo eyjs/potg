@@ -14,6 +14,8 @@ import {
   Settings,
   Gavel,
   LogOut,
+  Radio,
+  Home,
 } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 
@@ -29,6 +31,7 @@ const navItems: NavItem[] = [
   { href: '/admin/members', label: '회원 관리', icon: <Users className="size-4" /> },
   { href: '/admin/products', label: '상품 관리', icon: <ShoppingBag className="size-4" /> },
   { href: '/admin/orders', label: '주문 관리', icon: <ClipboardList className="size-4" /> },
+  { href: '/auction', label: '실시간 경매', icon: <Radio className="size-4" /> },
   { href: '/admin/auctions', label: '경매 이력', icon: <Gavel className="size-4" /> },
   { href: '/admin/attendance', label: '출석 업로드', icon: <CalendarCheck className="size-4" /> },
   { href: '/admin/ledger', label: '포인트 원장', icon: <BookOpen className="size-4" /> },
@@ -77,7 +80,18 @@ export function AdminSidebar() {
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border space-y-1">
+        <Link
+          href="/"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2 rounded-sm text-sm font-medium w-full',
+            'text-muted-foreground hover:text-[var(--ow-blue)] hover:bg-muted transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          )}
+        >
+          <Home className="size-4" />
+          유저 화면으로 돌아가기
+        </Link>
         <button
           onClick={() => logout()}
           className={cn(

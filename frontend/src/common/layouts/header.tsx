@@ -9,13 +9,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/common/components/ui/dropdown-menu"
 
 const navItems = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
   { href: "/auction", label: "경매", icon: Gavel },
-  { href: "/admin", label: "운영", icon: Shield },
   { href: "/utility", label: "유틸리티", icon: Wrench },
 ]
 
@@ -63,6 +63,23 @@ export function Header() {
             </div>
           )}
 
+          {user && isAdmin && (
+            <Link href="/admin" className="hidden sm:flex">
+              <Button
+                variant="ghost"
+                className={cn(
+                  "skew-btn px-4 py-2 font-bold uppercase tracking-wider text-sm",
+                  "hover:bg-primary/20 hover:text-primary transition-all",
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  어드민
+                </span>
+              </Button>
+            </Link>
+          )}
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -71,6 +88,17 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-card border-border min-w-[150px]">
+                {isAdmin && (
+                  <>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/admin">
+                        <Shield className="w-4 h-4 mr-2" />
+                        어드민 페이지로 이동
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   className="cursor-pointer text-destructive focus:text-destructive"
                   onClick={logout}

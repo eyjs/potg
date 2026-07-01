@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context"
 
 export default function RootRedirectPage() {
   const router = useRouter()
-  const { user, isLoading, isAdmin } = useAuth()
+  const { user, isLoading } = useAuth()
 
   useEffect(() => {
     if (isLoading) return
@@ -14,8 +14,8 @@ export default function RootRedirectPage() {
       router.replace("/login")
       return
     }
-    router.replace(isAdmin ? "/admin" : "/utility")
-  }, [user, isLoading, isAdmin, router])
+    router.replace("/utility")
+  }, [user, isLoading, router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center text-primary font-bold animate-pulse uppercase italic tracking-widest">

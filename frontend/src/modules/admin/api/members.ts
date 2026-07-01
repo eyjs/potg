@@ -9,6 +9,7 @@ export interface AdminMember {
   totalPoints: number
   marketGatePassed: boolean
   avatarUrl?: string
+  nickname?: string | null
   createdAt: string
 }
 
@@ -69,6 +70,12 @@ export const membersApi = {
     api
       .patch<void>(`/admin/members/${id}/password`, { password })
       .then((r) => r.data),
+
+  update: (
+    id: string,
+    dto: { username?: string; nickname?: string; role?: 'USER' | 'CAPTAIN' | 'ADMIN'; password?: string },
+  ): Promise<AdminMember> =>
+    api.patch<AdminMember>(`/admin/members/${id}`, dto).then((r) => r.data),
 
   remove: (id: string): Promise<void> =>
     api.delete<void>(`/admin/members/${id}`).then((r) => r.data),
