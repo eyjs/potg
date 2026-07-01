@@ -1,169 +1,90 @@
-# Phase 1 실행 계획 (Planner 산출물)
+# 구현 계획 — 레이아웃·네비게이션 통일 및 회원관리 모달 구조 개선
 
-> 입력: `.pipeline/requirement.md` + `C:/Users/USER/.claude/plans/refactored-mixing-duckling.md`
-> 범위: **Phase 1 (기반: Entity + Migration)** 만. Phase 2-5는 별도 호출.
+## 요약
+유저 헤더(`common/layouts/header.tsx`)와 어드민 사이드바(`modules/admin/components/admin-sidebar.tsx`) 간 전환 동선을 버튼으로 연결하고 권한 기반으로 메뉴를 정리하며(task-001), 회원관리의 탭 편집 + 별도 추가 2개 다이얼로그를 단일 통합 세로 폼으로 통일한다(task-002). 두 태스크는 파일셋이 겹치지 않아 완전 병렬 실행 가능하다.
 
----
+## 스코프
 
-## 0. 충돌 사항 및 결정
+### 포함 (이번에 만드는 것)
+- 로그인 후 랜딩 통일: 관리자·일반유저 모두 유저 화면으로 랜딩 (`app/page.tsx`의 역할별 분기 제거)
+- 유저 헤더에서 "운영"(`/admin`) 메뉴 제거 → `isAdmin` 조건부 [어드민 페이지로 이동] 버튼으로 대체 (데스크톱 + 모바일 드롭다운)
+- 어드민 사이드바에 [유저 화면으로 돌아가기] 버튼 추가 (→ `/`)
+- 어드민 사이드바에 실시간 경매(`/auction`) 링크 추가 (기존 경매이력 `/admin/auctions`과 시각 구분)
+- 회원관리 추가/수정 모달을 단일 통합 폼으로 통일 (아이디·닉네임·권한·비밀번호 공통, 잔액조정·삭제는 수정 모드 전용)
 
-| # | 사용자 지시 | 충돌 | 결정 |
-|---|------------|------|------|
-| C1 | DoD "폐기 엔티티 제거 (PointLog/BettingQuestion/BettingTicket/ShopPurchase/GameRoom 등)" | 본 엔티티들을 의존하는 서비스(`wallet.service`, `betting.service`, `shop.service`)는 Phase 2 재작성 예정 → Phase 1에서 제거 시 빌드 깨짐 | **공존 전략**: 신규 엔티티는 추가하고, 폐기 대상 중 *상호 의존이 없는 GameRoom 계열은 유지(Phase 5에서 삭제)*. PointLog/BettingQuestion/BettingTicket/ShopPurchase는 **Phase 2에서 서비스 재작성과 함께 제거**. Phase 1에서는 신규 엔티티만 추가하고 마이그레이션에 둘 다 포함. |
-| C2 | "Phase 1엔 엔티티만 정리, 모듈 삭제는 Phase 5" vs "폐기 엔티티 제거" | 자기모순 | C1 결정 채택 (안전 우선) |
-| C3 | "단일 클랜 전제 - clanId 의존 코드 제거 진행" | 80+ 파일 영향, Phase 1 스코프 초과 | **Phase 1에서는 User 확장과 신규 엔티티에 clanId 미포함**만 적용. 기존 코드의 clanId 제거는 Phase 2-3에서. |
+### 제외 (이번에 만들지 않는 것)
+- 유저 메뉴바와 어드민 메뉴바 통합 (각각 유지, 전환 버튼으로만 연결)
+- 백엔드 API 추가/수정 (통합 엔드포인트 `PATCH /admin/members/:id` 이미 존재, 계약 고정)
+- 신규 페이지/기능 추가, 디자인 시스템 전면 교체
+- Shadcn UI (`common/components/ui/*`), `lib/utils.ts` 수정 (보호 대상)
+- 이미 완료된 항목 재작업 (로그인 깜빡임, 슬라이딩 세션, KST, 대시보드 크래시, CRUD API 백엔드)
 
-→ 사용자에게 REPORT-phase1.md에서 명시.
+## 아키텍처 결정
 
----
+- **랜딩 목적지 = `/utility`**: `app/page.tsx`(`/`)는 redirect 전용 스피너 페이지로 대시보드 콘텐츠가 없다. `app/` 라우트 조사 결과(존재 라우트: `/admin/*`, `/auction`, `/login`, `/utility`) 실질 유저 홈은 `/utility`(AuthGuard + 유틸리티 도구 그리드)뿐이며 별도 대시보드 페이지는 없다. 따라서 `router.replace(isAdmin ? "/admin" : "/utility")` → `router.replace("/utility")`로 전 역할 통일. 이로써 "관리자도 `/admin` 자동이동 없이 유저 화면으로 랜딩" 성공기준 충족. (근거: `/`에 실제 화면을 새로 만드는 것은 스코프 외 신규 페이지에 해당)
+- **공유 Header의 실제 노출 범위**: `common/layouts/header.tsx`는 현재 `/auction` 페이지에서만 렌더된다(`/utility`는 자체 인라인 헤더 사용, `/`는 스피너만). 요구사항이 `header.tsx`를 직접 대상으로 지정하므로 이 컴포넌트를 수정하는 것이 정확한 스코프이며, [어드민 페이지로 이동] 버튼은 이 헤더가 쓰이는 화면에서 노출된다. (헤더를 다른 페이지에 새로 다는 것은 스코프 외)
+- **모바일 접근성(P1)**: 헤더 데스크톱 nav는 `hidden md:flex`이므로, [어드민 페이지로 이동]을 데스크톱 전용 버튼 + 우측 `DropdownMenu`(모바일 진입점)에 조건부 항목으로 이중 배치. `DropdownMenuSeparator`(export 확인됨)로 로그아웃과 구분.
+- **삭제 확인은 전역 `useConfirm()` 재사용**: `common/components/confirm-dialog.tsx`의 promise 기반 `useConfirm()`(ConfirmProvider 루트 마운트 완료)을 사용해 통합 폼 내 별도 중첩 Dialog 없이 삭제 확인 처리. `variant: 'destructive'` 지원.
+- **통합 수정은 단일 `update()` 호출**: 개별 엔드포인트(role/username/password) 대신 `PATCH /admin/members/:id` 하나로 변경 필드만 전송. 잔액 조정은 계약상 별개 엔드포인트(`POST /admin/members/:id/adjust`)이므로 폼 내 별도 섹션·별도 요청으로 유지.
+- **역할 Select는 USER/ADMIN 2개 유지**: `UserRole` enum에 CAPTAIN이 있으나 기존 UI 동작(CAPTAIN→USER로 프리필 축약)을 보존해 스코프 확대를 방지. `update`의 role 파라미터 타입만 `UserRole`(USER|CAPTAIN|ADMIN)로 백엔드 계약과 정합.
 
-## 1. 태스크 분할 (의존성 그래프)
+## 태스크 목록
+| # | 태스크 | 복잡도 | 의존성 | 병렬그룹 | 파일 |
+|---|--------|--------|--------|----------|------|
+| 001 | 레이아웃/네비게이션 통일 | M | 없음 | A | task-001.md |
+| 002 | 회원관리 통합 모달 | L | 없음 | A | task-002.md |
 
+## 의존성 그래프
 ```
-T01 (TypeORM migration 인프라)
-  ├─ T02 (User 확장)
-  ├─ T03 (PointTx 엔티티)
-  ├─ T04 (Match/Team/TeamMember 엔티티)
-  ├─ T05 (BettingMarket 엔티티)
-  ├─ T06 (MarketOrder 엔티티)
-  ├─ T07 (SystemConfig 엔티티)
-  └─ T08 (AttendanceLog 검토)
-
-T03 ──> T09 (LedgerModule 골격)
-T04 ──> T10 (MatchModule 골격)
-
-T01..T08 ──> T11 (baseline 마이그레이션 생성)
-T11 ──> T12 (빌드 + 타입체크)
-T12 ──> T13 (ERD.md 갱신)
+task-001 (독립)   task-002 (독립)
+   |                 |
+   +---- 병렬 실행 ---+
 ```
+두 태스크는 선행 의존이 없고 변경 파일셋이 완전히 분리되어 동시 실행 가능하다.
 
-병렬 가능: T02-T08 (T01 이후), T09/T10 (각자 deps 후).
+## 병렬 실행 계획
+- **그룹 A (동시 실행)**: task-001, task-002
+  - task-001 파일셋: `app/page.tsx`, `common/layouts/header.tsx`, `modules/admin/components/admin-sidebar.tsx`
+  - task-002 파일셋: `app/admin/members/page.tsx`, `modules/admin/api/members.ts`, `modules/admin/schemas/member-form.schema.ts`(신규)
+  - 교집합 없음 → worktree 격리 병렬 안전. 머지 충돌 예상 없음.
 
----
+## P0/P1/P2 매핑
+| 우선순위 | 항목 | 태스크 |
+|----------|------|--------|
+| P0 | 통합 랜딩 (역할 무관 유저 화면) | task-001 |
+| P0 | 헤더 "운영" 제거 + 어드민 이동 버튼 (isAdmin) | task-001 |
+| P0 | 사이드바 유저 복귀 버튼 + 실시간 경매 링크 | task-001 |
+| P0 | 회원관리 통합 모달 (추가/수정 단일 폼) | task-002 |
+| P0 | 자기자신 삭제 방지 (버튼 비활성화) | task-002 |
+| P1 | 통합 모달 필드별 유효성 (변경 필드만 전송, 빈 비번 스킵) | task-002 |
+| P1 | 모바일 어드민 이동 버튼 접근성 (드롭다운) | task-001 |
+| P1 | 사이드바 active 하이라이트 정합성 (`/auction` 포함) | task-001 |
+| P2 | 잔액 조정 시 현재/예상 잔액 미리보기 | task-002 |
+| P2 | 전환 버튼 오버워치 테마(skew-btn) 스타일 | task-001 |
 
-## 2. 태스크 상세
+## 리스크
+- **랜딩 목적지 해석 차이**: requirement 문구는 "`/`로 랜딩"이나 `/`는 콘텐츠 없는 redirect 페이지. 실제 유저 화면인 `/utility`로 통일하는 것으로 해석(위 아키텍처 결정). → 완화: task-001 수용기준에 "관리자가 `/admin`으로 자동 이동하지 않고 유저 화면(`/utility`)에 랜딩"으로 명시. 리뷰어 확인 포인트.
+- **CAPTAIN 역할 편집 엣지케이스**: Select가 USER/ADMIN만 노출하므로 CAPTAIN 회원 편집 시 USER로 프리필. → 완화: 기존 동작 보존으로 명시, 스코프 외 처리.
+- **비밀번호 검증 모드 분기**: 추가 시 필수(min4), 수정 시 선택(빈 값=변경 안 함, 입력 시 min4). → 완화: zod 스키마를 모드 인자로 생성(`makeMemberFormSchema(isEdit)`)하여 단일 소스로 관리.
+- **미사용 API 메서드**: 통합 폼 도입 후 `updateRole/updateUsername/updatePassword`가 페이지에서 미사용. → 완화: export는 lint 경고 대상 아님. 제거는 선택(호환성 위해 유지 권장), 페이지 import에서만 제외.
+- **헤더 노출 범위 오해**: 공유 Header가 `/auction`에만 붙어 있어 버튼이 전 화면에 안 보인다고 오인 가능. → 완화: 아키텍처 결정에 노출 범위 명시, 스코프는 header.tsx 컴포넌트 수정으로 한정.
 
-### T01: TypeORM 마이그레이션 인프라 도입
-- `backend/src/database/data-source.ts` 신규 — TypeORM CLI용 DataSource export
-- `backend/src/database/migrations/` 디렉토리 생성
-- `app.module.ts`의 TypeOrmModule.forRootAsync에 `synchronize: false`, `migrations: [...]`, `migrationsRun: true` 설정
-- `backend/package.json` 스크립트 추가: `migration:generate`, `migration:run`, `migration:revert`, `typeorm`
-- `.env`에는 변경 없음
+## 성공 기준 체크리스트 (requirement 매핑)
+- [ ] 관리자 로그인 시 유저 화면(`/utility`)으로 랜딩, `/admin` 자동 이동 없음 (task-001)
+- [ ] 일반유저 로그인 시 헤더에 "운영" 메뉴 미노출 (task-001)
+- [ ] 관리자 계정에서만 [어드민 페이지로 이동] 버튼 노출, 클릭 시 `/admin` 이동 (task-001)
+- [ ] 어드민 사이드바 [유저 화면으로 돌아가기] 클릭 시 `/` 이동 (task-001)
+- [ ] 어드민 사이드바 실시간 경매(`/auction`) 링크로 경매 진입 가능, 경매이력과 시각 구분 (task-001)
+- [ ] 회원관리 신규 추가·기존 수정이 동일 모달 구조 사용 (task-002)
+- [ ] 회원 수정 시 아이디·닉네임·권한·비밀번호·잔액조정을 한 화면에서 처리 (task-002)
+- [ ] 자기자신 삭제 버튼 비활성화 (task-002)
+- [ ] `npm run build` 성공, TypeScript 에러 없음 (task-001, task-002)
+- [ ] `npm run lint` 통과 (task-001, task-002)
 
-### T02: User 엔티티 확장
-파일: `backend/src/modules/users/entities/user.entity.ts`
-- `UserRole`에 `CAPTAIN = 'CAPTAIN'` 추가 (3-tier)
-- 컬럼 추가:
-  - `discordId: string` `{ unique: true, nullable: true, name: 'discord_id' }`
-  - `pointsBalance: number` `{ default: 0, name: 'points_balance' }` — PointTx 합 캐시
-  - `marketGatePassed: boolean` `{ default: false, name: 'market_gate_passed' }`
-- 기존 컬럼 보존 (battleTag, email, password, role 등)
-
-### T03: PointTx 신규 엔티티 (LedgerModule)
-- 디렉토리: `backend/src/modules/ledger/`
-  - `entities/point-tx.entity.ts`
-  - `ledger.module.ts`
-- 엔티티 스키마 (`point_tx`):
-  - `id: uuid PK`
-  - `fromAccount: string` (nullable; null = mint, SINK 가상계정 ID = '00000000-0000-0000-0000-000000000000')
-  - `toAccount: string` (nullable; null = burn)
-  - `amount: bigint` (positive, integer)
-  - `reason: string` (예: `SEED`, `BET_STAKE:{marketId}`, `BET_PAYOUT:{marketId}`, `RAKE:{marketId}`, `MARKET_BUY:{orderId}`, `REFUND:{orderId}`)
-  - `refType: string nullable` (예: `BettingMarket`, `MarketOrder`, `Match`)
-  - `refId: string nullable`
-  - `createdAt: timestamp` (append-only, no updatedAt)
-- 인덱스: `(from_account)`, `(to_account)`, `(ref_type, ref_id)`, `(created_at)`
-- `SINK_ACCOUNT_ID` 상수: `backend/src/modules/ledger/ledger.constants.ts` — `'00000000-0000-0000-0000-000000000000'`
-
-### T04: Match/Team/TeamMember 엔티티 (MatchModule)
-- 디렉토리: `backend/src/modules/matches/`
-- 엔티티:
-  - `Match`: `{ id, title, scheduledAt, status (enum: DRAFT|BETTING_OPEN|LOCKED|SETTLED|CANCELLED), winnerTeamId nullable, settledAt nullable }`
-  - `Team`: `{ id, matchId FK, name, captainId FK→User (nullable), placement nullable (1~4) }`
-  - `TeamMember`: `{ id, teamId FK, userId FK, bidPrice nullable }`
-- 상태머신 enum: `backend/src/modules/matches/enums/match-status.enum.ts`
-
-### T05: BettingMarket 엔티티
-- 파일: `backend/src/modules/betting/entities/betting-market.entity.ts`
-- 스키마:
-  - `id, matchId FK, type (enum: WIN | RANK), status (enum: OPEN | LOCKED | SETTLED | CANCELLED)`
-  - `lockedAt nullable, settledAt nullable`
-  - `winningOption nullable` (string; teamId 또는 placement)
-  - `totalPool: bigint default 0`, `rakeBps: int default 500` (5%)
-- BettingTicket의 후속(개별 베팅)도 신규로 하되 본 Phase에서는 `BettingMarket`만 추가하고 stake 테이블은 Phase 2에서 추가 (서비스 재작성과 함께)
-- 기존 `BettingQuestion`/`BettingTicket` 엔티티는 **유지** (Phase 2 재작성 시 제거)
-
-### T06: MarketOrder 엔티티
-- 파일: `backend/src/modules/shop/entities/market-order.entity.ts`
-- 스키마:
-  - `id, productId FK→ShopProduct, buyerId FK→User`
-  - `quantity, unitPrice, totalPrice (bigint)`
-  - `status (enum: 구매완료|전달완료|취소 → CODE: COMPLETED|DELIVERED|CANCELLED)`
-  - `deliveredAt nullable, cancelledAt nullable, adminNote nullable`
-- 기존 `ShopPurchase` 엔티티 **유지** (Phase 2에서 서비스 재작성과 함께 제거)
-
-### T07: SystemConfig 엔티티 + 시드
-- 디렉토리: `backend/src/modules/system-config/`
-- 엔티티 `system_config`:
-  - `key: string PK`
-  - `value: string` (JSON 직렬화)
-  - `description: string nullable`
-  - `updatedAt`
-- 모듈/서비스 골격: `SystemConfigService.get<T>(key, defaultValue)`, `set(key, value)`
-- 시드 마이그레이션 (T11 일부):
-  - `SEED_AMOUNT = 1000`
-  - `MONTHLY_CAP = 5000`
-  - `RAKE_BPS = 500`
-  - `MARKET_GATE_ATTENDANCE_DAYS = 7`
-  - `MARKET_GATE_MATCH_COUNT = 2`
-
-### T08: AttendanceLog 검토/확장
-- 기존 `AttendanceRecord` 분석 결과: `memberId → ClanMember` FK (clanId scope). 본 Phase에서는 **새로운 통합 `AttendanceLog` 엔티티를 추가하지 않고**, 기존 `AttendanceRecord` 보존. Phase 2에서 마켓 게이트 검증 로직 작성 시 `User.id` 기반 쿼리 헬퍼 추가.
-- 사유: requirement는 "검토/확장"으로 명시 — 신규 추가 없이 보존하는 것이 안전.
-
-### T09: LedgerModule 골격
-- `LedgerService`: `transfer({from, to, amount, reason, refType?, refId?})` 메서드만 (구현은 Phase 2에서)
-- 본 Phase에서는 메서드 시그니처와 `throw new Error('Not implemented in Phase 1')`만
-
-### T10: MatchModule 골격
-- `MatchService`: `create, openBetting, lock, settle, cancel` 시그니처만
-- 상태머신 가드는 인터페이스만 정의
-
-### T11: 초기 마이그레이션 생성
-- `backend/src/database/migrations/{timestamp}-baseline.ts`
-- DB가 비어있다고 가정 → 전체 CREATE TABLE 마이그레이션 (기존 엔티티 + 신규 엔티티 모두 포함)
-- 수동 작성보다 TypeORM `migration:generate` 사용 권장이나, DB가 비어있는 환경에서 일관성 확보를 위해 **수동 작성** (synchronize: true의 산물과 동일 스키마)
-- SystemConfig 시드는 별도 마이그레이션 `{timestamp}-seed-system-config.ts`
-
-### T12: 빌드 + 타입체크 + 테스트
-- `cd backend && npm run build`
-- 기존 테스트 통과 (`npm test`)
-- 기존 테스트 중 폐기된 서비스 의존 테스트가 깨지면 → Phase 2에서 정리. 본 Phase에서는 새 entity 추가만 했으므로 기존 테스트는 영향 없어야 함.
-
-### T13: ERD 갱신
-- `docs/erd.md` 또는 `docs/ERD.md` — User 확장 + 신규 엔티티 8종 추가
-- 폐기 예정 엔티티에는 "(Phase 2 폐기 예정)" 마킹
-
----
-
-## 3. 자동 FAIL 리뷰 기준 자가체크
-
-- `any` 타입: 사용 안 함 ✓
-- 빌드 실패: T12에서 검증 ✓
-- 하드코딩 시크릿: 없음 ✓
-- SQL 인젝션: 모두 ORM 사용 ✓
-- 태스크 범위: User 확장 + 신규 엔티티 + 마이그레이션 인프라만 ✓
-
----
-
-## 4. 비포함 (Phase 2-5로 미룸)
-
-- BettingService 패리뮤추얼 재작성 → Phase 2
-- ShopService 즉시차감 재작성 → Phase 2
-- WalletService → Phase 2 (PointTx 기반 재작성)
-- clanId 의존 제거 → Phase 2-3
-- 마켓 게이트 가드 → Phase 2
-- 디스코드 OAuth → Phase 3
-- 프론트엔드 → Phase 4
-- 모듈 삭제 (GamesModule 등) → Phase 5
-
+## 검증 방법 (공통)
+```bash
+cd /Users/eyjs/Desktop/WorkSpace/potg/potg/frontend
+npm run lint
+npm run build
+```
+`any` 미사용, 하드코딩 색상/폰트/간격 없음(디자인 토큰/Tailwind + cn()), 보호 파일(`common/components/ui/*`, `lib/utils.ts`) 무수정 확인.
