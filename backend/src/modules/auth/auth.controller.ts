@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -21,6 +20,7 @@ import type { AuthenticatedRequest } from '../../common/interfaces/authenticated
 import {
   ACCESS_TOKEN_COOKIE,
   buildAccessTokenCookieOptions,
+  clearAccessTokenCookieOptions,
 } from '../../common/config/access-token-cookie';
 
 @ApiTags('auth')
@@ -29,7 +29,6 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private usersService: UsersService,
-    private configService: ConfigService,
   ) {}
 
   /**
@@ -51,11 +50,10 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
     const tokens = await this.authService.login(user);
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
     res.cookie(
       ACCESS_TOKEN_COOKIE,
       tokens.access_token,
-      buildAccessTokenCookieOptions(isProd),
+      buildAccessTokenCookieOptions(),
     );
     return { ok: true };
   }
@@ -67,7 +65,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그아웃 (access_token 쿠키 삭제)' })
   logout(@Res({ passthrough: true }) res: Response): { message: string } {
-    res.clearCookie(ACCESS_TOKEN_COOKIE, { path: '/' });
+    res.clearCookie(ACCESS_TOKEN_COOKIE, clearAccessTokenCookieOptions());
     return { message: 'Logged out successfully' };
   }
 

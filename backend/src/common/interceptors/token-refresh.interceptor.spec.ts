@@ -1,6 +1,5 @@
 import { of } from 'rxjs';
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
 import { TokenRefreshInterceptor } from './token-refresh.interceptor';
 import { ACCESS_TOKEN_COOKIE } from '../config/access-token-cookie';
@@ -12,21 +11,13 @@ import { ACCESS_TOKEN_COOKIE } from '../config/access-token-cookie';
  *  - 인증된 HTTP 요청(req.user 존재) → 새 토큰으로 access_token 쿠키 재발급
  *  - 비인증 요청(req.user 없음) → 쿠키 미발급
  *  - 비 HTTP 컨텍스트(웹소켓 등) → 쿠키 미발급, 핸들러는 통과
- *  - NODE_ENV=production → secure 쿠키
+ *  - 크로스사이트 쿠키 속성(SameSite=None; Secure)
  */
 describe('TokenRefreshInterceptor', () => {
   const NEW_TOKEN = 'signed.jwt.token';
 
   function makeJwt(): JwtService {
     return { sign: jest.fn(() => NEW_TOKEN) } as unknown as JwtService;
-  }
-
-  function makeConfig(nodeEnv?: string): ConfigService {
-    return {
-      get: jest.fn((key: string) =>
-        key === 'NODE_ENV' ? nodeEnv : undefined,
-      ),
-    } as unknown as ConfigService;
   }
 
   function makeContext(
@@ -48,9 +39,9 @@ describe('TokenRefreshInterceptor', () => {
 
   const next: CallHandler = { handle: () => of('ok') };
 
-  it('인증된 HTTP 요청 → access_token 쿠키 재발급', () => {
+  it('인증된 HTTP 요청 → access_token 쿠키 재발급 (SameSite=None; Secure)', () => {
     const jwt = makeJwt();
-    const interceptor = new TokenRefreshInterceptor(jwt, makeConfig());
+    const interceptor = new TokenRefreshInterceptor(jwt);
     const { context, cookie } = makeContext('http', {
       userId: 'user-1',
       username: 'admin',
@@ -70,17 +61,18 @@ describe('TokenRefreshInterceptor', () => {
     const [name, token, options] = cookie.mock.calls[0] as [
       string,
       string,
-      { httpOnly: boolean; secure: boolean },
+      { httpOnly: boolean; secure: boolean; sameSite: string },
     ];
     expect(name).toBe(ACCESS_TOKEN_COOKIE);
     expect(token).toBe(NEW_TOKEN);
     expect(options.httpOnly).toBe(true);
-    expect(options.secure).toBe(false); // NODE_ENV 미설정 → dev
+    expect(options.secure).toBe(true);
+    expect(options.sameSite).toBe('none');
   });
 
   it('비인증 요청(req.user 없음) → 쿠키 미발급', () => {
     const jwt = makeJwt();
-    const interceptor = new TokenRefreshInterceptor(jwt, makeConfig());
+    const interceptor = new TokenRefreshInterceptor(jwt);
     const { context, cookie } = makeContext('http', undefined);
 
     interceptor.intercept(context, next);
@@ -91,7 +83,7 @@ describe('TokenRefreshInterceptor', () => {
 
   it('비 HTTP 컨텍스트 → 쿠키 미발급', () => {
     const jwt = makeJwt();
-    const interceptor = new TokenRefreshInterceptor(jwt, makeConfig());
+    const interceptor = new TokenRefreshInterceptor(jwt);
     const { context, cookie } = makeContext('ws', {
       userId: 'user-1',
       username: 'admin',
@@ -101,27 +93,5 @@ describe('TokenRefreshInterceptor', () => {
     interceptor.intercept(context, next);
 
     expect(cookie).not.toHaveBeenCalled();
-  });
-
-  it('NODE_ENV=production → secure 쿠키', () => {
-    const jwt = makeJwt();
-    const interceptor = new TokenRefreshInterceptor(
-      jwt,
-      makeConfig('production'),
-    );
-    const { context, cookie } = makeContext('http', {
-      userId: 'u',
-      username: 'a',
-      role: 'ADMIN',
-    });
-
-    interceptor.intercept(context, next);
-
-    const [, , options] = cookie.mock.calls[0] as [
-      string,
-      string,
-      { secure: boolean },
-    ];
-    expect(options.secure).toBe(true);
   });
 });

@@ -4,7 +4,6 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
 import type { Request, Response } from 'express';
@@ -34,10 +33,7 @@ interface AuthenticatedUser {
  */
 @Injectable()
 export class TokenRefreshInterceptor implements NestInterceptor {
-  constructor(
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly jwtService: JwtService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== 'http') {
@@ -56,12 +52,10 @@ export class TokenRefreshInterceptor implements NestInterceptor {
         role: user.role,
         clanId: user.clanId,
       });
-      const isProd =
-        this.configService.get<string>('NODE_ENV') === 'production';
       response.cookie(
         ACCESS_TOKEN_COOKIE,
         token,
-        buildAccessTokenCookieOptions(isProd),
+        buildAccessTokenCookieOptions(),
       );
     }
 
