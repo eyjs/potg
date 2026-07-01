@@ -56,4 +56,28 @@ export const membersApi = {
 
   adjustPoints: (id: string, dto: AdjustPointsDto): Promise<void> =>
     api.post<void>(`/admin/members/${id}/adjust`, dto).then((r) => r.data),
+
+  create: (dto: CreateMemberDto): Promise<AdminMember> =>
+    api.post<AdminMember>('/admin/members', dto).then((r) => r.data),
+
+  updateUsername: (id: string, username: string): Promise<AdminMember> =>
+    api
+      .patch<AdminMember>(`/admin/members/${id}/username`, { username })
+      .then((r) => r.data),
+
+  updatePassword: (id: string, password: string): Promise<void> =>
+    api
+      .patch<void>(`/admin/members/${id}/password`, { password })
+      .then((r) => r.data),
+
+  remove: (id: string): Promise<void> =>
+    api.delete<void>(`/admin/members/${id}`).then((r) => r.data),
+}
+
+export interface CreateMemberDto {
+  username: string
+  password: string
+  role?: 'USER' | 'ADMIN'
+  nickname?: string
+  battleTag?: string
 }
