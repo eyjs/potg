@@ -11,7 +11,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { CookieOptions, Response } from 'express';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -24,19 +24,12 @@ import {
   DiscordOAuthGuard,
   DISCORD_OAUTH_STATE_COOKIE,
 } from './discord-oauth.guard';
+import {
+  ACCESS_TOKEN_COOKIE,
+  buildAccessTokenCookieOptions,
+} from '../../common/config/access-token-cookie';
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-function buildAccessTokenCookieOptions(isProd: boolean): CookieOptions {
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    maxAge: SEVEN_DAYS_MS,
-    path: '/',
-  };
-}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -85,7 +78,7 @@ export class AuthController {
     const tokens = await this.authService.login(req.user);
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
     res.cookie(
-      'access_token',
+      ACCESS_TOKEN_COOKIE,
       tokens.access_token,
       buildAccessTokenCookieOptions(isProd),
     );
@@ -116,7 +109,7 @@ export class AuthController {
     const tokens = await this.authService.login(user);
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
     res.cookie(
-      'access_token',
+      ACCESS_TOKEN_COOKIE,
       tokens.access_token,
       buildAccessTokenCookieOptions(isProd),
     );
@@ -130,7 +123,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그아웃 (access_token 쿠키 삭제)' })
   logout(@Res({ passthrough: true }) res: Response): { message: string } {
-    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie(ACCESS_TOKEN_COOKIE, { path: '/' });
     return { message: 'Logged out successfully' };
   }
 
