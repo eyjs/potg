@@ -42,9 +42,20 @@ export interface LedgerTimeseriesParams {
   days?: number
 }
 
+/** `/admin/ledger` 목록 응답 (페이지네이션). */
+interface LedgerListResponse {
+  total: number
+  skip: number
+  take: number
+  rows: PointTx[]
+}
+
 export const ledgerApi = {
+  // 백엔드는 { total, skip, take, rows } 형태로 반환하므로 rows 배열을 추출한다.
   list: (params?: LedgerListParams): Promise<PointTx[]> =>
-    api.get<PointTx[]>('/admin/ledger', { params }).then((r) => r.data),
+    api
+      .get<LedgerListResponse>('/admin/ledger', { params })
+      .then((r) => r.data.rows),
 
   summary: (): Promise<LedgerSummary> =>
     api.get<LedgerSummary>('/admin/ledger/summary').then((r) => r.data),
