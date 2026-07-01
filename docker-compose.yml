@@ -16,6 +16,8 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=postgres
       - DATABASE_NAME=potg_db
+      # JWT_SECRET은 gitignore된 루트 .env에서 주입 (시크릿 미커밋). master는 미설정 시 부팅 throw.
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in root .env}
     volumes:
       - uploads_data:/usr/src/app/uploads
     depends_on:
