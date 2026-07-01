@@ -47,20 +47,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, []);
 
-  // 슬라이딩 세션 keepalive: 로그인 상태에서 사용자가 페이지 내에서 활동하면
-  // (클릭/키/스크롤/탭 복귀) 최소 주기마다 인증 요청을 보내 세션 쿠키를 갱신한다.
-  // 실제 갱신은 백엔드 TokenRefreshInterceptor가 access_token 쿠키를 재발급하며 수행.
-  // 경매처럼 오래 머무는 화면에서 60분 JWT 만료로 인한 강제 로그아웃을 방지한다.
+  // 슬라이딩 세션 keepalive: 로그인 상태에서 (1) 사용자 활동 시 + (2) 주기적 타이머로
+  // 인증 요청을 보내 access_token 쿠키를 갱신한다. 실제 갱신은 백엔드
+  // TokenRefreshInterceptor가 쿠키를 재발급하며 수행. 경매처럼 오래 머무는(유휴 포함)
+  // 화면에서 60분 JWT 만료로 인한 강제 로그아웃/요청 401을 방지한다.
   useEffect(() => {
     if (!user) return;
 
-    const REFRESH_THROTTLE_MS = 4 * 60 * 1000; // 4분 (JWT 60분 만료보다 충분히 짧게)
+    const REFRESH_MS = 4 * 60 * 1000; // 4분 (JWT 60분 만료보다 충분히 짧게)
     let lastPing = Date.now();
     let pinging = false;
 
-    const ping = () => {
+    const ping = (force = false) => {
       const now = Date.now();
-      if (pinging || now - lastPing < REFRESH_THROTTLE_MS) return;
+      if (pinging || (!force && now - lastPing < REFRESH_MS)) return;
       lastPing = now;
       pinging = true;
       // 가벼운 인증 요청 → 인터셉터가 쿠키를 갱신. 실패는 조용히 무시.
@@ -72,21 +72,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') ping();
-    };
+    // (2) 주기적 갱신 — 유휴 상태에서도 세션 유지 (탭이 열려있는 한)
+    const interval = setInterval(() => ping(true), REFRESH_MS);
 
+    // (1) 활동 기반 갱신 (throttle) + 탭 복귀 시 즉시 갱신
+    const onActivity = () => ping(false);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') ping(true);
+    };
     const events: Array<keyof WindowEventMap> = [
       'click',
       'keydown',
       'mousemove',
       'scroll',
     ];
-    events.forEach((e) => window.addEventListener(e, ping, { passive: true }));
+    events.forEach((e) =>
+      window.addEventListener(e, onActivity, { passive: true }),
+    );
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {
-      events.forEach((e) => window.removeEventListener(e, ping));
+      clearInterval(interval);
+      events.forEach((e) => window.removeEventListener(e, onActivity));
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [user]);

@@ -23,7 +23,8 @@ import { TokenRefreshInterceptor } from '../../common/interceptors/token-refresh
             'JWT_SECRET is required and must be at least 16 chars. See .env.example.',
           );
         }
-        return { secret, signOptions: { expiresIn: '60m' } };
+        // 장시간 경매 이벤트 대비 12h. 활동 중에는 슬라이딩 갱신으로 계속 연장됨.
+        return { secret, signOptions: { expiresIn: '12h' } };
       },
       inject: [ConfigService],
     }),
