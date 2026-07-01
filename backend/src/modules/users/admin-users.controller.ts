@@ -55,7 +55,12 @@ export class AdminUsersController {
       Math.max(1, parseInt(takeRaw ?? '50', 10) || 50),
     );
     const { rows, total } = await this.users.adminList(skip, take);
-    return { total, skip, take, rows };
+    // pointsBalance(bigint→string)를 프론트 계약에 맞춰 totalPoints(number)로 노출.
+    const mappedRows = rows.map((u) => ({
+      ...u,
+      totalPoints: Number(u.pointsBalance ?? 0),
+    }));
+    return { total, skip, take, rows: mappedRows };
   }
 
   @Get(':id')
