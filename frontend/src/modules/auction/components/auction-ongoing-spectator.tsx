@@ -70,7 +70,7 @@ export function AuctionOngoingSpectator({
         </Card>
       )}
 
-      <div className="grid grid-cols-12 gap-4">
+      <div className="hidden lg:grid grid-cols-12 gap-4">
         <aside className="col-span-12 lg:col-span-2 space-y-2">
           <TeamSidebar
             teams={roomState.teams}
@@ -114,6 +114,44 @@ export function AuctionOngoingSpectator({
             />
           )}
         </aside>
+      </div>
+
+      {/*
+        모바일(<lg) — 트위치/치지직 세로형: 상단 실시간 경매현황 + 하단 채팅.
+        min-h는 dvh 기준(모바일 주소창 리사이즈 대응) — 페이지 컨테이너 py-6(상하 총 3rem) +
+        헤더 카드(아이콘+타이틀+타이머, 약 4rem) + space-y-4 간격(1rem) + 여유값(2rem) = 10rem.
+        PAUSED 배너가 추가로 표시될 때도 min-height일 뿐이라 페이지가 자연스럽게 늘어난다.
+      */}
+      <div className="lg:hidden flex flex-col gap-4 min-h-[calc(100dvh-10rem)]">
+        {/* 상단 — 실시간 경매현황 */}
+        <div className="shrink-0">
+          {isAssigning ? (
+            <Card className="bg-card border-border">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                마스터가 유찰자를 각 팀에 수동 배정 중입니다...
+              </CardContent>
+            </Card>
+          ) : (
+            <CurrentPlayerCard
+              player={roomState.currentPlayer}
+              currentBid={roomState.currentBid}
+              biddingPhase={phase}
+              stageEvent={stageEvent}
+            />
+          )}
+        </div>
+
+        {/* 하단 — 채팅, 남은 높이 전부 */}
+        <div className="flex-1 min-h-0">
+          {chatMessages && onSendChat && (
+            <ChatPanel
+              messages={chatMessages}
+              onSend={onSendChat}
+              participants={roomState.participants}
+              myUserId={myUserId}
+            />
+          )}
+        </div>
       </div>
     </div>
   )
