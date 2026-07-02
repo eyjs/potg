@@ -21,6 +21,15 @@ export interface AuctionChatMessage {
   type: 'chat'
 }
 
+/** 입찰/낙찰 이벤트 피드 — 게임 킬로그 스타일 표시용 (bidPlaced/bidConfirmed 구독) */
+export interface AuctionBidEvent {
+  id: string
+  kind: 'bid' | 'sold'
+  bidderName: string
+  amount: number
+  timestamp: string
+}
+
 export interface AuctionEmitFns {
   placeBid: (targetPlayerId: string, amount: number) => void
   selectPlayer: (playerId: string) => void
@@ -44,6 +53,7 @@ interface UseAuctionSocketReturn {
   roomState: RoomState | null
   timerRemaining: number | null
   chatMessages: AuctionChatMessage[]
+  bidEvents: AuctionBidEvent[]
   emit: AuctionEmitFns
 }
 
@@ -63,6 +73,7 @@ export function useAuctionSocket(
   const [roomState, setRoomState] = useState<RoomState | null>(null)
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null)
   const [chatMessages, setChatMessages] = useState<AuctionChatMessage[]>([])
+  const [bidEvents, setBidEvents] = useState<AuctionBidEvent[]>([])
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -99,6 +110,42 @@ export function useAuctionSocket(
     socket.on('roomState', handleRoomState)
     socket.on('bidPlaced', handleRoomState)
     socket.on('bidConfirmed', handleRoomState)
+
+    // ── 입찰/낙찰 이벤트 피드 (표시 전용 추가 구독 — 기존 핸들러 무변경) ──
+    let eventSeq = 0
+    const pushBidEvent = (e: Omit<AuctionBidEvent, 'id' | 'timestamp'>) => {
+      eventSeq += 1
+      const id = `${Date.now()}-${eventSeq}`
+      setBidEvents((prev) => [
+        ...prev.slice(-29),
+        { ...e, id, timestamp: new Date().toISOString() },
+      ])
+    }
+    socket.on(
+      'bidPlaced',
+      (p: { bidderName?: string; amount?: number }) => {
+        if (typeof p?.amount !== 'number') return
+        pushBidEvent({
+          kind: 'bid',
+          bidderName: p.bidderName ?? '???',
+          amount: p.amount,
+        })
+      },
+    )
+    socket.on(
+      'bidConfirmed',
+      (p: { captainId?: string; amount?: number; roomState?: RoomState }) => {
+        if (typeof p?.amount !== 'number') return
+        const team = p.roomState?.teams.find(
+          (t) => t.captainId === p.captainId,
+        )
+        pushBidEvent({
+          kind: 'sold',
+          bidderName: team?.teamName ?? team?.captainName ?? '???',
+          amount: p.amount,
+        })
+      },
+    )
     socket.on('playerSelected', handleRoomState)
     socket.on('playerPassed', handleRoomState)
     socket.on('readyForNextPlayer', handleRoomState)
@@ -150,6 +197,7 @@ export function useAuctionSocket(
       setRoomState(null)
       setTimerRemaining(null)
       setChatMessages([])
+      setBidEvents([])
     }
   }, [auctionId, userId])
 
@@ -267,6 +315,7 @@ export function useAuctionSocket(
     roomState,
     timerRemaining,
     chatMessages,
+    bidEvents,
     emit,
   }
 }

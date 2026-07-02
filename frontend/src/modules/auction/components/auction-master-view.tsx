@@ -12,6 +12,7 @@ import { AuctionCompleted } from './auction-completed'
 import { TeamRosters } from './parts/team-rosters'
 import type { RoomState, AuctionStatus } from '../types'
 import type {
+  AuctionBidEvent,
   AuctionChatMessage,
   AuctionEmitFns,
 } from '../hooks/use-auction-socket'
@@ -25,6 +26,7 @@ interface Props {
   timerRemaining: number | null
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
+  bidEvents?: AuctionBidEvent[]
   myUserId?: string | null
 }
 
@@ -56,6 +58,7 @@ export function AuctionMasterView({
   timerRemaining,
   emit,
   chatMessages,
+  bidEvents,
   myUserId,
 }: Props) {
   const status = roomState?.auction.status ?? fallbackStatus
@@ -112,7 +115,7 @@ export function AuctionMasterView({
 
       {tab === 'live' && (
         <LiveTab
-          {...{ status, roomState, timerRemaining, emit, chatMessages, myUserId }}
+          {...{ status, roomState, timerRemaining, emit, chatMessages, bidEvents, myUserId }}
           onGoManage={() => setTab('manage')}
         />
       )}
@@ -130,6 +133,7 @@ function LiveTab({
   timerRemaining,
   emit,
   chatMessages,
+  bidEvents,
   myUserId,
   onGoManage,
 }: {
@@ -138,6 +142,7 @@ function LiveTab({
   timerRemaining: number | null
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
+  bidEvents?: AuctionBidEvent[]
   myUserId?: string | null
   onGoManage: () => void
 }) {
@@ -187,6 +192,7 @@ function LiveTab({
       timerRemaining={timerRemaining}
       emit={emit}
       chatMessages={chatMessages}
+      bidEvents={bidEvents}
       myUserId={myUserId}
     />
   )

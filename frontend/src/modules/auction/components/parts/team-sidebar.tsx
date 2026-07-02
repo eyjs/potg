@@ -16,6 +16,8 @@ interface Props {
   rosterMode?: RosterMode
   /** 팀 카드 클릭 핸들러 — 제공 시 카드가 클릭 가능(팀 상세/회수 모달용). */
   onTeamClick?: (captainId: string) => void
+  /** 현재 입찰 선두 팀장 id — 해당 팀 카드에 골드 글로우 강조 */
+  highlightCaptainId?: string | null
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -35,6 +37,7 @@ export function TeamSidebar({
   startingPoints,
   rosterMode = 'CAPTAIN',
   onTeamClick,
+  highlightCaptainId,
 }: Props) {
   const maxPlayers = maxPlayersPerTeam(rosterMode)
   if (teams.length === 0) {
@@ -51,6 +54,7 @@ export function TeamSidebar({
     <div className="space-y-2">
       {teams.map((team) => {
         const isMine = myCaptainId && team.captainId === myCaptainId
+        const isLeading = highlightCaptainId === team.captainId
         // members = 확보 선수. 팀장 모드는 팀장(+1) 포함해 표시, 감독 모드는 선수만.
         const rosterCount =
           rosterMode === 'COACH' ? team.members.length : team.members.length + 1
@@ -62,10 +66,12 @@ export function TeamSidebar({
               onTeamClick ? () => onTeamClick(team.captainId) : undefined
             }
             className={cn(
-              'bg-card border-border',
+              'game-card bg-card/85 border-border backdrop-blur-sm',
               isMine && 'border-primary border-2',
-              onTeamClick &&
-                'cursor-pointer transition-colors hover:border-primary/60 hover:bg-primary/5',
+              // 입찰 선두 팀 — 골드 글로우로 항상 은은하게 강조
+              isLeading &&
+                'border-ow-gold/70 shadow-[0_0_18px_rgba(255,184,0,0.28)]',
+              onTeamClick && 'cursor-pointer',
             )}
           >
             <CardContent className="p-3 space-y-2">
@@ -82,7 +88,11 @@ export function TeamSidebar({
                   </div>
                 </div>
                 <div className="flex flex-col items-end shrink-0">
-                  <span className="text-sm font-bold tabular-nums text-primary leading-tight">
+                  {/* key 리마운트로 포인트 변경 시 팝 애니메이션 재생 */}
+                  <span
+                    key={team.points}
+                    className="bid-pop text-sm font-bold tabular-nums text-primary leading-tight"
+                  >
                     {team.points.toLocaleString()}P
                   </span>
                   <span
@@ -107,8 +117,9 @@ export function TeamSidebar({
                   <div
                     className={cn(
                       'h-full rounded-full transition-all duration-500',
+                      // 에너지가 흐르는 게이지 — 여유 구간은 골드 샤인
                       team.points / startingPoints > 0.5
-                        ? 'bg-primary'
+                        ? 'progress-animated'
                         : team.points / startingPoints > 0.2
                           ? 'bg-yellow-400'
                           : 'bg-ow-red',

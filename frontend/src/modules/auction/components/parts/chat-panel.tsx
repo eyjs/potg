@@ -1,13 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
 import { Input } from '@/common/components/ui/input'
 import { MessageSquare, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomState } from '../../types'
-import type { AuctionChatMessage } from '../../hooks/use-auction-socket'
+import type {
+  AuctionBidEvent,
+  AuctionChatMessage,
+} from '../../hooks/use-auction-socket'
 
 interface Props {
   messages: AuctionChatMessage[]
@@ -15,7 +18,14 @@ interface Props {
   /** userId → 닉네임 매핑용 (백엔드 chat 이벤트는 로그인 id 만 실어줌) */
   participants?: RoomState['participants']
   myUserId?: string | null
+  /** 입찰/낙찰 이벤트 — 채팅 스트림에 시스템 라인으로 병합 표시 (입찰=시안, 낙찰=골드) */
+  bidEvents?: AuctionBidEvent[]
 }
+
+/** 채팅 + 시스템 이벤트를 시간순으로 병합한 표시 항목 */
+type StreamItem =
+  | { key: string; ts: string; kind: 'chat'; msg: AuctionChatMessage }
+  | { key: string; ts: string; kind: 'bid' | 'sold'; event: AuctionBidEvent }
 
 /** 닉네임 색 — 생방송 채팅처럼 유저별로 구분되는 고대비 팔레트. */
 const NAME_COLORS = [
@@ -42,7 +52,13 @@ function colorFor(userId: string): string {
  * 컬럼 높이를 가득 채우고, 새 메시지 수신 시 하단으로 자동 스크롤한다
  * (사용자가 위로 스크롤해 읽는 중이면 유지).
  */
-export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
+export function ChatPanel({
+  messages,
+  onSend,
+  participants,
+  myUserId,
+  bidEvents,
+}: Props) {
   const [draft, setDraft] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
@@ -52,10 +68,29 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
     return p?.user?.nickname || p?.user?.battleTag?.split('#')[0] || m.userName
   }
 
+  // 채팅 + 입찰/낙찰 시스템 라인을 시간순 병합 (표시 전용 — 원본 state 불변)
+  const stream = useMemo<StreamItem[]>(() => {
+    const items: StreamItem[] = [
+      ...messages.map((m) => ({
+        key: `c-${m.id}`,
+        ts: m.timestamp,
+        kind: 'chat' as const,
+        msg: m,
+      })),
+      ...(bidEvents ?? []).map((e) => ({
+        key: `b-${e.id}`,
+        ts: e.timestamp,
+        kind: e.kind,
+        event: e,
+      })),
+    ]
+    return items.sort((a, b) => a.ts.localeCompare(b.ts))
+  }, [messages, bidEvents])
+
   useEffect(() => {
     const el = listRef.current
     if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight
-  }, [messages])
+  }, [stream.length])
 
   const handleScroll = () => {
     const el = listRef.current
@@ -91,27 +126,47 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
           className="flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1 text-xs"
           aria-live="polite"
         >
-          {messages.length === 0 ? (
+          {stream.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               첫 메시지를 남겨보세요.
             </p>
           ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className="leading-snug break-words rounded px-1.5 py-0.5 hover:bg-muted/20"
-              >
-                <span
+            stream.map((item) =>
+              item.kind === 'chat' ? (
+                <div
+                  key={item.key}
+                  className="pop-in leading-snug break-words rounded px-1.5 py-0.5 hover:bg-muted/20"
+                >
+                  <span
+                    className={cn(
+                      'font-bold mr-1.5',
+                      item.msg.userId === myUserId
+                        ? 'text-primary'
+                        : colorFor(item.msg.userId),
+                    )}
+                  >
+                    {nameOf(item.msg)}
+                  </span>
+                  <span className="text-foreground/90">{item.msg.message}</span>
+                </div>
+              ) : (
+                // 시스템 라인 — 입찰=시안, 낙찰=골드
+                <div
+                  key={item.key}
                   className={cn(
-                    'font-bold mr-1.5',
-                    m.userId === myUserId ? 'text-primary' : colorFor(m.userId),
+                    'pop-in leading-snug break-words rounded px-1.5 py-0.5 text-[11px]',
+                    item.kind === 'sold'
+                      ? 'bg-ow-gold/10 text-ow-gold font-bold'
+                      : 'text-ow-blue/80',
                   )}
                 >
-                  {nameOf(m)}
-                </span>
-                <span className="text-foreground/90">{m.message}</span>
-              </div>
-            ))
+                  {item.kind === 'sold' ? '🏆 ' : '⚡ '}
+                  {item.event.bidderName} —{' '}
+                  {item.event.amount.toLocaleString()}P{' '}
+                  {item.kind === 'sold' ? '낙찰!' : '입찰'}
+                </div>
+              ),
+            )
           )}
         </div>
 

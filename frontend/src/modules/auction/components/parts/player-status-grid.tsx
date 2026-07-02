@@ -39,7 +39,7 @@ const STATUS_BADGE: Record<PlayerStatus, string> = {
   current: 'bg-primary text-black',
   waiting: 'bg-muted text-muted-foreground',
   unsold: 'bg-ow-red/20 text-ow-red',
-  sold: 'bg-ow-blue/20 text-ow-blue',
+  sold: 'bg-emerald-500/20 text-emerald-400',
 }
 
 /**
@@ -109,9 +109,11 @@ export function PlayerStatusGrid({ roomState }: Props) {
                 key={p.id}
                 className={cn(
                   'flex flex-col items-center gap-1 rounded-sm p-2 text-center',
+                  'transition-transform duration-150 hover:-translate-y-0.5',
                   p.status === 'current'
-                    ? 'bg-primary/10 border border-primary/60 pulse-live'
-                    : 'bg-muted/20',
+                    ? 'neon-frame-gold bg-primary/10 pulse-live'
+                    : 'bg-muted/20 border border-transparent hover:border-ow-blue/30',
+                  p.status === 'sold' && 'bg-emerald-500/[0.07]',
                   p.status === 'unsold' && 'opacity-75',
                 )}
               >

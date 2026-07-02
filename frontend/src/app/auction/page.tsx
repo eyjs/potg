@@ -16,15 +16,20 @@ import { AuctionPendingWaiting } from '@/modules/auction/components/auction-pend
 import { AuctionOngoingCaptain } from '@/modules/auction/components/auction-ongoing-captain'
 import { AuctionOngoingSpectator } from '@/modules/auction/components/auction-ongoing-spectator'
 import { AuctionCompleted } from '@/modules/auction/components/auction-completed'
+import { Starfield } from '@/modules/auction/components/parts/fx/starfield'
 
 export default function AuctionPage() {
   return (
     <AuthGuard>
-      <div className="min-h-screen auction-stage-bg">
-        <Header />
-        <main className="w-full px-4 py-6 max-w-[1800px] mx-auto">
-          <AuctionBody />
-        </main>
+      <div className="relative min-h-screen auction-stage-bg overflow-hidden">
+        {/* 배경 스타필드 — 콘텐츠 뒤에서 아주 느리게 드리프트 */}
+        <Starfield />
+        <div className="relative z-10">
+          <Header />
+          <main className="w-full px-4 py-6 max-w-[1800px] mx-auto">
+            <AuctionBody />
+          </main>
+        </div>
       </div>
     </AuthGuard>
   )
@@ -36,10 +41,8 @@ function AuctionBody() {
     auction: listAuction,
     isLoading: listLoading,
   } = useCurrentAuction()
-  const { roomState, timerRemaining, chatMessages, emit } = useAuctionSocket(
-    listAuction?.id ?? null,
-    user?.id ?? null,
-  )
+  const { roomState, timerRemaining, chatMessages, bidEvents, emit } =
+    useAuctionSocket(listAuction?.id ?? null, user?.id ?? null)
 
   if (listLoading) {
     return (
@@ -69,6 +72,7 @@ function AuctionBody() {
         timerRemaining={timerRemaining}
         emit={emit}
         chatMessages={chatMessages}
+        bidEvents={bidEvents}
         myUserId={user?.id ?? null}
       />
     )
@@ -106,6 +110,7 @@ function AuctionBody() {
         userId={user?.id ?? null}
         emit={emit}
         chatMessages={chatMessages}
+        bidEvents={bidEvents}
       />
     )
   }
@@ -114,6 +119,7 @@ function AuctionBody() {
       roomState={roomState}
       timerRemaining={timerRemaining}
       chatMessages={chatMessages}
+      bidEvents={bidEvents}
       onSendChat={emit.sendChat}
       myUserId={user?.id ?? null}
     />

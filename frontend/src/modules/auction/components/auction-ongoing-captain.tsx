@@ -11,8 +11,14 @@ import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
 import { PlayerStatusGrid } from './parts/player-status-grid'
 import { maxPlayersPerTeam, type RoomState } from '../types'
-import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
+import type {
+  AuctionBidEvent,
+  AuctionChatMessage,
+  AuctionEmitFns,
+} from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
+import { BidLog } from './parts/bid-log'
+import { LiveChip } from './parts/fx/live-chip'
 
 /** 증액 단위 버튼 — 현재 최고가 + 증액이 새 입찰가가 된다. */
 const BID_INCREMENTS = [100, 200, 500, 1000] as const
@@ -30,23 +36,28 @@ function BidButtonsRow({
 }) {
   return (
     <div className="grid grid-cols-4 gap-2">
-      {BID_INCREMENTS.map((inc) => {
+      {BID_INCREMENTS.map((inc, idx) => {
         const amount = currentBid + inc
         const canBid = !disabled && amount <= maxBid
+        // 첫 버튼(최소 증액)은 골드 강조, 나머지는 시안 네온 (샘플 레퍼런스)
+        const isPrimaryCta = idx === 0
         return (
           <Button
             key={inc}
             onClick={() => canBid && onSubmit(amount)}
             disabled={!canBid}
             className={cn(
-              'h-16 flex-col gap-0.5 skew-x-[-6deg] bg-primary font-bold text-black',
-              'hover:bg-primary/90 disabled:opacity-40',
+              'game-btn h-16 flex-col gap-0.5 font-bold',
+              isPrimaryCta
+                ? 'game-btn-gold neon-frame-gold bg-ow-gold/15 text-ow-gold hover:bg-ow-gold/25'
+                : 'neon-frame bg-ow-blue/10 text-ow-blue hover:bg-ow-blue/20 hover:text-ow-gold',
+              'disabled:opacity-40',
             )}
           >
-            <span className="skew-x-[6deg] flex items-center gap-1 text-base font-black">
+            <span className="flex items-center gap-1 text-base font-black">
               <Gavel className="w-3.5 h-3.5" />+{inc}
             </span>
-            <span className="skew-x-[6deg] text-[10px] tabular-nums opacity-80">
+            <span className="text-[10px] tabular-nums opacity-80">
               {amount.toLocaleString()}P
             </span>
           </Button>
@@ -62,6 +73,7 @@ interface Props {
   userId: string | null
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
+  bidEvents?: AuctionBidEvent[]
 }
 
 export function AuctionOngoingCaptain({
@@ -70,6 +82,7 @@ export function AuctionOngoingCaptain({
   userId,
   emit,
   chatMessages,
+  bidEvents,
 }: Props) {
   const me = useMemo(
     () => roomState.participants.find((p) => p.userId === userId),
@@ -104,26 +117,33 @@ export function AuctionOngoingCaptain({
   return (
     <div className="space-y-4">
       {/* 헤더 */}
-      <Card className="bg-card border-primary/30">
+      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+        {/* 상단 에너지 스윕 라인 */}
+        <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate">
+            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
               {roomState.auction.title}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">
               팀장 — {me?.user?.nickname ?? me?.user?.battleTag ?? '대기'}
             </p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
                 내 잔여
               </p>
-              <p className="text-2xl font-black tabular-nums text-primary">
+              {/* key 리마운트로 포인트 변경 시 팝 */}
+              <p
+                key={myPoints}
+                className="bid-pop text-2xl font-black tabular-nums text-primary"
+              >
                 {myPoints.toLocaleString()}P
               </p>
             </div>
             {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            <LiveChip paused={roomState.auction.status === 'PAUSED'} />
           </div>
         </CardContent>
       </Card>
@@ -152,6 +172,7 @@ export function AuctionOngoingCaptain({
             myCaptainId={userId}
             startingPoints={roomState.auction.startingPoints}
             rosterMode={roomState.auction.rosterMode}
+            highlightCaptainId={roomState.currentBid?.bidderId ?? null}
           />
         </aside>
 
@@ -202,6 +223,9 @@ export function AuctionOngoingCaptain({
               )}
             </CardContent>
           </Card>
+
+          {/* 입찰 로그 — 게임 킬로그 피드 */}
+          <BidLog events={bidEvents ?? []} />
         </section>
 
         {/* 우측 — 매물 현황 */}
@@ -217,6 +241,7 @@ export function AuctionOngoingCaptain({
               onSend={emit.sendChat}
               participants={roomState.participants}
               myUserId={userId}
+              bidEvents={bidEvents}
             />
           )}
         </aside>

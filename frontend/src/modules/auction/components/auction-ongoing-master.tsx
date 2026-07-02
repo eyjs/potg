@@ -24,19 +24,26 @@ import {
 import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
+import { LiveChip } from './parts/fx/live-chip'
 import { TeamSidebar } from './parts/team-sidebar'
 import { TeamDetailDialog } from './parts/team-detail-dialog'
 import { PlayerStatusGrid } from './parts/player-status-grid'
 import { AssignmentPanel } from './parts/assignment-panel'
 import type { RoomState } from '../types'
-import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
+import type {
+  AuctionBidEvent,
+  AuctionChatMessage,
+  AuctionEmitFns,
+} from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
+import { BidLog } from './parts/bid-log'
 
 interface Props {
   roomState: RoomState
   timerRemaining: number | null
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
+  bidEvents?: AuctionBidEvent[]
   myUserId?: string | null
 }
 
@@ -45,6 +52,7 @@ export function AuctionOngoingMaster({
   timerRemaining,
   emit,
   chatMessages,
+  bidEvents,
   myUserId,
 }: Props) {
   const confirm = useConfirm()
@@ -148,17 +156,19 @@ export function AuctionOngoingMaster({
   return (
     <div className="space-y-4">
       {/* 헤더 */}
-      <Card className="bg-card border-primary/30">
+      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+        {/* 상단 에너지 스윕 라인 */}
+        <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate">
+            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
               {roomState.auction.title}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">
               마스터 — {isAssigning ? '유찰자 배정' : '경매 진행'}
             </p>
           </div>
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-5 text-sm">
             <span className="text-muted-foreground">
               미배정{' '}
               <span className="text-primary font-bold tabular-nums">
@@ -167,6 +177,7 @@ export function AuctionOngoingMaster({
               /<span className="tabular-nums">{players.length}</span>
             </span>
             {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            <LiveChip paused={isPaused} />
           </div>
         </CardContent>
       </Card>
@@ -213,6 +224,7 @@ export function AuctionOngoingMaster({
               startingPoints={roomState.auction.startingPoints}
               rosterMode={roomState.auction.rosterMode}
               onTeamClick={setDetailCaptainId}
+              highlightCaptainId={roomState.currentBid?.bidderId ?? null}
             />
           </aside>
 
@@ -270,7 +282,7 @@ export function AuctionOngoingMaster({
                   <Button
                     onClick={() => emit.confirmBid()}
                     disabled={phase !== 'BIDDING' || !roomState.currentBid}
-                    className="bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-40"
+                    className="game-btn game-btn-gold bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-40"
                   >
                     <Hammer className="w-4 h-4 mr-1" />
                     낙찰
@@ -279,7 +291,7 @@ export function AuctionOngoingMaster({
                     onClick={() => emit.passPlayer()}
                     disabled={phase !== 'BIDDING'}
                     variant="outline"
-                    className="border-ow-red text-ow-red hover:bg-ow-red/10 disabled:opacity-40"
+                    className="game-btn border-ow-red text-ow-red hover:bg-ow-red/10 disabled:opacity-40"
                   >
                     <SkipForward className="w-4 h-4 mr-1" />
                     유찰
@@ -287,7 +299,7 @@ export function AuctionOngoingMaster({
                   <Button
                     onClick={handleAdvanceNext}
                     disabled={!canAdvance}
-                    className="bg-ow-blue text-black font-bold hover:bg-ow-blue/90 disabled:opacity-40"
+                    className="game-btn bg-ow-blue text-black font-bold hover:bg-ow-blue/90 disabled:opacity-40"
                   >
                     <ChevronRight className="w-4 h-4 mr-1" />
                     다음 매물
@@ -372,6 +384,9 @@ export function AuctionOngoingMaster({
                 </div>
               </CardContent>
             </Card>
+
+            {/* 입찰 로그 — 게임 킬로그 피드 */}
+            <BidLog events={bidEvents ?? []} />
           </section>
 
           {/* 우측 — 매물 현황 */}
@@ -387,6 +402,7 @@ export function AuctionOngoingMaster({
                 onSend={emit.sendChat}
                 participants={roomState.participants}
                 myUserId={myUserId}
+                bidEvents={bidEvents}
               />
             )}
           </aside>

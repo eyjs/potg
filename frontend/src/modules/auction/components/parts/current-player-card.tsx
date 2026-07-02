@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
@@ -27,13 +29,51 @@ const PHASE_LABEL: Record<Props['biddingPhase'], string> = {
   SOLD: '낙찰',
 }
 
+/** 낙찰 에너지 버스트 파티클 — index 기반 각도 (렌더 결정적) */
+const BURST_PARTICLES = Array.from({ length: 12 }, (_, i) => {
+  const angle = (i / 12) * Math.PI * 2
+  const dist = 90 + (i % 3) * 34
+  return {
+    x: Math.round(Math.cos(angle) * dist),
+    y: Math.round(Math.sin(angle) * dist),
+    delay: (i % 4) * 0.04,
+  }
+})
+
+/**
+ * 중앙 무대 — 매물이 홀로그램 플랫폼 위에 떠 있는 게임 오브젝트처럼 보인다.
+ * - 플랫폼: 시안 에너지 코어 + 서로 다른 속도로 회전하는 링 2개 + 위로 뻗는 광선
+ * - 매물 아바타는 float-slow 로 미세하게 부유
+ * - BIDDING→SOLD 전이 시 낙찰 셀레브레이션 (베일→골드 링 확산→빛 폭발→스탬프→파티클)
+ */
 export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
   const { portraitByKey } = useHeroes()
+
+  // BIDDING → SOLD 전이 감지 (렌더 중 상태 보정 패턴) → 셀레브레이션 트리거
+  const [prevPhase, setPrevPhase] = useState(biddingPhase)
+  const [celebrate, setCelebrate] = useState(false)
+  if (prevPhase !== biddingPhase) {
+    setPrevPhase(biddingPhase)
+    if (biddingPhase === 'SOLD') setCelebrate(true)
+  }
+  useEffect(() => {
+    if (!celebrate) return
+    const t = setTimeout(() => setCelebrate(false), 1700)
+    return () => clearTimeout(t)
+  }, [celebrate])
+
   if (!player) {
     return (
-      <Card className="bg-card border-border border-dashed">
-        <CardContent className="py-12 text-center">
-          <Gavel className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-3" />
+      <Card className="bg-card/80 border-border border-dashed backdrop-blur-sm">
+        <CardContent className="py-14 text-center">
+          {/* 대기 홀로그램 — 빈 플랫폼이 은은하게 숨쉰다 */}
+          <div className="relative mx-auto mb-4 h-10 w-44">
+            <div className="absolute inset-x-0 top-1/2 h-full -translate-y-1/2 scale-y-[0.3]">
+              <div className="ring-spin absolute inset-0 rounded-full border border-dashed border-ow-blue/30" />
+              <div className="absolute inset-4 rounded-full bg-[radial-gradient(ellipse,rgba(0,195,255,0.18)_0%,transparent_70%)] animate-pulse-slow" />
+            </div>
+          </div>
+          <Gavel className="w-10 h-10 mx-auto text-muted-foreground opacity-30 mb-3" />
           <p className="text-muted-foreground text-sm">
             마스터가 매물을 선택하기를 기다리는 중...
           </p>
@@ -43,59 +83,112 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
   }
 
   const roleKey = player.role.toLowerCase()
+  const isBidding = biddingPhase === 'BIDDING'
+  const isSold = biddingPhase === 'SOLD'
 
   return (
     <Card
       className={cn(
-        'border-2 bg-gradient-to-b from-card via-card to-[#141126]',
-        biddingPhase === 'BIDDING' && 'border-primary shadow-[0_0_40px_rgba(249,158,26,0.15)]',
-        biddingPhase === 'SOLD' && 'border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.15)]',
-        biddingPhase === 'WAITING' && 'border-border',
+        'relative overflow-hidden border-2 bg-gradient-to-b from-card/90 via-card/90 to-[#0c1830] backdrop-blur-sm',
+        'transition-[border-color,box-shadow] duration-300',
+        isBidding && 'border-primary shadow-[0_0_44px_rgba(255,184,0,0.18)]',
+        isSold && 'border-green-500 shadow-[0_0_44px_rgba(34,197,94,0.2)]',
+        biddingPhase === 'WAITING' && 'border-ow-blue/25',
       )}
     >
-      <CardContent className="p-8 flex flex-col items-center text-center gap-4">
-        <Avatar
-          className={cn(
-            'w-48 h-48 border-4 border-primary/40',
-            biddingPhase === 'BIDDING' && 'pulse-live',
-          )}
-        >
-          <AvatarImage
-            src={
-              (player.hero ? portraitByKey.get(player.hero) : undefined) ??
-              player.avatarUrl ??
-              undefined
-            }
-            alt={player.name}
+      <CardContent className="p-6 pb-8 flex flex-col items-center text-center gap-3">
+        {/* ── 홀로그램 무대 ─────────────────────────────────────── */}
+        <div className="relative flex flex-col items-center pt-2">
+          {/* 광선 — 플랫폼에서 위로 뻗는 에너지 콘 */}
+          <div
+            aria-hidden
+            className={cn(
+              'beam-pulse pointer-events-none absolute bottom-4 left-1/2 h-60 w-44 -translate-x-1/2',
+              isSold && 'opacity-40',
+            )}
+            style={{
+              background: isBidding
+                ? 'linear-gradient(to top, rgba(255,184,0,0.22) 0%, rgba(0,195,255,0.16) 45%, transparent 78%)'
+                : 'linear-gradient(to top, rgba(0,195,255,0.22) 0%, rgba(0,195,255,0.08) 50%, transparent 78%)',
+              clipPath: 'polygon(24% 100%, 76% 100%, 100% 0, 0 0)',
+              filter: 'blur(7px)',
+            }}
           />
-          <AvatarFallback className="bg-muted text-6xl font-black">
-            {player.name[0]}
-          </AvatarFallback>
-        </Avatar>
+
+          {/* 매물 아바타 — 부유 */}
+          <div className="float-slow relative z-10">
+            <Avatar
+              className={cn(
+                'w-44 h-44 border-4 transition-colors duration-300',
+                isBidding ? 'border-primary/60 pulse-live' : 'border-ow-blue/40',
+                isSold && 'border-green-500/60',
+              )}
+            >
+              <AvatarImage
+                src={
+                  (player.hero ? portraitByKey.get(player.hero) : undefined) ??
+                  player.avatarUrl ??
+                  undefined
+                }
+                alt={player.name}
+              />
+              <AvatarFallback className="bg-muted text-6xl font-black">
+                {player.name[0]}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          {/* 플랫폼 — 회전 링 + 에너지 코어 */}
+          <div aria-hidden className="relative -mt-5 h-14 w-64">
+            <div className="absolute inset-x-0 top-1/2 h-full -translate-y-1/2 scale-y-[0.3]">
+              <div
+                className={cn(
+                  'ring-spin absolute inset-0 rounded-full border-2 border-dashed',
+                  isBidding ? 'border-primary/50' : 'border-ow-blue/45',
+                )}
+              />
+              <div
+                className={cn(
+                  'ring-spin-rev absolute inset-3 rounded-full border',
+                  isBidding ? 'border-ow-blue/50' : 'border-ow-blue/30',
+                )}
+              />
+              <div
+                className={cn(
+                  'beam-pulse absolute inset-7 rounded-full',
+                  isSold
+                    ? 'bg-[radial-gradient(ellipse,rgba(34,197,94,0.5)_0%,transparent_72%)]'
+                    : 'bg-[radial-gradient(ellipse,rgba(0,195,255,0.55)_0%,rgba(0,195,255,0.12)_55%,transparent_75%)]',
+                )}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── 매물 정보 ─────────────────────────────────────────── */}
         <div className="space-y-1">
           <Badge
             variant="outline"
-            className={cn(
-              'text-xs',
-              ROLE_COLORS[roleKey] || ROLE_COLORS.flex,
-            )}
+            className={cn('text-xs', ROLE_COLORS[roleKey] || ROLE_COLORS.flex)}
           >
             {player.role.toUpperCase()}
           </Badge>
-          <h3 className="text-4xl font-black italic uppercase tracking-tighter">
+          <h3 className="text-4xl font-black italic uppercase tracking-tighter drop-shadow-[0_0_14px_rgba(0,195,255,0.25)]">
             {player.name}
           </h3>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             {PHASE_LABEL[biddingPhase]}
           </p>
         </div>
-        <div className="w-full pt-3 border-t border-border/40 flex items-baseline justify-center gap-4">
+
+        {/* ── 현재가 ────────────────────────────────────────────── */}
+        <div className="w-full pt-3 border-t border-ow-blue/15 flex items-baseline justify-center gap-4">
           <span className="text-xs uppercase tracking-widest text-muted-foreground">
             현재가
           </span>
           <span
             key={currentBid?.amount ?? 0}
-            className="bid-pop text-6xl font-black tabular-nums text-primary drop-shadow-[0_0_12px_rgba(249,158,26,0.45)]"
+            className="bid-pop text-6xl font-black tabular-nums text-primary drop-shadow-[0_0_14px_rgba(255,184,0,0.5)]"
           >
             {currentBid ? currentBid.amount.toLocaleString() : '0'}
             <span className="text-3xl ml-1">P</span>
@@ -103,10 +196,62 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
         </div>
         {currentBid && (
           <p className="text-sm text-muted-foreground">
-            입찰자: <span className="text-primary font-bold">{currentBid.bidderName}</span>
+            입찰 선두:{' '}
+            <span className="text-primary font-bold">{currentBid.bidderName}</span>
           </p>
         )}
       </CardContent>
+
+      {/* ── 낙찰 셀레브레이션 오버레이 ─────────────────────────── */}
+      <AnimatePresence>
+        {celebrate && (
+          <motion.div
+            key="sold-celebration"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+          >
+            {/* 어두워지는 베일 */}
+            <div className="absolute inset-0 bg-black/45" />
+            {/* 빛 폭발 */}
+            <div className="flash-burst absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,214,90,0.55)_0%,transparent_55%)]" />
+            {/* 골드 링 확산 */}
+            <div className="ring-expand absolute left-1/2 top-[42%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-ow-gold/80" />
+            <div
+              className="ring-expand absolute left-1/2 top-[42%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ow-blue/60"
+              style={{ animationDelay: '0.12s' }}
+            />
+            {/* 에너지 파티클 */}
+            {BURST_PARTICLES.map((p, i) => (
+              <span
+                key={i}
+                className="burst-particle absolute left-1/2 top-[42%] h-2 w-2 rounded-full bg-ow-gold"
+                style={
+                  {
+                    '--burst-x': `${p.x}px`,
+                    '--burst-y': `${p.y}px`,
+                    animationDelay: `${p.delay}s`,
+                    boxShadow: '0 0 8px rgba(255,184,0,0.9)',
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+            {/* 낙찰 스탬프 */}
+            <motion.div
+              initial={{ scale: 2.2, opacity: 0, rotate: -8 }}
+              animate={{ scale: 1, opacity: 1, rotate: -4 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 18, delay: 0.15 }}
+              className="relative rounded-sm border-4 border-ow-gold bg-black/60 px-8 py-3 backdrop-blur-sm"
+            >
+              <span className="text-5xl font-black italic uppercase tracking-tighter text-ow-gold drop-shadow-[0_0_18px_rgba(255,184,0,0.8)]">
+                낙찰!
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   )
 }

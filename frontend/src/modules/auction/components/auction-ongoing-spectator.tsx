@@ -7,13 +7,19 @@ import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
 import { PlayerStatusGrid } from './parts/player-status-grid'
 import type { RoomState } from '../types'
-import type { AuctionChatMessage } from '../hooks/use-auction-socket'
+import type {
+  AuctionBidEvent,
+  AuctionChatMessage,
+} from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
+import { BidLog } from './parts/bid-log'
+import { LiveChip } from './parts/fx/live-chip'
 
 interface Props {
   roomState: RoomState
   timerRemaining: number | null
   chatMessages?: AuctionChatMessage[]
+  bidEvents?: AuctionBidEvent[]
   onSendChat?: (message: string) => void
   myUserId?: string | null
 }
@@ -22,6 +28,7 @@ export function AuctionOngoingSpectator({
   roomState,
   timerRemaining,
   chatMessages,
+  bidEvents,
   onSendChat,
   myUserId,
 }: Props) {
@@ -30,12 +37,14 @@ export function AuctionOngoingSpectator({
 
   return (
     <div className="space-y-4">
-      <Card className="bg-card border-border">
+      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+        {/* 상단 에너지 스윕 라인 */}
+        <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0 flex items-center gap-3">
             <Eye className="w-5 h-5 text-muted-foreground" />
             <div>
-              <h2 className="text-xl font-black italic uppercase tracking-tighter truncate">
+              <h2 className="text-xl font-black italic uppercase tracking-tighter truncate drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
                 {roomState.auction.title}
               </h2>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">
@@ -43,7 +52,10 @@ export function AuctionOngoingSpectator({
               </p>
             </div>
           </div>
-          {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+          <div className="flex items-center gap-5">
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            <LiveChip paused={roomState.auction.status === 'PAUSED'} />
+          </div>
         </CardContent>
       </Card>
 
@@ -61,9 +73,10 @@ export function AuctionOngoingSpectator({
             teams={roomState.teams}
             startingPoints={roomState.auction.startingPoints}
             rosterMode={roomState.auction.rosterMode}
+            highlightCaptainId={roomState.currentBid?.bidderId ?? null}
           />
         </aside>
-        <section className="col-span-12 lg:col-span-5">
+        <section className="col-span-12 lg:col-span-5 space-y-3">
           {isAssigning ? (
             <Card className="bg-card border-border">
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -71,11 +84,15 @@ export function AuctionOngoingSpectator({
               </CardContent>
             </Card>
           ) : (
-            <CurrentPlayerCard
-              player={roomState.currentPlayer}
-              currentBid={roomState.currentBid}
-              biddingPhase={phase}
-            />
+            <>
+              <CurrentPlayerCard
+                player={roomState.currentPlayer}
+                currentBid={roomState.currentBid}
+                biddingPhase={phase}
+              />
+              {/* 입찰 로그 — 게임 킬로그 피드 */}
+              <BidLog events={bidEvents ?? []} />
+            </>
           )}
         </section>
         <aside className="col-span-6 lg:col-span-3 space-y-3">
@@ -90,6 +107,7 @@ export function AuctionOngoingSpectator({
               onSend={onSendChat}
               participants={roomState.participants}
               myUserId={myUserId}
+              bidEvents={bidEvents}
             />
           )}
         </aside>
