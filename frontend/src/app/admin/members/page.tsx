@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useQuery } from '@tanstack/react-query'
 import { membersApi, type AdminMember } from '@/modules/admin/api/members'
 import { DataTable, type ColumnDef } from '@/modules/admin/components/data-table'
 import { MemberFormDialog } from '@/modules/admin/components/member-form-dialog'
+import { useHeroes } from '@/modules/auction/hooks/use-heroes'
 import { Button } from '@/common/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -22,10 +24,36 @@ const ROLE_CLASS: Record<string, string> = {
   ADMIN: 'text-primary font-bold',
 }
 
+/** 대표 영웅 초상화 셀 — OverFast 초상화 조회. */
+function HeroCell({ heroKey }: { heroKey?: string | null }) {
+  const { portraitByKey } = useHeroes()
+  const portrait = heroKey ? portraitByKey.get(heroKey) : undefined
+  if (!heroKey) {
+    return <span className="text-xs text-muted-foreground">-</span>
+  }
+  return portrait ? (
+    <Image
+      src={portrait}
+      alt={heroKey}
+      width={28}
+      height={28}
+      unoptimized
+      className="rounded-sm"
+    />
+  ) : (
+    <span className="text-xs">{heroKey}</span>
+  )
+}
+
 const columns: ColumnDef<AdminMember>[] = [
   { key: 'id', header: 'ID', render: (r) => <span className="font-mono text-xs">{r.id.slice(0, 8)}…</span> },
   { key: 'username', header: '아이디', render: (r) => <span className="font-medium">{r.username}</span> },
   { key: 'battleTag', header: '배틀태그', render: (r) => <span>{r.battleTag ?? '-'}</span> },
+  {
+    key: 'representativeHero',
+    header: '대표영웅',
+    render: (r) => <HeroCell heroKey={r.representativeHero} />,
+  },
   {
     key: 'role',
     header: '권한',

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -28,6 +29,8 @@ import {
   SelectValue,
 } from '@/common/components/ui/select'
 import { cn } from '@/lib/utils'
+import { HeroPickerDialog } from '@/modules/auction/components/parts/hero-picker-dialog'
+import { useHeroes } from '@/modules/auction/hooks/use-heroes'
 
 export interface MemberFormDialogProps {
   open: boolean
@@ -66,6 +69,17 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
   const [busy, setBusy] = useState(false)
   const [adjustDelta, setAdjustDelta] = useState(0)
 
+  // 대표 영웅 (react-hook-form 외부 상태 — HeroPickerDialog로 선택)
+  const { heroes, portraitByKey } = useHeroes()
+  const [heroKey, setHeroKey] = useState<string | null>(
+    member?.representativeHero ?? null,
+  )
+  const [heroPickerOpen, setHeroPickerOpen] = useState(false)
+  const heroName = heroKey
+    ? (heroes.find((h) => h.key === heroKey)?.name ?? heroKey)
+    : null
+  const heroPortrait = heroKey ? portraitByKey.get(heroKey) : undefined
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['admin', 'members'] })
 
@@ -103,6 +117,7 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
           nickname?: string
           role?: 'USER' | 'CAPTAIN' | 'ADMIN'
           password?: string
+          representativeHero?: string
         } = {}
         if (values.username !== member!.username) dto.username = values.username
         const oldNickname = member!.nickname ?? ''
@@ -113,6 +128,9 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
         if (values.role !== displayRole) dto.role = values.role
         // 빈 password는 payload에서 제외
         if (values.password) dto.password = values.password
+        // 대표 영웅 변경 시 반영 (해제는 빈 문자열 → 백엔드에서 null 처리)
+        const oldHero = member!.representativeHero ?? null
+        if (heroKey !== oldHero) dto.representativeHero = heroKey ?? ''
         await membersApi.update(member!.id, dto)
         toast.success('회원 정보가 수정되었습니다.')
       } else {
@@ -203,6 +221,52 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
             placeholder="닉네임 (선택)"
           />
         </div>
+
+        {/* 대표 영웅 (수정 모드 전용) */}
+        {isEdit && (
+          <div className="space-y-2">
+            <Label>대표 영웅</Label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHeroPickerOpen(true)}
+                className={cn(
+                  'flex flex-1 items-center gap-3 rounded-md border border-border bg-background p-2',
+                  'hover:bg-primary/5 transition-colors',
+                )}
+              >
+                {heroPortrait ? (
+                  <Image
+                    src={heroPortrait}
+                    alt={heroName ?? ''}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="rounded-sm shrink-0"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] text-muted-foreground">
+                    없음
+                  </div>
+                )}
+                <span className="text-sm">
+                  {heroName ?? '대표 영웅 선택'}
+                </span>
+              </button>
+              {heroKey && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setHeroKey(null)}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  해제
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 권한 */}
         <div className="space-y-2">
@@ -342,6 +406,14 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
           </div>
         </>
       )}
+
+      <HeroPickerDialog
+        open={heroPickerOpen}
+        onOpenChange={setHeroPickerOpen}
+        currentHero={heroKey}
+        targetName={member?.username ?? ''}
+        onSelect={setHeroKey}
+      />
     </>
   )
 }

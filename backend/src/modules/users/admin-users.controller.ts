@@ -87,6 +87,10 @@ class UpdateMemberDto {
   @IsString()
   @MinLength(4)
   password?: string;
+
+  @IsOptional()
+  @IsString()
+  representativeHero?: string;
 }
 
 class UpdateUsernameDto {

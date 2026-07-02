@@ -10,6 +10,8 @@ export interface AdminMember {
   marketGatePassed: boolean
   avatarUrl?: string
   nickname?: string | null
+  /** 대표 영웅 key (OverFast 영웅 key). 미설정 시 null. */
+  representativeHero?: string | null
   createdAt: string
 }
 
@@ -73,7 +75,13 @@ export const membersApi = {
 
   update: (
     id: string,
-    dto: { username?: string; nickname?: string; role?: 'USER' | 'CAPTAIN' | 'ADMIN'; password?: string },
+    dto: {
+      username?: string
+      nickname?: string
+      role?: 'USER' | 'CAPTAIN' | 'ADMIN'
+      password?: string
+      representativeHero?: string | null
+    },
   ): Promise<AdminMember> =>
     api.patch<AdminMember>(`/admin/members/${id}`, dto).then((r) => r.data),
 

@@ -211,6 +211,7 @@ export class UsersService {
       nickname?: string;
       role?: UserRole;
       password?: string;
+      representativeHero?: string;
     },
   ): Promise<User> {
     const user = await this.adminFindOrFail(id);
@@ -231,6 +232,10 @@ export class UsersService {
 
     if (data.role !== undefined) {
       user.role = data.role;
+    }
+
+    if (data.representativeHero !== undefined) {
+      user.representativeHero = data.representativeHero.trim() || null;
     }
 
     if (data.password) {
