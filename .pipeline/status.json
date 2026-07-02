@@ -1,28 +1,17 @@
 {
   "version": "v2",
-  "pipeline_type": "refactor",
-  "current_phase": "completed",
-  "completed_at": "2026-07-01T13:30:00+09:00",
-  "result": "success",
-  "started_at": "2026-07-01T13:00:00+09:00",
+  "pipeline_type": "feature",
+  "current_phase": "requirement",
+  "status": "requirement_ready",
+  "updated_at": "2026-07-01T00:00:00+09:00",
   "requirement": ".pipeline/requirement.md",
-  "scope": "레이아웃·네비게이션 통일 및 회원관리 모달 구조 개선 (프론트엔드 중심)",
+  "scope": "경매 매물 수기 업로드 UI (프론트엔드 중심)",
   "constraints": {
-    "no_commit_push_deploy": true,
-    "no_modify_shadcn_ui": "frontend/src/common/components/ui/*",
+    "no_modify_shadcn_ui": "frontend/src/components/ui/*",
     "no_modify_utils": "frontend/src/lib/utils.ts",
     "no_any_type": true,
-    "no_backend_rework": "PATCH /admin/members/:id 및 Entity 이미 완료",
-    "worktree_isolation": "skipped — 커밋 금지 + 태스크 파일셋 disjoint하여 메인 워킹트리 병렬 실행"
+    "no_backend_rework": true,
+    "frontend_first": true
   },
-  "run_phases": {
-    "planning": { "status": "done", "retries": 0, "artifacts": [".pipeline/plan.md", ".pipeline/tasks/task-001.md", ".pipeline/tasks/task-002.md"] },
-    "plan_review": { "status": "done", "retries": 0, "verdict": "PASS", "artifact": ".pipeline/reviews/plan-review.md" },
-    "design": { "status": "skipped", "reason": "기존 디자인 시스템 유지, 신규 컴포넌트 스펙 불필요" },
-    "implementation": { "status": "done", "retries": 0, "parallel_tasks": ["task-001", "task-002"], "completed_tasks": ["task-001", "task-002"] },
-    "code_review": { "status": "done", "retries": 0, "verdict": "PASS", "artifact": ".pipeline/reviews/code-review.md", "minor_fixes_applied": 2 },
-    "integration": { "status": "done", "retries": 0, "build": "passing", "lint": "passing (0 errors, 2 pre-existing warnings)" },
-    "documentation": { "status": "done", "retries": 0, "artifact": ".pipeline/REPORT.md" }
-  },
-  "history_milestones": "이전 phase-1~4 이력은 status.json.bak 참조 (본 run은 ux-improvement 스코프)"
+  "history": "이전 파이프라인 이력은 status.json.bak 참조"
 }

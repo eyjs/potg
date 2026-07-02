@@ -1,97 +1,80 @@
-# POTG - 레이아웃·네비게이션 통일 및 회원관리 모달 구조 개선
+# POTG 경매 매물 수기 업로드 UI
 
 ## 생성일시
 2026-07-01 00:00
 
 ## 목적
-- 왜 만드는가: 관리자와 일반유저(팀장)가 동일한 앱을 사용하는데, 두 영역(유저용 헤더 레이아웃 / 어드민 사이드바 레이아웃) 간 전환 동선이 단절되어 있고, 운영 메뉴가 권한 없는 사용자에게도 노출되는 문제를 해결한다. 회원관리 CRUD 모달의 비일관적 구조도 단일 UX로 통일한다.
-- 누가 사용하는가: 관리자(경매 진행자·운영자), 일반 유저/팀장(경매 참가자)
-- 기대 효과: 권한에 맞는 메뉴 노출, 관리자·일반유저 모두 `/auction` 진입 경로 명확화, 두 레이아웃 영역 간 자연스러운 전환 버튼으로 통일성 확보, 회원관리 UX 일관성 확보
+- 왜 만드는가: 경매 참여 선수(매물) 풀을 구성할 때 회원가입하지 않은 비회원도 매물로 등록해야 함. 15명 전원 회원가입 유도는 현실적으로 불가능하므로, 관리자가 이름만 수기 입력해 게스트 매물을 일괄 등록하는 UI가 필요함.
+- 누가 사용하는가: 경매 관리자 (어드민)
+- 기대 효과: 회원가입 없이도 매물 풀 구성 가능. 게스트 유저는 회원 목록에 노출되지 않아 데이터 오염 없음.
 
 ## 스코프
 
 ### 포함 (이번에 만드는 것)
-- [ ] 로그인 후 랜딩: 관리자·일반유저 모두 대시보드(`/`)로 랜딩 (`src/app/page.tsx`의 역할별 분기 제거)
-- [ ] 유저용 헤더에서 "운영"(/admin) 메뉴 제거 — 대신 관리자 전용 [어드민 페이지로 이동] 버튼으로 대체 (isAdmin 조건)
-- [ ] 어드민 사이드바에 [유저 화면으로 돌아가기] 버튼 추가 (`src/modules/admin/components/admin-sidebar.tsx`)
-- [ ] 어드민 사이드바에 `/auction`(실시간 경매) 진입 링크 추가 (기존 `/admin/auctions` 경매이력과 구분)
-- [ ] 회원관리 추가/수정 모달을 단일 통합 폼 구조로 통일 (아이디·닉네임·권한·비밀번호·잔액조정·삭제를 한 화면에서 처리)
+- [ ] `frontend/src/modules/auction/api/auctions.ts` — `auctionsApi`에 `addGuestPlayers(id: string, names: string[])` 메서드 추가 (`POST /auctions/:id/players/guest`, 바디 `{ names: string[] }`)
+- [ ] `frontend/src/modules/auction/components/parts/user-picker-dialog.tsx` — `mode='players'`일 때 "회원 선택" 탭 + "수기 입력" 탭 구조로 개편
+- [ ] 수기 입력 탭: 텍스트영역(한 줄에 한 명 이름 입력/붙여넣기) → 파싱 → `addGuestPlayers` 호출 → 성공 시 매물 목록 갱신 + 다이얼로그 닫기 + 성공 토스트
+- [ ] 에러 발생 시 에러 토스트 표시 (다이얼로그 유지)
+- [ ] 빈 목록 제출 방지 및 제출 중 로딩 상태(버튼 비활성화)
 
 ### 제외 (이번에 만들지 않는 것)
-- 유저용 메뉴바와 어드민 메뉴바를 하나로 합치는 것 (두 메뉴바는 각각 유지, 전환 버튼으로 연결)
-- 이미 완료된 항목들 (재작업 불필요):
-  - 로그인 깜빡임 수정 (SameSite=None; Secure 크로스사이트 쿠키)
-  - 슬라이딩 세션 (access_token 재발급 인터셉터 + keepalive)
-  - 서버 시간대 KST 적용
-  - 관리자 대시보드/회원 페이지 크래시 수정 (페이지네이션 응답·필드 매핑)
-  - 회원관리 CRUD API 백엔드 구현 (생성·통합수정·아이디변경·비밀번호변경·잔액조정·삭제 엔드포인트)
-  - DiscordBotModule 비활성화
-- 새로운 페이지 또는 기능 추가 (위에서 정의한 범위 외)
-- 백엔드 API 추가 수정 (통합수정 엔드포인트 PATCH /admin/members/:id 이미 존재)
-- 디자인 시스템 전면 교체
+- 백엔드 엔드포인트 신규 작성 (이미 완료: `POST /auctions/:id/players/guest`, 재작업 금지)
+- 게스트 DB 컬럼(`is_guest`) 및 목록 필터 로직 (백엔드 완료, docker 재배포 대기 중 — 코드 무변경)
+- 팀장(captains) 모드 수기 입력 추가 (회원만 허용, 변경 없음)
+- 세션 keepalive / JWT 12h (완료·배포됨)
+- 레이아웃·네비 통일, 대시보드, 회원 CRUD/통합모달, 로그인 쿠키, KST, 관리자 페이지 크래시 수정 (완료·배포됨)
+- `frontend/src/components/ui/*` 및 `frontend/src/lib/utils.ts` 수정
 
 ## 기술스택
-- 언어: TypeScript
-- 프레임워크: Next.js 16 (App Router) / React 19
-- UI: Tailwind CSS + Shadcn UI (Radix UI)
-- 상태: Auth Context (`src/context/auth-context.tsx`, `useAuth()` → `user`, `isAdmin`, `logout`)
-- HTTP: axios
-- 배포: Vercel (프론트, `potg-psi.vercel.app`) / `potg.joonbi.co.kr` (백엔드)
+- 언어: TypeScript (any 금지)
+- 프레임워크: Next.js 16 App Router, React 19
+- 스타일링: Tailwind CSS + `cn()` 유틸리티
+- UI 컴포넌트: Shadcn UI (`frontend/src/components/ui/*`)
+- HTTP 클라이언트: axios (`frontend/src/lib/api.ts` 설정 기반)
+- 배포: Vercel (`potg-psi.vercel.app`) ↔ NestJS 백엔드 (`potg.joonbi.co.kr`, 크로스도메인)
+- 테마: 오버워치 테마 (futuristic, skewed buttons, 고대비 네온) 유지
 
 ## 핵심 기능
 
 ### P0 (필수)
-
-**1. 통합 랜딩 및 레이아웃 전환 구조**
-- 로그인 후 역할 무관 `/`(대시보드·유저 화면)으로 랜딩
-  - `src/app/page.tsx`: `router.replace(isAdmin ? "/admin" : "/utility")` 분기 → 모두 `/`(또는 대시보드)로 통일
-- 유저용 헤더(`src/common/layouts/header.tsx`)의 `navItems`에서 `{ href: "/admin", label: "운영" }` 제거
-  - 대신 `isAdmin` 조건으로 [어드민 페이지로 이동] 버튼을 헤더 내 별도 위치에 표시
-- 어드민 사이드바(`src/modules/admin/components/admin-sidebar.tsx`)에 [유저 화면으로 돌아가기] 버튼 추가 (클릭 시 `/` 이동)
-- 어드민 사이드바에 실시간 경매(`/auction`) 링크 추가 (레이블: "실시간 경매" 또는 유사, 기존 "경매 이력"(`/admin/auctions`)과 시각적으로 구분)
-
-**2. 회원관리 통합 모달**
-- 추가 모달(단일 세로 폼: 아이디/비번/닉네임/권한)과 수정 모달(탭 구조)을 하나의 통합 폼으로 교체
-- 통합 폼 구성 (세로 섹션 또는 단일 페이지 형태):
-  - 아이디, 닉네임, 권한 (추가·수정 공통)
-  - 비밀번호 (추가·수정 공통; 수정 시 빈 값이면 변경 안 함)
-  - 잔액 조정 (수정 모드에서만 노출)
-  - 삭제 버튼 (수정 모드에서만 노출, 확인 다이얼로그 포함)
-- 백엔드 활용: `PATCH /admin/members/:id` (username, nickname, role, password 통합) + `POST /admin/members/:id/adjust` (잔액)
-- 자기자신 삭제 방지 (기존 백엔드 로직 유지, 프론트에서도 버튼 비활성화)
+- `auctionsApi.addGuestPlayers(id: string, names: string[])` 메서드 추가
+  - 엔드포인트: `POST /auctions/:id/players/guest`
+  - 바디: `{ names: string[] }`
+- `user-picker-dialog.tsx` (mode=players)에 탭 UI 추가
+  - 탭 1 "회원 선택": 기존 회원 목록 선택 UI 현행 유지
+  - 탭 2 "수기 입력": 텍스트영역, 한 줄에 한 명, 빈 줄 무시, 앞뒤 공백 trim
+- 수기 입력 제출 흐름: `addGuestPlayers` 호출 → 성공 시 매물 목록 갱신 + 다이얼로그 닫기 + 성공 토스트 → 실패 시 에러 토스트 (다이얼로그 유지)
+- 제출 중 버튼 비활성화(로딩 상태)
+- 빈 목록 제출 방지
 
 ### P1 (중요)
-- 통합 모달 필드별 유효성 검사 (변경된 필드만 요청, 빈 비밀번호 필드는 스킵)
-- 반응형: 모바일에서도 헤더의 [어드민 페이지로 이동] 버튼 접근 가능 (햄버거 메뉴 등)
-- 어드민 사이드바 현재 활성 경로 하이라이트 정합성 유지 (`/auction` 추가 후 포함)
+- 파싱된 이름 목록에서 중복 제거 또는 경고 처리
 
 ### P2 (있으면 좋음)
-- 통합 모달 내 잔액 조정 시 현재 잔액 표시 (조정 후 예상 잔액 미리보기)
-- [어드민 페이지로 이동] / [유저 화면으로 돌아가기] 버튼에 오버워치 테마 스타일 적용 (skew-btn 등)
+- 수기 입력 미리보기: 파싱된 이름 목록을 텍스트영역 하단에 칩/배지로 표시
 
 ## 제약사항
-- `frontend/src/components/ui/*` (Shadcn 컴포넌트) 수정 금지
-- `frontend/src/lib/utils.ts` 수정 금지
-- Tailwind CSS만 사용 (별도 CSS 파일 금지), `cn()` 유틸리티 사용
-- `any` 타입 사용 금지
-- 백엔드 Entity 파일 수정 없음 (이번 스코프 해당 없음)
-- 환경변수 파일 커밋 금지
-- 오버워치 테마 유지 (futuristic, skewed buttons, 고대비 네온)
+- `frontend/src/components/ui/*` 및 `frontend/src/lib/utils.ts` 수정 금지
+- TypeScript `any` 타입 사용 금지
+- 스타일은 Tailwind CSS + `cn()` 조합만 사용 (별도 CSS 파일, 인라인 style 객체 금지)
+- 오버워치 테마 일관성 유지 (skewed button, 네온 등 기존 스타일 따름)
+- 백엔드 코드 무변경 (엔드포인트 이미 완료)
+- 팀장(captains) 모드는 현행 회원 선택만 유지 (수기 입력 추가 금지)
+- 크로스도메인 환경(Vercel ↔ potg.joonbi.co.kr) — 기존 axios 인스턴스(`lib/api.ts`) 그대로 사용
 
 ## 성공 기준
-- [ ] 관리자로 로그인 시 `/`(대시보드·유저 화면)으로 랜딩된다 (기존 `/admin` 자동 이동 없음)
-- [ ] 일반유저로 로그인 시 헤더에 "운영" 메뉴가 보이지 않는다
-- [ ] 유저 화면 헤더에서 관리자 계정으로만 [어드민 페이지로 이동] 버튼이 보이고, 클릭 시 `/admin`으로 이동한다
-- [ ] 어드민 사이드바에서 [유저 화면으로 돌아가기] 클릭 시 `/`로 이동한다
-- [ ] 어드민 사이드바에서 실시간 경매(`/auction`) 링크를 통해 경매 페이지에 진입할 수 있다
-- [ ] 회원관리에서 신규 추가 및 기존 회원 수정이 동일한 모달 구조를 사용한다
-- [ ] 회원 수정 시 아이디·닉네임·권한·비밀번호·잔액조정을 한 화면에서 처리할 수 있다
-- [ ] `npm run build` (프론트) 성공, TypeScript 에러 없음
-- [ ] `npm run lint` 통과
+1. 매물 추가 다이얼로그(mode=players)에서 "수기 입력" 탭이 노출된다.
+2. 텍스트영역에 이름 여러 개를 줄바꿈으로 붙여넣고 제출하면 `POST /auctions/:id/players/guest`가 정상 호출된다.
+3. 응답 성공 시 매물 풀 목록이 즉시 갱신되고 게스트 매물이 표시된다.
+4. 등록된 게스트는 `/users` 및 `/admin/members` 회원 목록에 노출되지 않는다 (백엔드 필터 보장).
+5. 팀장(captains) 모드 다이얼로그는 기존 동작 그대로 유지된다.
+6. `cd frontend && npm run lint` 및 `npm run build` 오류 없이 통과한다.
 
 ## 특이사항
-- 크로스도메인 환경: 프론트 `potg-psi.vercel.app` ↔ 백엔드 `potg.joonbi.co.kr`
-- 어드민 사이드바의 "경매이력"(`/admin/auctions`)과 "실시간 경매"(`/auction`)는 다른 페이지임. 레이블·아이콘으로 명확히 구분할 것
-- 회원관리 잔액 조정 엔드포인트는 통합수정(PATCH)과 별개: `POST /admin/members/:id/adjust`
-- 유저용 메뉴바(헤더)와 어드민 메뉴바(사이드바)는 각각의 구조를 유지하며 전환 버튼으로만 연결한다 (두 메뉴바 통합 X)
-- 이전 requirement.md(2026-05-22, 디스코드 봇 + 관리자 웹 분리 계획)는 이번 스코프와 별개의 중장기 계획이며, 이번 작업은 현재 운영 중인 코드베이스의 UX 개선에 한정된다
+- 백엔드 `POST /auctions/:id/players/guest` 동작: 이름마다 `isGuest=true` 게스트 User 생성 후 PLAYER로 경매에 추가. 게스트는 `/users`·`/admin/members` 목록에서 자동 제외됨 (로그인 불가).
+- docker 재배포(백엔드)는 코드 변경 없이 운영팀이 별도 수행 — 프론트 작업과 독립적으로 진행됨.
+- `auction-pending-master.tsx`가 매물 추가 진입점 — `user-picker-dialog.tsx`를 `mode='players'`로 호출하는 흐름 확인 후 탭 추가 위치 결정.
+- 관련 파일 경로:
+  - API: `frontend/src/modules/auction/api/auctions.ts`
+  - 다이얼로그: `frontend/src/modules/auction/components/parts/user-picker-dialog.tsx`
+  - 진입점: `frontend/src/modules/auction/components/parts/auction-pending-master.tsx` (참고용)
