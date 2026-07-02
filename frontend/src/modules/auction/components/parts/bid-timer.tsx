@@ -173,6 +173,12 @@ export function BidTimer({
               'timer-ember pointer-events-none absolute inset-0 overflow-hidden rounded-full transition-opacity duration-200',
               isUrgent ? 'opacity-100' : 'opacity-0',
             )}
+            // 모바일에서 연소 텍스처 최대 opacity 0.85→0.65 축소(과도한 색 자극 저감) — motion-spec §3.4.
+            style={
+              isDesktop
+                ? undefined
+                : ({ '--timer-ember-peak-opacity': 0.65 } as React.CSSProperties)
+            }
           />
           <div
             className="relative h-full overflow-hidden rounded-full transition-[width,background-color] duration-1000 ease-linear"
@@ -186,7 +192,7 @@ export function BidTimer({
               className="pointer-events-none absolute top-1/2 -translate-y-1/2"
               style={{ left: `${fraction * 100}%`, transform: 'translate(-50%, -50%)' }}
             >
-              <span className="timer-flame absolute -top-2 left-1/2 block h-2.5 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-t from-ow-red via-ow-orange to-yellow-300" />
+              <span className="timer-flame absolute -top-2 left-1/2 block h-2.5 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-t from-ow-red via-ow-orange to-ow-gold" />
               {Array.from({ length: sparkCount }, (_, index) => {
                 const offset = sparkOffset(index)
                 return (
