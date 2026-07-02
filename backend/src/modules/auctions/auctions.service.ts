@@ -236,11 +236,23 @@ export class AuctionsService {
 
     const participant = await this.participantsRepository.findOne({
       where: { auctionId, userId: targetUserId },
+      relations: ['user'],
     });
     if (!participant)
       throw new BadRequestException('참가자를 찾을 수 없습니다.');
 
+    const wasGuest = participant.user?.isGuest === true;
     await this.participantsRepository.remove(participant);
+
+    // 게스트 매물은 참가 해제 시 User row 도 함께 정리 (고아 누적 방지)
+    if (wasGuest) {
+      const stillUsed = await this.participantsRepository.count({
+        where: { userId: targetUserId },
+      });
+      if (stillUsed === 0)
+        await this.usersRepository.delete({ id: targetUserId });
+    }
+
     return { removed: true, userId: targetUserId };
   }
 
@@ -388,10 +400,29 @@ export class AuctionsService {
       );
     }
 
+    // 이 경매가 만든 게스트 User 는 경매와 함께 정리 (고아 row 누적 방지)
+    const participants = await this.participantsRepository.find({
+      where: { auctionId },
+      relations: ['user'],
+    });
+    const guestUserIds = participants
+      .filter((p) => p.user?.isGuest)
+      .map((p) => p.userId);
+
     // entity cascade 설정과 무관하게 명시적으로 자식 row 부터 삭제 — 안전 보장
     await this.participantsRepository.delete({ auctionId });
     await this.bidsRepository.delete({ auctionId });
     await this.auctionsRepository.remove(auction);
+
+    if (guestUserIds.length > 0) {
+      // 다른 경매에 아직 참가 중인 게스트는 남긴다 (FK 보호와 동일한 정책)
+      for (const guestId of guestUserIds) {
+        const stillUsed = await this.participantsRepository.count({
+          where: { userId: guestId },
+        });
+        if (stillUsed === 0) await this.usersRepository.delete({ id: guestId });
+      }
+    }
 
     return { deleted: true };
   }
