@@ -11,7 +11,10 @@ import { AuctionOngoingMaster } from './auction-ongoing-master'
 import { AuctionCompleted } from './auction-completed'
 import { TeamRosters } from './parts/team-rosters'
 import type { RoomState, AuctionStatus } from '../types'
-import type { AuctionEmitFns } from '../hooks/use-auction-socket'
+import type {
+  AuctionChatMessage,
+  AuctionEmitFns,
+} from '../hooks/use-auction-socket'
 
 type MasterTab = 'manage' | 'live' | 'result'
 
@@ -21,6 +24,8 @@ interface Props {
   roomState: RoomState | null
   timerRemaining: number | null
   emit: AuctionEmitFns
+  chatMessages?: AuctionChatMessage[]
+  myUserId?: string | null
 }
 
 /** 상태별 기본 탭 — 준비 중엔 관리, 진행 중엔 경매장, 배정/완료 땐 결과. */
@@ -50,6 +55,8 @@ export function AuctionMasterView({
   roomState,
   timerRemaining,
   emit,
+  chatMessages,
+  myUserId,
 }: Props) {
   const status = roomState?.auction.status ?? fallbackStatus
   const [tab, setTab] = useState<MasterTab>(() => defaultTabFor(status))
@@ -103,7 +110,12 @@ export function AuctionMasterView({
         />
       )}
 
-      {tab === 'live' && <LiveTab {...{ status, roomState, timerRemaining, emit }} onGoManage={() => setTab('manage')} />}
+      {tab === 'live' && (
+        <LiveTab
+          {...{ status, roomState, timerRemaining, emit, chatMessages, myUserId }}
+          onGoManage={() => setTab('manage')}
+        />
+      )}
 
       {tab === 'result' && (
         <ResultTab status={status} roomState={roomState} timerRemaining={timerRemaining} emit={emit} />
@@ -117,12 +129,16 @@ function LiveTab({
   roomState,
   timerRemaining,
   emit,
+  chatMessages,
+  myUserId,
   onGoManage,
 }: {
   status: AuctionStatus
   roomState: RoomState | null
   timerRemaining: number | null
   emit: AuctionEmitFns
+  chatMessages?: AuctionChatMessage[]
+  myUserId?: string | null
   onGoManage: () => void
 }) {
   if (status === 'PENDING') {
@@ -170,6 +186,8 @@ function LiveTab({
       roomState={roomState}
       timerRemaining={timerRemaining}
       emit={emit}
+      chatMessages={chatMessages}
+      myUserId={myUserId}
     />
   )
 }

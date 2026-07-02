@@ -12,6 +12,15 @@ interface ErrorPayload {
   message?: string
 }
 
+export interface AuctionChatMessage {
+  id: string
+  userId: string
+  userName: string
+  message: string
+  timestamp: string
+  type: 'chat'
+}
+
 export interface AuctionEmitFns {
   placeBid: (targetPlayerId: string, amount: number) => void
   selectPlayer: (playerId: string) => void
@@ -23,12 +32,14 @@ export interface AuctionEmitFns {
   enterAssignmentPhase: () => void
   manualAssignPlayer: (playerId: string, captainId: string) => void
   resetAuction: () => void
+  sendChat: (message: string) => void
 }
 
 interface UseAuctionSocketReturn {
   isConnected: boolean
   roomState: RoomState | null
   timerRemaining: number | null
+  chatMessages: AuctionChatMessage[]
   emit: AuctionEmitFns
 }
 
@@ -47,6 +58,7 @@ export function useAuctionSocket(
   const [isConnected, setIsConnected] = useState(false)
   const [roomState, setRoomState] = useState<RoomState | null>(null)
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null)
+  const [chatMessages, setChatMessages] = useState<AuctionChatMessage[]>([])
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -94,6 +106,11 @@ export function useAuctionSocket(
     socket.on('playerManuallyAssigned', handleRoomState)
     socket.on('auctionReset', handleRoomState)
 
+    socket.on('chatMessage', (m: AuctionChatMessage) => {
+      // 최근 200개만 유지 (장시간 경매 메모리 보호)
+      setChatMessages((prev) => [...prev.slice(-199), m])
+    })
+
     socket.on('timerUpdate', (payload: { remainingTime: number }) => {
       setTimerRemaining(payload.remainingTime)
     })
@@ -113,6 +130,7 @@ export function useAuctionSocket(
       setIsConnected(false)
       setRoomState(null)
       setTimerRemaining(null)
+      setChatMessages([])
     }
   }, [auctionId, userId])
 
@@ -169,6 +187,14 @@ export function useAuctionSocket(
   const resetAuction = useCallback(() => {
     socketRef.current?.emit('resetAuction', { auctionId })
   }, [auctionId])
+  const sendChat = useCallback(
+    (message: string) => {
+      const trimmed = message.trim()
+      if (!trimmed) return
+      socketRef.current?.emit('chatMessage', { auctionId, message: trimmed })
+    },
+    [auctionId],
+  )
 
   const emit = useMemo<AuctionEmitFns>(
     () => ({
@@ -182,6 +208,7 @@ export function useAuctionSocket(
       enterAssignmentPhase,
       manualAssignPlayer,
       resetAuction,
+      sendChat,
     }),
     [
       placeBid,
@@ -194,6 +221,7 @@ export function useAuctionSocket(
       enterAssignmentPhase,
       manualAssignPlayer,
       resetAuction,
+      sendChat,
     ],
   )
 
@@ -201,6 +229,7 @@ export function useAuctionSocket(
     isConnected,
     roomState,
     timerRemaining,
+    chatMessages,
     emit,
   }
 }

@@ -36,7 +36,7 @@ function AuctionBody() {
     auction: listAuction,
     isLoading: listLoading,
   } = useCurrentAuction()
-  const { roomState, timerRemaining, emit } = useAuctionSocket(
+  const { roomState, timerRemaining, chatMessages, emit } = useAuctionSocket(
     listAuction?.id ?? null,
     user?.id ?? null,
   )
@@ -68,6 +68,8 @@ function AuctionBody() {
         roomState={roomState}
         timerRemaining={timerRemaining}
         emit={emit}
+        chatMessages={chatMessages}
+        myUserId={user?.id ?? null}
       />
     )
   }
@@ -103,6 +105,7 @@ function AuctionBody() {
         timerRemaining={timerRemaining}
         userId={user?.id ?? null}
         emit={emit}
+        chatMessages={chatMessages}
       />
     )
   }
@@ -110,6 +113,9 @@ function AuctionBody() {
     <AuctionOngoingSpectator
       roomState={roomState}
       timerRemaining={timerRemaining}
+      chatMessages={chatMessages}
+      onSendChat={emit.sendChat}
+      myUserId={user?.id ?? null}
     />
   )
 }
