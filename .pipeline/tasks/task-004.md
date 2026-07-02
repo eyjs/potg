@@ -1,72 +1,51 @@
-# Task 004: 로그인 무한 새로고침(리다이렉트 루프) 수정 — 쿠키 + Authorization 헤더 병행
+# Task 004: bid-timer 불타는 도화선 + globals.css 키프레임
 
 ## 메타데이터
-- 우선순위: P0
 - 복잡도: M
-- 병렬그룹: A
-- 의존: 없음
+- 병렬그룹: B (Group A 머지 후 실행)
+- 의존: task-001 (오디오 엔진) — `startFuseCrackle`/`stopFuseCrackle` import **필수 선행**
 - 변경 파일 (충돌 방지용):
-  - 백엔드 수정:
-    - `backend/src/modules/auth/jwt.strategy.ts` (쿠키 + Authorization 헤더 이중 추출)
-    - `backend/src/modules/auth/auth.controller.ts` (`login` 응답 바디에 `access_token` 포함)
-    - `backend/src/modules/auth/auth.service.ts` (필요 시 — `login()`이 이미 `{ access_token }` 반환하므로 대개 무변경, 반환 타입 정리 정도만)
-  - 프론트 수정:
-    - `frontend/src/lib/api.ts` (axios 요청 인터셉터로 Bearer 토큰 첨부)
-    - `frontend/src/context/auth-context.tsx` (토큰 저장/삭제 + `fetchUser` 실패 표면화)
-    - `frontend/src/app/login/page.tsx` (로그인 후 프로필 확인 실패 시 명확한 안내 + 루프 방지)
-  - **이 태스크는 login+auth 전체 파일을 단독 소유한다.** 다른 태스크는 `api.ts`/`auth-context.tsx`/`login/page.tsx` 및 backend auth 파일을 절대 수정하지 않는다.
+  - 수정(배타 소유): `frontend/src/modules/auction/components/parts/bid-timer.tsx`
+  - 수정(배타 소유): `frontend/src/app/globals.css` (신규 키프레임 + reduced-motion 정지 항목 — **globals.css 단일 소유자**)
+  - 읽기전용: `frontend/src/modules/auction/hooks/auction-audio-engine.ts` (task-001, import만)
 
 ## 목적
-신규 IP/브라우저(시크릿 모드, 새 프로필)에서 서드파티 쿠키가 차단되어 발생하는 로그인 무한 리다이렉트 루프를 제거한다. 기존 쿠키 기반 인증(동일 브라우저 재방문, 소켓 인증)은 회귀 없이 유지하고, 쿠키가 저장되지 않는 환경에서도 Authorization 헤더 폴백으로 정상 로그인·진입이 가능하게 한다.
+마감 임박 타이머를 "불타는 도화선"으로 연출한다: 게이지 끝단 불꽃/스파크 + 옅은 연소 텍스처 + 지지직 크래클 사운드. 기존 `isUrgent`/`isEnded`/`aria-live` 접근성 동작은 회귀 없이 유지한다. **globals.css를 단독 소유**해 신규 키프레임과 그 감소모션 정지 항목을 여기서만 추가한다(다른 태스크는 globals.css 미수정).
 
-## 배경 (조사 완료 — requirement.md P0-4)
-- **근본 원인**: 프론트(`potg-psi.vercel.app`)와 백엔드(`potg.joonbi.co.kr`)가 서로 다른 사이트(eTLD+1 상이) → `access_token`이 **서드파티 쿠키**. `SameSite=None; Secure`여도 Chrome 시크릿/새 프로필·Safari ITP·Firefox ETP가 기본 차단. "신규 환경에서만 재현"과 정확히 일치.
-- **루프 경로**: `login()`이 `fetchUser()` 실패를 조용히 삼켜(`setUser(null)`, throw 없음) 항상 정상 반환 → `login/page.tsx`가 `router.replace('/')` → `app/page.tsx`가 `!user` 감지 → `router.replace('/login')` → 왕복 반복. 동일 `!user` 가드가 `auth-guard.tsx`에도 존재.
-- **현재 코드 사실 확인**:
-  - `jwt.strategy.ts`: `jwtFromRequest: cookieExtractor` (쿠키만 추출).
-  - `auth.controller.ts` `login()`: 쿠키만 set, 응답 바디는 `{ ok: true }`. `auth.service.ts` `login()`은 이미 `{ access_token }` 반환(컨트롤러가 쿠키로만 소비).
-  - `api.ts`: `withCredentials: true`, Authorization 헤더 처리 없음.
-  - `auth-context.tsx`: `fetchUser` catch에서 `setUser(null)`만, `login()`은 throw 안 함.
-  - **방안 2(도메인 통일)는 스코프 제외** — 인프라 변경 필요, 후속 과제.
+## 배경 / 현재 구조 (검증 완료)
+- `bid-timer.tsx`(128줄, 단독 파일): `isUrgent = value<=5 && value>0`(32행), `isEnded = value<=0`(33행). 게이지 바(112-125행): `width: ${fraction*100}%` + `backgroundColor: hsl(hue ...)`. `role=timer`/`aria-live`(63-64행), `aria-label=srLabel`. `isEnded`면 "종료" 표시.
+- `globals.css`: 기존 키프레임들(`.flash-burst`, `.burst-particle`, `.ring-expand`, `.pulse-live` 등) + `@media (prefers-reduced-motion: reduce)` 블록(477-491행, `.float-slow`/`.ring-spin`/... `animation:none`).
 
-## 구현 가이드
-1. **백엔드 — JWT 이중 추출 (쿠키 우선 + 헤더 폴백)**
-   - `jwt.strategy.ts`: `jwtFromRequest`를 `ExtractJwt.fromExtractors([cookieExtractor, ExtractJwt.fromAuthHeaderAsBearerToken()])`로 변경. **쿠키를 먼저 시도**하고 없으면 Bearer 헤더에서 추출 → 기존 쿠키 인증 경로 무회귀 보장. `passport-jwt`의 `ExtractJwt`를 import.
-2. **백엔드 — 로그인 응답 바디에 토큰 포함**
-   - `auth.controller.ts` `login()`: 기존 쿠키 set은 **그대로 유지**하고, 응답 바디를 `{ ok: true, access_token: tokens.access_token }`로 확장. 반환 타입 시그니처를 함께 갱신(`Promise<{ ok: true; access_token: string }>`).
-   - `auth.service.ts`: 이미 `{ access_token }`을 반환하므로 대개 무변경. 반환 타입 명시가 부족하면 정리만.
-   - **주의**: 토큰을 바디로 노출하는 트레이드오프(XSS 노출면)를 코드 주석에 명시하고, 근본 해결은 방안 2(도메인 통일, 후속 과제)임을 남긴다.
-3. **프론트 — 토큰 저장 + Bearer 첨부**
-   - `auth-context.tsx` `login()`: `const res = await api.post('/auth/login', credentials)` 후 `res.data.access_token`이 있으면 저장(예: `localStorage.setItem('access_token', token)` — SSR 안전 가드 `typeof window !== 'undefined'`). 저장 후 `fetchUser()`.
-   - `api.ts`: **요청 인터셉터** 추가 — `typeof window !== 'undefined'`에서 `localStorage.getItem('access_token')`이 있으면 `config.headers.Authorization = 'Bearer ' + token` 첨부. `withCredentials: true`는 유지(쿠키 정상 환경은 쿠키로 계속 동작). 기존 응답 인터셉터는 유지.
-   - `logout()`: 서버 로그아웃 호출과 함께 저장 토큰 제거(`localStorage.removeItem('access_token')`).
-4. **프론트 — 실패 표면화(루프 체감 제거)**
-   - `auth-context.tsx` `login()`: `fetchUser()` 후 여전히 `user`가 세팅되지 않으면(프로필 조회 실패 = 쿠키·토큰 모두 무효 의심) 명확한 에러를 throw 하거나 실패 신호를 반환한다. 단, throw 방식 채택 시 `fetchUser` 내부의 조용한 `setUser(null)`은 유지하되 `login()` 레벨에서 성공 여부를 판정(예: `fetchUser`가 성공/실패 boolean을 반환하도록 소폭 리팩터, 또는 profile 재조회 결과로 판정).
-   - `login/page.tsx` `onValid`: `login()`이 실패(throw/false)하면 `router.replace('/')` 하지 않고 로그인 페이지에 머무르며 "브라우저의 서드파티 쿠키 차단 설정을 확인하거나 다시 시도해 주세요" 등 명확한 토스트 표시 → 무한 왕복 대신 명시적 안내. 성공 시에만 `router.replace('/')`.
-   - `app/page.tsx`/`auth-guard.tsx`의 `!user` 리다이렉트 로직 자체는 변경 불필요(정상 동작). 헤더 폴백으로 `user`가 정상 세팅되면 루프가 근본 해소됨.
-5. **회귀 방지 확인**: 소켓 인증(`use-auction-socket.ts`의 `withCredentials` 쿠키 검증)은 쿠키 정상 환경에서 그대로 동작. 헤더 폴백은 REST(axios) 경로에만 적용되며 소켓 경로를 변경하지 않는다(이 태스크는 소켓 파일 미접근).
+## 구현 방식
 
-## 제약사항 (requirement.md + CLAUDE.md)
-- 도메인 통일(방안 2) 등 **배포 인프라 변경 금지** — 헤더 폴백 방식으로만 해결.
-- 기존 쿠키 인증 경로를 깨지 않는다 (**회귀 금지** — 쿠키 우선 추출).
-- `any` 타입 사용 금지.
-- `backend/src/modules/*/*.entity.ts` 수정 금지 (DB 스키마 변경 없음).
-- 에러 응답/핸들링 규칙 준수: UI는 사용자 친화 메시지, 서버는 상세 로깅. 에러 삼키기 금지(로그인 실패는 표면화).
-- 프론트는 기존 스타일/테마 유지 (login/page.tsx는 로직·토스트만 추가, 디자인 변경 없음).
-- 백엔드 변경 최소화 — auth 3개 파일 외 접근 금지.
+### 1. `globals.css` — 신규 키프레임 (기존 파일 내 추가)
+- **불꽃 flicker**: `@keyframes timer-flame-kf` — 게이지 끝단 불꽃 스프라이트(scale/opacity/translateY 흔들림). `.timer-flame` 클래스.
+- **스파크**: `@keyframes timer-spark-kf` — 짧은 튐(작은 점 상승/소멸). `.timer-spark` 클래스(index 기반 결정적 각도로 여러 개, `--spark-x` 등 CSS 변수 방식 권장 — `.burst-particle` 패턴 참고).
+- **연소 텍스처**: `.timer-ember` — 게이지 배경 옅은 그라데이션 노이즈(오렌지/레드 저알파, 오버워치 토큰 `--ow-orange`/`--ow-red` 계열). 정적이어도 무방하나 미세 애니메이션 시 키프레임 추가.
+- **reduced-motion**: `@media (prefers-reduced-motion: reduce)` 블록(477행)에 `.timer-flame, .timer-spark { animation: none; }` 추가(정적 대체 — 불꽃은 정지 스프라이트 또는 숨김).
+- 색상/간격은 기존 오버워치 토큰/변수 사용(하드코딩 금지). 신규 CSS 파일 생성 금지(기존 globals.css 내 확장만).
+
+### 2. `bid-timer.tsx` — 연소 연출 + 크래클 사운드
+- 게이지 바(112-125행) 확장: `isUrgent`일 때 게이지 **끝단**(채워진 폭의 오른쪽 끝)에 `.timer-flame` + `.timer-spark` 요소 오버레이, 게이지 트랙에 `.timer-ember` 배경.
+  - 끝단 위치 = 채워진 width의 끝 → 불꽃을 채운 바의 우측 끝에 절대배치(`left: ${fraction*100}%` 근처) 또는 채운 바 내부 우측 정렬.
+- 기존 `isUrgent`/`isEnded` 분기, hue 보간, `fraction` 계산, `role=timer`/`aria-live`/`aria-label` 구조 **그대로 유지**(연소 요소는 `aria-hidden`).
+- **크래클 사운드**: `isUrgent` 진입 시 `startFuseCrackle()` 1회, `isUrgent` 이탈(종료/낙찰/유찰/WAITING)·언마운트 시 `stopFuseCrackle()`. `useEffect`로 isUrgent 변화 구독, cleanup에서 stop. 중복 시작 방지는 엔진이 보장하나 컴포넌트도 진입/이탈 1회씩만 호출.
+- reduced-motion 시 불꽃/스파크는 CSS로 정지(위 미디어쿼리) — 사운드는 유지(모션 아님).
 
 ## 성공 기준
-- [ ] 신규 브라우저(시크릿 모드)/새 프로필/신규 IP에서 로그인 시 무한 리다이렉트 루프 없이 대시보드(`/`)에 정상 진입한다.
-- [ ] 기존 쿠키 기반 로그인(동일 브라우저 재방문)과 소켓 인증이 회귀 없이 동작한다.
-- [ ] `jwt.strategy.ts`가 쿠키를 우선 추출하고, 쿠키가 없을 때만 Authorization 헤더로 폴백한다.
-- [ ] 로그인 응답 바디에 `access_token`이 포함되고, 프론트가 이를 저장해 이후 요청에 Bearer로 첨부한다.
-- [ ] 쿠키·토큰 모두 무효한 경우 무한 루프 대신 명확한 안내 토스트가 뜨고 로그인 페이지에 머문다.
-- [ ] `logout` 시 저장 토큰이 제거된다.
-- [ ] `cd frontend && npm run lint && npm run build` 및 `cd backend && npm test` 통과.
+- [ ] 마감 5초 전(`isUrgent`)부터 게이지 끝단 불꽃/스파크 + 연소 텍스처가 나타난다.
+- [ ] 지지직 크래클 사운드가 `isUrgent` 진입 시 재생되고 이탈/종료/언마운트 시 정지한다(잔류 루프 없음).
+- [ ] 기존 타이머 동작 무회귀: hue 보간 게이지, `isUrgent`/`isEnded` 분기, "종료" 표시, `role=timer`/`aria-live`/`aria-label`.
+- [ ] `prefers-reduced-motion`에서 불꽃/스파크 애니메이션 정지(정적/숨김), 상태 표시는 유지.
+- [ ] 3개 뷰(captain/master/spectator)에서 동일 `BidTimer` 재사용 → 자동 반영, 무회귀.
+- [ ] 신규 CSS 파일 없음(globals.css 내 확장). 하드코딩 색상/간격 없음(토큰 사용). `any` 미사용. `cd frontend && npm run lint && npm run build` 통과.
 
 ## 테스트 요구사항
-- 단위/통합 테스트 (백엔드, 필수):
-  - `jwt.strategy` 이중 추출: 쿠키 있는 요청 / 쿠키 없고 Bearer 헤더 있는 요청 / 둘 다 없는 요청 각각의 인증 결과 검증.
-  - `auth.controller` `login` 응답 바디에 `access_token` 포함 검증 (`auth.controller.spec.ts` 갱신).
-  - 기존 쿠키 인증 회귀 테스트 유지.
-- 프론트 수동 검증 시나리오(핸드오프 기록): (1) 시크릿 모드 로그인 → `/` 진입 성공, (2) 쿠키/토큰 강제 무효화 시 안내 토스트 + 루프 없음, (3) 로그아웃 후 재로그인 정상, (4) 기존 브라우저 재방문 세션 유지.
+- 단위 테스트: isUrgent 진입/이탈에 따른 크래클 start/stop 호출 여부(사운드 함수 목 주입 가능하면 mock, 아니면 로직 분리 후 검증). fraction/isUrgent/isEnded 경계는 기존 동작 유지 확인.
+- 수동 검증: 실경매에서 5초 진입 시 불꽃+크래클, 0초 종료 시 정지, WAITING 복귀 시 정지, reduced-motion 정지, 3뷰 확인.
+
+## 제약사항
+- `bid-timer.tsx`/`globals.css` 외 파일 수정 금지. 다른 태스크는 globals.css를 수정하지 않음(단일 소유 유지).
+- 신규 npm 패키지/신규 CSS 파일 금지. `any` 금지. 오버워치 테마/토큰 유지.
+- 기존 접근성 구조(`role=timer`/`aria-live`/`aria-label`) 훼손 금지.
+</content>

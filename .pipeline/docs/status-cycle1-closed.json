@@ -1,0 +1,85 @@
+{
+  "version": "v2",
+  "pipeline_type": "feature",
+  "current_phase": "closed",
+  "status": "success",
+  "started_at": "2026-07-02T22:56:00+09:00",
+  "updated_at": "2026-07-03T00:55:00+09:00",
+  "closed_at": "2026-07-03T00:55:00+09:00",
+  "closeout": {
+    "backend_restart": "team-lead 수행 완료 (docker-compose up -d --build backend, 23:42 기동, 소켓 재연결 정상, /auth/profile 401 정상)",
+    "task_004": "origin/master 배포 완료 (e95b060) + 백엔드 반영 완료 — 사용자 시크릿 모드 로그인 테스트 예정",
+    "tasks_001_003": "로컬 master 대기, 사용자 승인 후 push (clean fast-forward)",
+    "pipeline": "종료"
+  },
+  "task_004_fast_track": {
+    "reason": "team-lead 긴급 지시 (사용자 로그인 장애 대기) — task-004 단독 fast-track push 승인",
+    "pushed": true,
+    "pushed_commit": "e95b060",
+    "pushed_to": "origin/master (9f25f99 -> e95b060, fast-forward)",
+    "isolation": "task-004 8개 파일만 격리 커밋 (001~003 미포함) — origin/master 기준 신규 커밋으로 구성",
+    "pushed_files": [
+      "backend/src/modules/auth/jwt.strategy.ts",
+      "backend/src/modules/auth/auth.controller.ts",
+      "backend/src/modules/auth/auth.service.ts",
+      "backend/src/modules/auth/jwt.strategy.spec.ts",
+      "backend/src/modules/auth/auth.controller.spec.ts",
+      "frontend/src/lib/api.ts",
+      "frontend/src/context/auth-context.tsx",
+      "frontend/src/app/login/page.tsx"
+    ],
+    "pre_push_verification": "backend auth 18/18 PASS, frontend lint 0 errors, frontend build OK (/login 생성)",
+    "vercel": "프론트 배포 트리거됨",
+    "backend_restart_required": "jwt.strategy + auth.controller 변경은 push만으로 운영 백엔드(로컬 Docker)에 반영 안됨 — docker 재시작 필요. 오케스트레이터는 재시작 미수행(운영 서비스, 사용자/메인 세션 담당).",
+    "marker": ".pipeline/logs/task-004-pushed.done",
+    "local_master_reconciled": "origin/master(e95b060)를 로컬 master에 머지 완료 — 001~003 후속 push는 clean fast-forward",
+    "tasks_001_003_push": "금지 유지 (로컬 master에만 존재, 사용자 확인 후 push)"
+  },
+  "requirement": ".pipeline/requirement.md",
+  "scope": "경매 고도화: 효과음 + 최종 이미지 생성 수정 + 모바일 관전자 뷰 + 로그인 무한 새로고침 수정",
+  "phases": {
+    "planning": { "status": "done", "retries": 0, "tasks": 4, "parallel_groups": 1, "design_needed": ["task-003"] },
+    "plan_review": { "status": "done", "retries": 0, "verdict": "PASS" },
+    "design": { "status": "done", "retries": 0, "scope": ["task-003"], "output": ".pipeline/design/screen-specs/mobile-spectator.md" },
+    "implementation": {
+      "status": "done",
+      "retries": 0,
+      "parallel_tasks": ["task-001", "task-002", "task-003", "task-004"],
+      "completed_tasks": ["task-001", "task-002", "task-003", "task-004"],
+      "worktrees": {
+        "task-001": { "branch": "worktree-agent-a56b5e7ed176bb789", "status": "merged", "commit": "489b2aa", "lint_build": "pass" },
+        "task-002": { "branch": "worktree-agent-a577303abc0d99471", "status": "merged", "commit": "6a050d8", "lint_build": "pass" },
+        "task-003": { "branch": "worktree-agent-a938bb14ffe8dc7e7", "status": "merged", "commit": "ac67603", "lint_build": "pass" },
+        "task-004": { "branch": "worktree-agent-a7805c0dd3e7bc1fb", "status": "merged", "commits": ["272a74b", "a8e64ae"], "lint_build": "pass", "backend_test": "18 passed (npx jest src/modules/auth)" }
+      }
+    },
+    "code_review": { "status": "done", "retries": 0, "verdict": "PASS" },
+    "integration": {
+      "status": "done",
+      "retries": 0,
+      "frontend_lint": "pass (0 errors, 2 pre-existing warnings)",
+      "frontend_build": "pass (all routes incl. /auction, /login)",
+      "backend_unit": "pass (27 suites, 275 tests)",
+      "backend_e2e_integration": "skipped (requires Postgres, sandbox limitation)"
+    },
+    "documentation": { "status": "done", "retries": 0, "output": ".pipeline/docs/ + docs/" },
+    "report": { "status": "done", "retries": 0, "output": ".pipeline/REPORT.md" }
+  },
+  "constraints": {
+    "no_modify_shadcn_ui": "frontend/src/components/ui/*",
+    "no_modify_utils": "frontend/src/lib/utils.ts",
+    "no_any_type": true,
+    "no_backend_rework": true,
+    "frontend_first": true,
+    "no_modify_entities": "backend/src/modules/*/*.entity.ts",
+    "tailwind_only_no_css_files": true,
+    "preserve_overwatch_theme": true,
+    "sfx_assets_license": "CC0/무료 라이선스만 사용",
+    "reuse_stage_event_pattern": "AuctionStageEvent(seq 기반) 재사용, 신규 소켓 이벤트 추가 지양",
+    "image_proxy_backend_change_only_if_confirmed": "auctions.controller.ts imageProxy 최소 수정만 허용, 원인 확정 전 변경 금지",
+    "auth_fix_min_invasive": "쿠키 기반 인증 유지 + Authorization 헤더 폴백 병행 추가만 허용, 도메인 통일 등 배포 인프라 변경은 이번 스코프 제외",
+    "no_regression_existing_cookie_auth": "jwt.strategy.ts 확장 시 기존 쿠키 인증 경로 회귀 금지",
+    "no_push": "사용자 확인 후 직접 push (Vercel 배포 트리거)"
+  },
+  "history": "이전: 게스트 매물 수기 업로드 (docs/requirement-20260701-guest-upload.md), 그 이전은 status.json.bak 참조"
+}

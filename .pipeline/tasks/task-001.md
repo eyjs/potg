@@ -1,66 +1,72 @@
-# Task 001: 경매 효과음 (입찰 / 낙찰 / 유찰 + 모바일 autoplay unlock)
+# Task 001: 오디오 엔진 재설계 + 신규 사운드 (사운드 SSOT)
 
 ## 메타데이터
-- 우선순위: P0
-- 복잡도: M
-- 병렬그룹: A
+- 복잡도: L
+- 병렬그룹: A (선행 없음, 즉시 실행)
 - 의존: 없음
 - 변경 파일 (충돌 방지용):
-  - 신규: `frontend/src/modules/auction/hooks/use-auction-sound.ts`
-  - 신규: `frontend/public/sounds/bid.mp3`, `frontend/public/sounds/sold.mp3`, `frontend/public/sounds/pass.mp3` (기본안 채택 시 / Web Audio 합성 폴백 채택 시 이 3개 파일은 생성하지 않음)
-  - 수정: `frontend/src/modules/auction/hooks/use-auction-socket.ts` (신규 훅 호출 배선만 추가 — 소켓 리스너/이벤트 구조 변경 금지)
-- 이 태스크 외 파일 수정 금지. `use-auction-socket.ts`는 이 태스크만 수정하며, 다른 태스크는 이 파일에서 타입 import만 한다.
+  - 수정(배타 소유): `frontend/src/modules/auction/hooks/use-auction-sound.ts`
+  - 신규(배타 소유): `frontend/src/modules/auction/hooks/auction-audio-engine.ts`
+  - 읽기전용(수정 금지): `frontend/src/modules/auction/hooks/use-auction-socket.ts` (329행 `useAuctionSound(bidEvents, stageEvent)` 호출 시그니처를 **절대 변경하지 말 것**)
 
 ## 목적
-실시간 경매의 3대 순간(입찰 발생 / 낙찰 확정 / 유찰 확정)에 각각 구분되는 효과음을 1회 재생해 청각 피드백을 제공한다. 모바일 브라우저 autoplay 정책에 대응해 최초 사용자 제스처로 오디오를 unlock 한다.
+2차 모든 연출이 공유하는 **사운드 단일 소유처(SSOT)**를 만든다. (1) 사용자 직접 피드백(feedback-001)에 따라 1차 오실레이터 단일 톤을 게임급으로 전면 재설계 (2) 신규 사운드 3종(전설 공개·콤보 피치 상승 입찰·도화선 크래클)을 추가한다. 리프 컴포넌트(카드·타이머)가 socket을 거치지 않고 직접 호출할 수 있도록 명령형 엔진 함수를 export한다.
 
-## 배경 (조사 완료 — requirement.md P0-1)
-- `use-auction-socket.ts`에는 이미 다음 상태가 존재한다:
-  - `bidEvents: AuctionBidEvent[]` — `bidPlaced` 시 `pushBidEvent({ kind: 'bid', ... })`, `bidConfirmed` 시 `pushBidEvent({ kind: 'sold', ... })`로 push (라인 ~124-158). 각 이벤트는 고유 `id`를 가진다.
-  - `stageEvent: AuctionStageEvent | null` — `bidConfirmed`에서 `{ kind: 'sold', seq++ }`, `playerPassed`에서 `{ kind: 'pass', seq++ }` (라인 ~147, ~161). seq 증가 = 1회성 연출 트리거.
-- `current-player-card.tsx`가 이미 `stageEvent.seq` 변화를 구독해 낙찰/유찰 셀레브레이션을 재생하는 검증된 패턴이 있다. 효과음도 **동일 패턴을 재사용**한다.
-- 오디오 관련 기존 코드/의존성은 전무하다. 신규 npm 라이브러리(howler 등) 도입 불필요.
+## 배경 / 현재 구조 (검증 완료)
+- `use-auction-sound.ts`는 Web Audio 오실레이터 합성(mp3/HTMLAudioElement 미사용). `TONE_CONFIGS`(bid/sold/pass), `playTone`, unlock 리스너(pointerdown/touchstart, 115-134행), bid 트리거(137-146행), sold/pass 트리거(149-155행).
+- `use-auction-socket.ts` 329행에서 `useAuctionSound(bidEvents, stageEvent)` 호출. **이 파일은 재수정 금지** → 훅 시그니처 유지 필수.
+- feedback-001.md 원문: "효과음 좀더 게임처럼 바꿔, 너무 소리가 별론데".
 
-## 구현 가이드
-1. **신규 훅 `use-auction-sound.ts` 작성**
-   - 시그니처 예: `useAuctionSound(bidEvents: AuctionBidEvent[], stageEvent: AuctionStageEvent | null): void`
-   - 입찰음: `bidEvents`의 마지막 항목 `id`(또는 길이 증가)를 `useRef`로 추적해, 새 `kind: 'bid'` 이벤트가 들어올 때만 입찰음 1회 재생. `kind: 'sold'` bidEvent는 낙찰음과 중복되지 않게 무시(낙찰음은 stageEvent로 처리).
-   - 낙찰/유찰음: `stageEvent.seq`를 `useRef`로 추적(`current-player-card.tsx`의 `seenSeq` 패턴 참조). seq가 증가하면 `kind === 'sold'`면 낙찰음, `'pass'`면 유찰음 1회 재생.
-   - 최초 마운트 시점(seq 초기값, bidEvents 초기 seed)에서는 재생하지 않도록 초기 ref를 현재값으로 세팅(과거 이벤트 소급 재생 방지).
-2. **오디오 재생 방식 — 아래 두 경로 중 하나 선택 (둘 다 성공기준 충족, 어느 쪽이든 진행 가능)**
-   - **[기본안·권장] 네이티브 HTMLAudioElement + CC0 mp3**:
-     - `frontend/public/sounds/`에 `bid.mp3` / `sold.mp3` / `pass.mp3` (각 0.3~1.0s 짧은 SFX) 배치.
-     - **라이선스 필수: CC0/퍼블릭도메인만.** 출처 예: freesound.org(CC0 필터), mixkit, kenney.nl 등 CC0 SFX. 출처·라이선스를 커밋 메시지 또는 태스크 핸드오프에 기록.
-     - 재생: `new Audio('/sounds/bid.mp3')` 인스턴스를 모듈/ref로 준비해 `.currentTime = 0; .play()`. `.play()`가 반환하는 Promise의 rejection은 `.catch(() => {})`로 삼켜 콘솔 에러 방지(autoplay 차단은 정상 케이스).
-     - 톤 가이드: 입찰=짧은 클릭/틱, 낙찰=상승하는 골드톤(긍정), 유찰=하강 저음(부정). 오버워치 테마에 맞는 절제된 UI SFX.
-   - **[폴백] Web Audio API 오실레이터 합성** (CC0 에셋 확보 실패 시):
-     - `public/sounds/` 파일을 생성하지 말고, 훅 내부에서 `AudioContext` + `OscillatorNode` + `GainNode`로 3종 톤을 합성.
-     - 예: 입찰 = 880Hz square 40ms, 낙찰 = 523→784Hz sine 상승 200ms, 유찰 = 330→160Hz sawtooth 하강 250ms (짧은 gain envelope로 클릭 노이즈 방지).
-3. **모바일 autoplay unlock**
-   - 훅 내부 `useEffect`에서 최초 1회 `pointerdown`(또는 `touchstart`/`click`) 리스너를 `window`/`document`에 `{ once: true }`로 등록.
-   - 제스처 발생 시: (기본안) 각 Audio를 `muted` 상태로 `.play()` 후 즉시 `.pause()`/`.currentTime=0`로 unlock, 또는 (폴백) `AudioContext.resume()` 호출. unlock 완료 플래그를 ref로 관리.
-   - unlock 전 재생 시도는 조용히 무시(무음이 정상, 에러로 처리하지 않음).
-4. **훅 배선 — `use-auction-socket.ts` 최소 수정**
-   - `import { useAuctionSound } from './use-auction-sound'` 추가.
-   - `return { ... }` 직전에 `useAuctionSound(bidEvents, stageEvent)` 호출 1줄 추가.
-   - 소켓 리스너 등록/해제, 이벤트명, 기존 상태 로직은 **일절 변경 금지** (신규 소켓 이벤트 추가 금지).
+## 구현 방식
 
-## 제약사항 (requirement.md + CLAUDE.md)
-- `any` 타입 사용 금지 (오디오 관련 타입 명시: `HTMLAudioElement`, `AudioContext` 등).
-- Tailwind CSS만 사용, 별도 CSS 파일 생성 금지 (이 태스크는 로직만 — 시각 변경 없음).
-- `frontend/src/components/ui/*`, `frontend/src/lib/utils.ts` 수정 금지.
-- 기존 `useAuctionSocket` 이벤트 리스너 구조 재사용 — **신규 소켓 연결/이벤트 추가 금지**.
-- 신규 오디오 에셋 사용 시 **CC0/무료 라이선스만** — 출처 기록 필수.
-- 오버워치 테마(절제된 futuristic UI SFX) 유지.
-- 백엔드 변경 없음 (프론트 전용).
+### 1. 모듈 싱글턴 오디오 엔진 (`auction-audio-engine.ts` 신규)
+- 모듈 레벨 단일 공유 `AudioContext`(lazy 생성, `webkitAudioContext` 폴백 — 기존 `resolveAudioContextCtor` 패턴 이식). `any` 금지.
+- 공통 합성 헬퍼(신규 라이브러리 없이 Web Audio만):
+  - **ADSR 게인 엔벨로프** 유틸(attack/decay/sustain/release 명시).
+  - **오실레이터 2~3개 레이어링 + 디튠**(두께감).
+  - **BiquadFilter** lowpass/highpass 스윕(톤 정리).
+  - **노이즈 버스트**: `AudioBuffer`에 화이트노이즈 채워 짧게 재생(타격감).
+  - **ConvolverNode** + 프로그램 생성 임펄스 응답(짧은 리버브 테일, 공간감).
+  - **미세 랜덤 피치 변주**(반복 피로 방지).
+  - **마스터 게인** 정리(클리핑 방지) — 모든 노드는 마스터 게인 → destination.
+- export 함수(명령형):
+  - `unlockAudio(): void` — suspended AudioContext resume (엔진 내부에서도 사용).
+  - `playBidSound(comboLevel: number): void` — 묵직한 "탁/척" 타격음(필터드 노이즈 트랜지언트 + 사인 피치 드롭 200→80Hz). `comboLevel` 단계에 따라 피치/밝기 상승.
+  - `playSoldSound(): void` — 승리 팡파레(메이저 3음 아르페지오 + 상단 shimmer + 긴 리버브 테일). 낙찰 골든카드와 타이밍 동조되도록 총 길이 문서화.
+  - `playPassSound(): void` — 낙담(마이너 하강 2음 + lowpass 닫힘 + 짧은 리버브), 음량 절제.
+  - `playRevealLegendary(): void` — 전설 공개 전용(상승 shimmer + 임팩트 + 리버브). 카드가 직접 호출.
+  - `startFuseCrackle(): void` / `stopFuseCrackle(): void` — 도화선 지지직 크래클(노이즈 + highpass + 랜덤 게인 모듈레이션 루프). 타이머가 isUrgent 진입/이탈 시 호출. 중복 시작 방지(내부 running 플래그).
+- **콤보 상수(공유 규약)**: `export const COMBO_WINDOW_MS = 3000` 및 단계 임계값을 엔진(또는 인접 상수)에서 정의·export. 임계값 규약(task-003과 **동일**하게):
+  - L0: 콤보 1 (기본)
+  - L1: 콤보 2~3
+  - L2: 콤보 4~5
+  - L3: 콤보 6+
+  - `export function bidComboLevel(count: number): 0|1|2|3` 형태로 제공(카드가 동일 함수 import 가능하도록 순수 함수 권장).
+
+### 2. `use-auction-sound.ts` 리팩터링 (시그니처 유지)
+- `useAuctionSound(bidEvents, stageEvent)` 시그니처 **그대로 유지**.
+- 내부 `playTone`/`TONE_CONFIGS` 제거 → 엔진 함수 호출로 교체.
+- unlock 리스너(pointerdown/touchstart, once)는 유지하되 엔진 `unlockAudio()` 호출.
+- bid 트리거: 새 `kind:'bid'` 이벤트 감지 시(기존 137-146행 로직 유지) `bidEvents`에서 **콤보 계산**(newest 기준 `COMBO_WINDOW_MS` 내 `kind==='bid'` 개수) → `playBidSound(bidComboLevel(count))`.
+- sold/pass 트리거: `stageEvent.seq` 증가 시(기존 149-155행) `playSoldSound()` / `playPassSound()`.
+- 과거 이벤트 소급 재생 방지 시드(`lastBidEventIdRef`, `lastStageSeqRef`) 유지.
 
 ## 성공 기준
-- [ ] 입찰 발생 시 입찰음이, 낙찰 확정 시 낙찰음이, 유찰 확정 시 유찰음이 각각 구분되어 1회씩 재생된다 (수동/자동 낙찰·유찰 공통).
-- [ ] 최초 마운트/재접속 시 과거 이벤트가 소급 재생되지 않는다.
-- [ ] 모바일에서 최초 탭 이후 정상 재생된다(그 전에는 무음이 정상, 콘솔 에러 없음).
-- [ ] 낙찰음/유찰음이 `current-player-card.tsx`의 시각 셀레브레이션과 동시에 1회 발화한다(중복·이중 재생 없음).
-- [ ] `cd frontend && npm run lint && npm run build` 통과.
-- [ ] (기본안 채택 시) `public/sounds/` 에셋의 CC0 출처가 기록되어 있다.
+- [ ] "삐-" 계열 원시 단일 톤이 하나도 없다. bid/sold/pass 각각 타격감·공간감(리버브 테일)을 가진다 (feedback-001 충족).
+- [ ] `useAuctionSound(bidEvents, stageEvent)` 시그니처 무변경 → `use-auction-socket.ts` 수정 0줄.
+- [ ] 입찰 사운드가 콤보 단계(0~3)에 따라 피치/밝기 상승.
+- [ ] `playRevealLegendary`·`startFuseCrackle`/`stopFuseCrackle`가 export되어 리프 컴포넌트가 import 가능(엔진 함수 시그니처 확정).
+- [ ] 단일 공유 AudioContext — 훅 unlock과 엔진 재생이 동일 컨텍스트를 사용(중복 unlock/컨텍스트 없음).
+- [ ] 크래클은 `start` 중복 호출에도 하나만 루프, `stop`에서 완전 정지.
+- [ ] `any` 미사용. `cd frontend && npm run lint && npm run build` 통과.
 
 ## 테스트 요구사항
-- 단위 테스트: 프론트 훅은 오디오/타이머 의존이 커 자동 테스트 비용이 높음 — 필수 아님. 대신 다음 수동 검증 시나리오를 핸드오프에 기록: (1) 데스크톱에서 입찰→낙찰, 입찰→유찰 각 사운드 확인, (2) 모바일(또는 DevTools 모바일 에뮬레이션)에서 탭 전후 재생 차이 확인, (3) 재접속 시 소급 재생 없음 확인.
+- 단위 테스트: `bidComboLevel(count)` 경계값(1→0, 3→1, 5→2, 6→3) 순수 함수 테스트. (오디오 노드 자체는 jsdom에서 검증 어려우므로 순수 로직만 대상.)
+- 수동 검증: 데스크톱/모바일에서 최초 제스처 후 4종 재생 확인, 연속 입찰 시 피치 상승, 크래클 시작/정지.
+
+## 제약사항
+- 신규 npm 패키지 금지(Web Audio API만). 신규 mp3 에셋 금지(합성 유지).
+- `use-auction-socket.ts` 재수정 금지. `any` 금지.
+- reduced-motion은 시각 개념 → 사운드는 정지 대상 아님(단, 볼륨 절제로 불쾌감 방지).
+- 트리거 배선(stageEvent.seq / bidEvents / 모바일 unlock)은 변경 없이 생성부만 교체.
+</content>

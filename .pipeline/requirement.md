@@ -1,138 +1,120 @@
-# POTG 경매 고도화 — 효과음 / 최종 이미지 생성 수정 / 모바일 관전자 뷰 / 로그인 무한 새로고침 수정
+# POTG 경매 인터랙션 고도화 (하스스톤식 카드 연출) — 2차 사이클
 
 ## 생성일시
-2026-07-02 00:00
+2026-07-02 (조사 완료 시각 기준)
 
 ## 목적
-- 왜 만드는가: 현재 실시간 경매 화면에 청각 피드백이 없어 몰입감이 떨어지고, 경매 결과를 공유용 이미지로 저장하는 핵심 기능이 자주 실패하며, 모바일 관전자는 12-col 그리드 레이아웃이 그대로 반응 없이 눌려버려 사실상 시청이 불가능하다. 또한 새로운 IP/브라우저(신규 프로필·시크릿 모드 등)에서 로그인 시 무한 새로고침(리다이렉트 루프)에 걸려 서비스 진입 자체가 불가능한 심각한 버그가 있다.
-- 누가 사용하는가: 경매 참여자(캡틴), 마스터, 관전자(모바일 포함) 전원. 특히 모바일 뷰는 "관전자"가 주 대상.
-- 기대 효과: 실시간감 있는 경매 연출(효과음), 안정적인 결과 이미지 다운로드, 모바일에서도 트위치/치지직 세로 시청 스타일로 경매를 편하게 관전.
+- 왜 만드는가: 1차 사이클(효과음/이미지 생성/모바일 관전자 뷰/로그인)로 기본 체감 품질을 확보한 뒤, 실시간 경매의 핵심 감정 곡선(매물 공개 → 입찰 경쟁 → 마감 압박 → 낙찰 확정)을 하스스톤 카드팩 오프닝 수준의 게임적 연출로 강화한다. 현재도 `current-player-card.tsx`에 낙찰/유찰 셀레브레이션(베일→링 확산→빛 폭발→스탬프→파티클)이 이미 구현되어 있으나, "매물 공개"와 "입찰 임팩트"·"타이머 긴장감"·"팀 보드 시각화"는 아직 정적이다.
+- 누가 사용하는가: 캡틴(입찰 주체), 마스터(진행자), 관전자(모바일 포함) — `CurrentPlayerCard`/`BidTimer`/`TeamSidebar`는 `auction-ongoing-captain.tsx`, `auction-ongoing-master.tsx`, `auction-ongoing-spectator.tsx` 3개 뷰가 **동일 컴포넌트를 공유**하므로, `parts/*.tsx` 확장만으로 3개 역할 전원에게 자동 반영된다.
+- 기대 효과: 카드팩 오프닝급 매물 공개 연출로 몰입감 상승, 입찰 경쟁의 물리적 임팩트 체감, 마감 임박 긴장감 강화, 팀 결과를 게임 로스터 보드처럼 시각화.
 
 ## 스코프
 
 ### 포함 (이번에 만드는 것)
-- [ ] 입찰(bid) / 낙찰(sold) / 유찰(pass) 효과음 재생
-- [ ] 결과 이미지 생성 실패 원인 진단 및 수정 (`auction-completed.tsx` `handleDownload` / `html-to-image`)
-- [ ] 모바일 관전자 전용 반응형 레이아웃 (실시간 경매 현황 + 채팅만 노출)
-- [ ] 로그인 무한 새로고침(리다이렉트 루프) 수정 — 신규 IP/브라우저에서 재현
+- [ ] 매물 공개 = 팩 오프닝 연출 (카드 뒷면→플립, 등급 프레임/글로우, 전설급 화면 플래시+파티클+전용 사운드)
+- [ ] 입찰 = 카드 임팩트 (금액 스탬프 임팩트 + 미세 화면 흔들림, 연속 입찰 콤보 카운터로 강도/피치 상승)
+- [ ] 타이머 = 불타는 도화선 연출 (마감 N초 전부터 타이머 바 연소 + 지지직 사운드, 기존 `BidTimer` 확장)
+- [ ] 낙찰 = 전설 획득 + 팀 보드 (골든 카드 변신 → 팀 슬롯으로 flight-in, 팀 로스터 보드 시각화 강화)
+- [ ] (P2·검토) 낙찰 순간 OverFast 스킬 영상 배경 재생
 
 ### 제외 (이번에 만들지 않는 것)
-- 캡틴/마스터용 모바일 조작 UI (입찰/진행 컨트롤은 이번 스코프 아님 — 관전자 뷰만 대상)
-- 효과음 커스터마이징(사용자별 볼륨/음원 선택 등 고급 설정)
-- 결과 이미지 템플릿 디자인 변경 (레이아웃/컬러 등은 그대로, 생성 안정성만 수정)
-- 게스트 매물 수기 업로드 건 (이전 requirement, `.pipeline/docs/requirement-20260701-guest-upload.md` 참조 — 별도 파이프라인)
+- 관전자 이모트/응원 반응 (사용자 결정으로 제외)
+- 예측 베팅 연출 (별도 시스템 — 디스코드 제공 예정, 이 파이프라인 범위 아님)
+- 백엔드 신규 API/신규 소켓 이벤트 추가 (기존 `roomState`/`playerSelected`/`bidPlaced`/`bidConfirmed`/`playerPassed`/`timerUpdate` 이벤트와 기존 payload 필드만으로 구현. 단, 등급 프레임의 실제 티어/MMR 반영은 백엔드 필드 노출이 없어 이번 스코프에서 구현 불가 — 특이사항 참조)
+- 1차 사이클 산출물(효과음 3종 SFX, 이미지 생성 안정화, 모바일 관전자 레이아웃, 로그인 인증) 자체의 재작업 — 2차는 그 위에 확장만 함
+- 실제 서버 렌더링 미디어 트랜스코딩/저장(스킬 영상은 OverFast 원본 CDN을 직접 재생하는 방식만 검토, 자체 인코딩·캐싱 인프라 구축 없음)
 
 ## 기술스택
-- Frontend: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Shadcn UI, socket.io-client
-- 이미지 생성: `html-to-image` (기존 의존성, 신규 라이브러리 도입 없음)
-- 효과음: 신규 — Web Audio API 기반 자체 재생 유틸 권장 (신규 npm 의존성 추가 여부는 P0 항목에서 결정, 아래 "권장안" 참조)
-- Backend: NestJS 11, TypeORM, PostgreSQL, socket.io (이번 스코프는 원칙적으로 프론트 중심. 이미지 생성 실패는 원인 조사 결과 프론트 원인이 유력하므로 백엔드 변경 불필요할 가능성 높음 — 단, 조사 중 프록시/서버 원인이 확인되면 backend/src/modules/auctions/auctions.controller.ts 의 image-proxy 최소 수정 허용)
+- Frontend: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, Shadcn UI
+- 애니메이션: **framer-motion (기존 의존성, `^12.29.0`, 신규 설치 불필요)** — `current-player-card.tsx`에서 이미 `AnimatePresence`/`motion`으로 낙찰/유찰 셀레브레이션 구현 중. 카드 플립/flight-in/스프링 물리 모두 기존 API로 충분.
+- 파티클: 신규 라이브러리 도입 없이 기존 2개 패턴 재사용 — (1) `current-player-card.tsx`의 `BURST_PARTICLES`(index 기반 결정적 각도의 `<span>` + CSS keyframe, `globals.css`의 `.burst-particle`/`.flash-burst`) (2) `fx/starfield.tsx`의 canvas rAF 파티클(더 무거운 화면 전체 이펙트가 필요할 때만). `canvas-confetti` 등 신규 패키지 도입은 **권장하지 않음** (번들 증가 대비 이득 낮음, 기존 패턴으로 대체 가능).
+- 오디오: 1차 `use-auction-sound.ts`(HTMLAudioElement 또는 Web Audio 오실레이터, 태스크 결정에 따름) 확장. 피치 상승은 `HTMLAudioElement.playbackRate` 조정 또는 (Web Audio 합성 채택 시) 오실레이터 주파수 계수 조정으로 구현 — 신규 라이브러리 불필요.
+- Backend: NestJS 11, TypeORM, PostgreSQL, socket.io — **이번 스코프는 원칙적으로 미접근**. 등급 프레임의 실제 티어/MMR 데이터 노출이 불가피하다고 판단될 경우에만 `auctions-room-state.service.ts`의 기존 payload 필드 추가(신규 이벤트 아님)를 3차 이후 별도 검토 (특이사항 참조).
 
 ## 핵심 기능
 
 ### P0 (필수)
 
-#### 1. 효과음 (입찰 / 낙찰 / 유찰)
-- **트리거 지점 (코드 위치, 조사 완료)**: `frontend/src/modules/auction/hooks/use-auction-socket.ts`
-  - 입찰: `socket.on('bidPlaced', ...)` 핸들러 내부 (라인 ~130) — `pushBidEvent({ kind: 'bid', ... })` 호출 지점에서 효과음 트리거
-  - 낙찰: `socket.on('bidConfirmed', ...)` 핸들러 내부 (라인 ~140) — `setStageEvent({ kind: 'sold', ... })` 세팅 지점에서 효과음 트리거 (수동/자동 낙찰 공통)
-  - 유찰: `socket.on('playerPassed', ...)` 핸들러 내부 (라인 ~156) — `setStageEvent({ kind: 'pass', ... })` 세팅 지점에서 효과음 트리거 (수동/타이머 자동 유찰 공통)
-  - 이미 낙찰/유찰은 `AuctionStageEvent { kind: 'sold' | 'pass', seq }` 로 seq 증가 방식의 "1회성 이벤트" 패턴이 구축되어 있음 (연출 트리거 용도로 이미 사용 중 — `current-player-card.tsx`의 `stageEvent` prop 참조). 효과음도 동일 `stageEvent`를 구독해 seq 변화 시 1회 재생하는 방식을 재사용하는 것을 권장.
-- **구현 방식 권장안**:
-  - 신규 훅 `frontend/src/modules/auction/hooks/use-auction-sound.ts` 생성 — `bidEvents`(또는 신규 `bid` 카운터)와 `stageEvent`를 구독해 각각 사운드 재생
-  - 음원: 짧은 mp3/webm 에셋을 `frontend/public/sounds/`에 배치 (예: `bid.mp3`, `sold.mp3`, `pass.mp3`) 후 `new Audio(src).play()` 방식 — 별도 npm 라이브러리(howler 등) 도입은 불필요 (기존 코드베이스에 오디오 관련 코드/의존성 전무, 가벼운 3개 SFX 재생에는 네이티브 `HTMLAudioElement`로 충분)
-  - 자체 합성(Web Audio API 오실레이터)은 에셋 관리 불필요하다는 장점이 있으나 오버워치 테마에 맞는 사운드 퀄리티 확보가 어려움 — **음원 파일 방식을 기본안으로 하되, 무료 라이선스 SFX 확보가 어려울 경우 Web Audio API 합성으로 폴백**하는 것으로 Planner 단계에서 최종 결정
-- **모바일 자동재생 정책 고려사항**: iOS Safari/Chrome 등 모바일 브라우저는 사용자 인터랙션 없이 오디오 재생을 차단(autoplay policy)한다. 관전자가 페이지 진입 후 최초 클릭/탭(예: "관전 시작" 또는 음소거 토글 버튼) 전에는 효과음이 재생되지 않을 수 있음을 감안해, 최초 1회 사용자 제스처(탭)로 `AudioContext`/오디오 요소를 unlock 하는 처리 포함
-- **P0 범위**: 3개 이벤트(입찰/낙찰/유찰) 효과음 재생 + 모바일 autoplay unlock 처리
+#### 1. 매물 공개 = 팩 오프닝 연출
+- **트리거 지점**: `frontend/src/modules/auction/components/parts/current-player-card.tsx:63-64` — 이미 `player.id !== lastPlayer?.id`로 매물 전환을 감지하는 `lastPlayer` state 패턴이 존재. **신규 소켓 이벤트 불필요** — 동일 패턴으로 "새 매물 공개" 트리거를 판별한다 (`roomState.currentPlayer`가 `playerSelected`/`roomState` 브로드캐스트로 갱신되는 기존 경로 재사용).
+- **접근 방식**: 매물 전환 감지 시 `biddingPhase === 'WAITING'` 구간에서 카드 뒷면(엠블럼/실루엣) → 플립 → 정면 공개 애니메이션을 `framer-motion`의 3D `rotateY` 트랜지션으로 구현. 현재 아바타(`Avatar` + `AvatarImage src={portraitByKey.get(hero) ?? avatarUrl}`, 라인 136-157)를 카드 아트로 그대로 사용 — `displayPlayer.hero`가 `RoomStateParticipant.user.representativeHero`(대표 영웅) 기반이므로 별도 작업 없이 이미 대표 영웅이 카드 아트에 쓰이고 있음.
+- **등급 프레임**: 아래 "등급 프레임 산정 기준" 참조 — 실제 티어/MMR 데이터가 프론트까지 내려오지 않으므로, 매물 id 기반 **결정적 pseudo-rarity**(일반/레어/전설 확률 배분, 예: 70/25/5)를 기본안으로 채택. 프레임 색상/글로우는 등급별 CSS 클래스(`border-*`, `drop-shadow-*`)로 `Avatar` 테두리와 카드 외곽에 적용.
+- **전설급 연출**: 화면 전체 플래시(기존 `.flash-burst` radial-gradient 패턴 확장, 전체 뷰포트 오버레이) + 파티클(`BURST_PARTICLES` 패턴 재사용, 개수/반경 확대) + 전용 사운드(1차 `use-auction-sound.ts`에 `reveal-legendary` 종류 추가, HTMLAudioElement 또는 오실레이터 합성).
 
-#### 2. 최종 이미지 생성 실패 — 진단 및 수정
-- **관련 파일**:
-  - `frontend/src/modules/auction/components/auction-completed.tsx` (`handleDownload`, 라인 ~68-88) — `toPng(posterRef.current, { cacheBust: true, pixelRatio: 2, backgroundColor: '#0b0b0b' })` 호출
-  - `frontend/src/modules/auction/components/parts/auction-result-poster.tsx` — 캡처 대상 DOM (1080px 고정폭, 다수의 원격 이미지 `<img crossOrigin="anonymous">` 포함)
-  - `backend/src/modules/auctions/auctions.controller.ts` (`imageProxy`, 라인 84-136) — 원격 이미지(OverFast 영웅 초상화, Discord 아바타) CORS 우회 프록시. `Access-Control-Allow-Origin: *` 정상 설정 확인됨, 화이트리스트(`overfast-api.tekrop.fr`, `d15f34w2p8l1cc.cloudfront.net`, `cdn.discordapp.com`, `media.discordapp.net`)도 합리적으로 구성되어 있어 프록시 자체의 설계 결함 가능성은 낮음
-- **원인 가설 (확신도 순, 코드 리딩 기반 — 실제 브라우저 콘솔 에러 로그 미확보 상태이므로 확정 아님)**:
-  1. **(중) 진단 정보 부재로 원인 특정 불가능한 구조적 문제**: `handleDownload`의 catch 블록이 `handleApiError(error, '이미지 생성 실패')`만 호출하고 `console.error(error)` 등 실제 에러 객체를 로깅하지 않음 (auction-completed.tsx 라인 ~86 부근). 즉 지금 구조로는 사용자/개발자 모두 "실패했다"는 사실만 알고 원인(타임아웃/CORS/폰트/canvas 크기 등)을 알 수 없음. **이것 자체가 1차 수정 대상** — 원인 진단이 가능하도록 로깅/에러 노출을 먼저 개선해야 근본 수정이 가능
-  2. **(중) html-to-image의 cross-origin stylesheet 접근 에러**: html-to-image는 폰트 임베딩을 위해 `document.styleSheets`를 순회하며 각 스타일시트의 `cssRules`에 접근하는데, 페이지에 cross-origin `<link rel="stylesheet">`(브라우저 확장 프로그램 주입 스타일, 외부 CDN 등)가 존재하면 `cssRules` 접근 시 SecurityError가 발생해 전체 캡처가 실패하는 것이 html-to-image의 널리 알려진 이슈. 사용자별 설치된 확장 프로그램에 따라 간헐적으로 실패("자꾸 실패"하지만 항상은 아닌 패턴)하는 현상과 부합
-  3. **(중) 다수 원격 이미지 로딩 지연/실패**: 포스터는 팀당 여러 멤버의 영웅 초상화(`heroPortraits`)와 아바타를 모두 `image-proxy`를 거쳐 로드. 팀/인원이 많을수록 프록시 호출이 많아지고, 백엔드 프록시의 개별 fetch 타임아웃은 5초로 설정되어 있으나 브라우저 측에서 다수의 병렬 이미지 로드 완료를 html-to-image가 기다리는 동안 전체적으로 느려지거나, 프록시 응답 지연 시 이미지 일부가 로드되지 않은 상태로 캡처가 시도되어 실패할 가능성
-  4. **(하) 폰트 로딩 타이밍**: `document.fonts.ready`를 기다리지 않고 `toPng` 호출 시 next/font로 로드되는 `Exo_2` (900 weight, italic 등 다양한 스타일) 웹폰트가 캡처 시점에 아직 준비되지 않아 렌더링 실패 또는 레이아웃 시프트로 이어질 가능성 (에러보다는 시각적 결함 가능성이 더 높으나 배제 불가)
-  5. **(하) pixelRatio 2 배율로 인한 canvas 크기 제한**: 1080px 폭 DOM을 pixelRatio 2로 캡처 시 실제 canvas는 2160px 이상 — 저사양 기기/모바일 브라우저에서 canvas 최대 크기 제한에 걸릴 가능성 (다만 현재 다운로드 버튼은 데스크톱 마스터 화면에서만 노출되어 우선순위 낮음)
-- **수정 방향 (P0)**:
-  1. `handleDownload` catch 블록에 `console.error('[AuctionResultPoster] image generation failed', error)` 등 실제 에러 로깅 추가 — 최소한의 안전한 첫 조치이자 향후 재발 시 원인 파악 가능하게 함
-  2. `toPng` 호출 전 `document.fonts.ready` await 추가
-  3. `toPng` 옵션에 `skipFonts: true` 또는 `fontEmbedCSS: ''` 검토 — 포스터는 인라인 스타일 기반 고정 디자인이라 웹폰트 임베딩 없이도 시각적 차이가 크지 않을 가능성이 있어, cross-origin stylesheet 접근 에러(가설 2)를 원천 차단하는 효과 기대. 단, `--font-exo2` CSS 변수를 인라인 `fontFamily`로 참조하고 있어(`auction-result-poster.tsx`) 폰트 임베딩 스킵 시 캡처 이미지의 폰트가 시스템 기본 폰트로 대체될 수 있음 — Planner/Implementor 단계에서 시각적 트레이드오프 확인 필요
-  4. 실패 시 1회 자동 재시도 로직 추가 (일시적 네트워크/타이밍 이슈 대응)
-  5. 위 조치 후에도 실패가 재현되면, 로깅된 실제 에러 메시지를 바탕으로 2차 수정 (예: 프록시 타임아웃 연장, 이미지 로드 실패시 폴백 아바타로 대체 후 캡처 진행 등)
-
-#### 3. 모바일 관전자 레이아웃
-- **현황 (조사 완료)**: `frontend/src/modules/auction/components/auction-ongoing-spectator.tsx` 는 `grid grid-cols-12` 고정 그리드를 사용하며 각 영역이 `lg:col-span-N`만 지정되어 있고 `lg` 미만(모바일/태블릿)에서는 `col-span-12`(팀 사이드바) 또는 `col-span-6`(선수 현황 그리드, 채팅)로 좁게 압축되어 표시됨. 즉 모바일에서 별도 레이아웃 분기가 전혀 없어 4~5개 영역이 그대로 세로로 쌓이거나 절반 폭으로 눌린 채 노출되어 실질적으로 확인 불가능한 상태 (요구사항 2번 버그 원인과 일치하는 구조적 문제).
-- **레이아웃 요구사항**:
-  - 세로 화면(모바일) 기준, 트위치/치지직 세로 시청 스타일 UX: **상단 고정 — 실시간 경매 현황** (현재 매물 카드 `CurrentPlayerCard` + 현재가/입찰자 + `BidTimer`), **하단 — 채팅** (`ChatPanel`)만 노출
-  - 팀 사이드바(`TeamSidebar`), 입찰 로그(`BidLog`), 선수 현황 그리드(`PlayerStatusGrid`)는 모바일에서는 기본 숨김 (필요 시 접이식/탭 전환으로 P1에서 확장 가능, 이번 P0는 "경매 현황 + 채팅"만)
-  - 관전자는 조작 불가(터치 인터랙션 없음, 스크롤만) — 기존 관전자 권한 그대로 유지
-  - 채팅 영역은 화면 하단에서 남은 공간을 채우며 자체 스크롤, 입력창은 하단 고정
-- **접근 경로 권장안**: **같은 URL(`/auction` 등 기존 경매 페이지)에서 반응형(breakpoint) 분기**를 권장. 근거:
-  - 기존 코드가 이미 `AuctionOngoingSpectator` 컴포넌트 하나로 마스터/캡틴/관전자 role 분기를 수행 중이며 (`use-auction-role.ts` 확인됨), 별도 라우트를 신설하면 소켓 연결/roomState 관리 로직(`useAuctionSocket`)을 중복 유지해야 해 상태 동기화 버그 위험이 커짐
-  - Next.js App Router 특성상 별도 라우트(`/auction/mobile` 등)는 공유 링크 관리, SEO, 인증 가드 등을 이중으로 구성해야 하는 부담이 있음
-  - Tailwind 반응형 유틸리티(`sm:`, `md:`, `lg:` 등)만으로 컴포넌트 조건부 렌더링이 충분히 가능한 구조(`AuctionOngoingSpectator` 내부에서 `lg:` 미만일 때 별도 모바일 전용 JSX 블록 분기)
-  - **구현 방향**: `AuctionOngoingSpectator` 내부에 `lg` 미만 전용 레이아웃 블록을 추가(예: `<div className="lg:hidden">...모바일 전용 상단현황+채팅...</div>` / 기존 12-col 그리드는 `hidden lg:grid`로 감싸 데스크톱 전용으로 격리), 기존 데스크톱 JSX는 구조 변경 없이 `hidden lg:grid`만 추가해 최소 침습적으로 처리
-  - 접속 URL/라우팅 변경 없음 — 사용자는 모바일 브라우저로 기존 경매 링크 접속 시 자동으로 최적화 레이아웃 노출
-
-#### 4. 로그인 무한 새로고침(리다이렉트 루프) 수정
-- **증상**: 신규 IP/브라우저(시크릿 모드, 새 프로필 등)에서 로그인 시 페이지가 새로고침만 반복되고 다음 페이지로 진입하지 못함. 기존 브라우저(이미 로그인 이력 있는 환경)에서는 정상.
-- **인증 플로우 조사 결과**:
-  - 프론트 로그인: `frontend/src/app/login/page.tsx` `onValid` (~28-38줄) — `login()` 호출 후 `router.replace("/")`
-  - `frontend/src/context/auth-context.tsx` `login()` (108-119줄) — `POST /auth/login` 후 `fetchUser()`로 `GET /auth/profile` 재조회해 `user` 상태 설정. `fetchUser` 내부는 실패해도 조용히 `setUser(null)` 처리(101-112줄)하고 throw 하지 않으므로, `login()` 자체는 쿠키 저장 성공 여부와 무관하게 항상 정상 반환됨
-  - `frontend/src/app/page.tsx` (대시보드, 11-26줄) — `useEffect`에서 `!user` 이면 `router.replace("/login")`로 즉시 되돌림
-  - `frontend/src/common/components/auth-guard.tsx` (11-34줄) — 다른 보호 라우트에서도 동일하게 `!user` 시 `/login`으로 push
-  - 토큰 저장 방식: 프론트는 별도 토큰 저장(localStorage 등) 없이 **전적으로 백엔드 HttpOnly 쿠키**(`access_token`)에 의존. `frontend/src/lib/api.ts`는 `withCredentials: true`로 axios 설정, 별도 Authorization 헤더 처리 없음. `middleware.ts`는 존재하지 않음(서버사이드 라우트 가드 없음 — 클라이언트 useEffect 리다이렉트만 존재).
-  - 백엔드 쿠키 설정: `backend/src/common/config/access-token-cookie.ts` `buildAccessTokenCookieOptions()` — `{ httpOnly: true, secure: true, sameSite: 'none', maxAge: 7일, path: '/' }`. 코드 주석에 이미 "프론트(Vercel `*.vercel.app`)와 백엔드(`potg.joonbi.co.kr`)가 서로 다른 도메인(cross-site)이므로 `SameSite=None; Secure` 필요"라고 명시되어 있어, 설계자도 크로스사이트 쿠키 구조임을 인지하고 있었음
-  - CORS: `backend/src/main.ts` (71-76줄) `credentials: true` + `backend/src/common/config/cors-origins.ts`의 화이트리스트(`potg-psi.vercel.app`, `potg.joonbi.co.kr`, `localhost`, `*.vercel.app`) — CORS 설정 자체는 정상이며 쿠키 전송 자체를 막는 요인은 아님
-- **원인 진단 (확신도 높음)**: 프론트(`potg-psi.vercel.app`)와 백엔드(`potg.joonbi.co.kr`)가 서로 다른 사이트(eTLD+1이 다름)이므로 `access_token` 쿠키는 **서드파티(third-party) 쿠키**로 취급됨. `SameSite=None; Secure`로 설정되어 있어 프로토콜상으로는 크로스사이트 전송이 허용되지만, Chrome 시크릿 모드/새 프로필, Safari(ITP 기본 차단), Firefox(ETP strict) 등 다수 브라우저가 **기본값으로 서드파티 쿠키를 차단**하거나 첫 로그인 이후에야 예외를 학습하는 방식으로 동작함. 이는 "새 IP/브라우저(즉 쿠키 학습 이력이 없는 환경)에서만 재현되고, 기존 브라우저에서는 정상"이라는 증상과 정확히 일치함.
-- **무한 새로고침 루프 경로 (특정 완료)**:
-  1. `login/page.tsx` `onValid` → `login()` 호출 → `POST /auth/login` 성공 응답은 오지만, 브라우저가 서드파티 쿠키이므로 `Set-Cookie` 헤더를 **저장하지 않음**
-  2. `auth-context.tsx` `login()` 내부 `fetchUser()` → `GET /auth/profile` 요청 시 쿠키가 없어 401 → catch에서 `setUser(null)` (에러를 삼킴, throw 없음)
-  3. `login()`은 정상 반환되므로 `login/page.tsx`의 `router.replace("/")` 그대로 실행 → 대시보드(`app/page.tsx`)로 이동
-  4. `app/page.tsx`의 `useEffect`가 `user === null`을 감지 → 즉시 `router.replace("/login")`로 되돌림
-  5. `/login`으로 돌아오면 로그인 폼이 다시 렌더 — 사용자에게는 "새로고침만 반복되고 안 넘어간다"로 체감됨 (실제로는 매번 로그인 폼 재마운트 + 대시보드 리다이렉트 왕복이 반복되거나, 사용자가 재로그인을 반복 시도하며 동일 패턴이 재현)
-  6. 동일한 `!user` 가드가 `auth-guard.tsx`(다른 보호 라우트)에도 존재해 어떤 보호 페이지로 이동해도 동일하게 `/login`으로 되돌아오는 루프가 발생
-- **수정 방향 권장안 (현재 구조 기준 최소 침습)**:
-  1. **(권장, 최소 침습)** 쿠키를 유지하되 **Authorization 헤더 기반 병행 방식으로 전환**: 로그인 응답 바디에 `access_token`을 함께 반환하거나, 쿠키 실패 시 폴백으로 프론트가 토큰을 받아 메모리/`localStorage`에 저장하고 axios 인터셉터에서 `Authorization: Bearer <token>` 헤더를 첨부. 백엔드 `jwt.strategy.ts`가 쿠키 외에 `Authorization` 헤더도 함께 지원하도록 확장(passport-jwt의 `ExtractJwt.fromExtractors`로 쿠키+헤더 이중 추출). 크로스사이트 쿠키 차단 브라우저에서도 동작하며, 기존 쿠키 기반 흐름(소켓 인증 등)은 그대로 유지 가능
-  2. **(구조적 근본 해결, 침습 큼)** 프론트/백엔드를 동일 사이트(same-site)로 통일 — 예: `potg.joonbi.co.kr`을 프론트 도메인으로 쓰고 `/api`를 백엔드로 프록시(Vercel rewrites 또는 리버스 프록시)해 쿠키를 first-party로 전환. 근본적이지만 배포 인프라 변경이 필요해 이번 스코프의 "최소 침습" 기준에는 맞지 않음 — 후속 과제로 별도 requirement 분리 권장
-  3. **(즉각 완화, 병행 권장)** `login()`이 `fetchUser()` 실패를 삼키지 않고 실제 실패를 감지하도록 수정 — 로그인 직후 프로필 조회 실패 시(쿠키 미저장 의심) 사용자에게 "브라우저의 서드파티 쿠키 차단 설정을 확인해 주세요" 등 명확한 에러 토스트를 띄우고 무한 루프 대신 로그인 페이지에 머무르게 해 UX상 루프 체감을 제거 (근본 수정은 아니나 즉시 적용 가능한 안전장치)
-  - **이번 P0 범위**: 방안 1(Authorization 헤더 병행 지원)을 우선 구현하고, 방안 3(에러 가시화)을 함께 적용해 폴백 실패 시에도 무한 루프 대신 명확한 안내가 뜨도록 함. 방안 2(도메인 통일)는 스코프 제외, 특이사항에 후속 과제로 기록.
+#### 2. 입찰 = 카드 임팩트
+- **트리거 지점**: `use-auction-socket.ts:132-142`의 `bidPlaced` 리스너가 이미 `pushBidEvent({ kind: 'bid', ... })`로 `bidEvents` 배열에 push (1차 task-001이 이 파일을 배타적으로 소유하므로 **2차는 이 파일을 재수정하지 않는다** — `bidEvents` 배열은 이미 `id`/`timestamp`를 포함해 외부로 노출되어 있으므로, 콤보 카운터는 `current-player-card.tsx` 또는 신규 프론트 훅에서 `bidEvents`를 구독해 `kind==='bid'` 항목의 연속 타임스탬프 간격만으로 계산 가능 — **`use-auction-socket.ts` 수정 불필요**).
+- **접근 방식**: 새 `kind:'bid'` 이벤트 수신 시 금액 텍스트가 카드 입찰가 패널(`current-player-card.tsx:210-216`, 기존 `bid-pop` 클래스 확장)에 "꽂히는" 임팩트 애니메이션(스케일 오버슈트 + 짧은 회전) + `document.body` 또는 카드 컨테이너에 `transform: translate` 기반 미세 화면 흔들림(4~6px, 80~120ms, `prefers-reduced-motion` 시 생략).
+- **콤보 카운터**: N초(예: 3초) 이내 연속 `bid` 이벤트 개수를 세어 콤보 배지 표시, 콤보 단계별로 임팩트 스케일/흔들림 강도/사운드 `playbackRate`(또는 오실레이터 주파수 계수)를 단계적으로 상승. 콤보는 매물 전환 또는 N초 무입찰 시 리셋.
 
 ### P1 (중요)
-- [ ] 효과음 음소거(mute) 토글 버튼 (경매 화면 상단, localStorage에 상태 저장)
-- [ ] 모바일 뷰에서 팀 현황/입찰 로그를 탭 전환 또는 바텀시트로 확인할 수 있는 보조 UI
-- [ ] 이미지 생성 실패 시 사용자에게 재시도 버튼 제공 (자동 재시도 실패 후)
+
+#### 3. 타이머 = 불타는 도화선
+- **대상 파일**: `frontend/src/modules/auction/components/parts/bid-timer.tsx` (단일 파일, 다른 1차 태스크가 소유하지 않음).
+- **접근 방식**: 기존 게이지 바(라인 111-125, `width: ${fraction*100}%` + hue 보간)를 확장 — 마감 N초 전(`isUrgent`, 이미 `value <= 5` 판정 존재, 라인 32)부터 게이지 끝단에 불꽃/스파크 스프라이트를 CSS keyframe으로 추가하고, 게이지 배경에 옅은 연소 텍스처(그라데이션 노이즈)를 얹는다. 기존 `isUrgent`/`isEnded` 분기, `aria-live`/`role=timer` 접근성 구조는 그대로 유지.
+- **사운드**: 지지직(도화선 연소) 사운드는 1차 오디오 유틸 패턴 재사용 — `isUrgent` 진입 시 1회, 필요 시 루프(짧은 loop, 종료 시 정지). 볼륨/피치는 고정(콤보와 별개).
+
+#### 4-a. 낙찰 = 전설 획득 + 팀 보드 (골든 카드 변신 + flight-in)
+- **트리거 지점**: `current-player-card.tsx:66-71`의 기존 `stageEvent.seq` 감지 → `celebrate==='sold'` 분기(라인 230-310, 이미 낙찰 셀레브레이션 구현됨)를 **확장**. 골든 카드 변신(테두리/배경 골드 그라데이션 전이)은 기존 `celebrate==='sold'` 블록에 애니메이션 단계 추가로 구현.
+- **flight-in 대상**: `frontend/src/modules/auction/components/parts/team-sidebar.tsx` — 이미 팀별 카드에 크라운/팀명/포인트/멤버 아바타 행/에너지 게이지를 갖춘 "보드" 형태(라인 55-222)이므로 완전 신규 컴포넌트가 아니라 **기존 `TeamSidebar`에 신규 영입 멤버 슬롯의 flip-in/pop 애니메이션을 추가**하는 방식을 권장 (라인 140-167의 `team.members.map` 렌더링에 최근 추가된 멤버만 진입 애니메이션 적용 — 예: 직전 `stageEvent.seq`와 매칭되는 멤버 id를 감지).
+- **카드 flight 경로**: `CurrentPlayerCard`(중앙)에서 낙찰 팀의 `TeamSidebar` 카드 위치로 날아가는 연출은 두 컴포넌트가 서로 다른 DOM 트리(형제가 아닌 별도 그리드 셀)에 위치하므로, `framer-motion`의 `layoutId` 공유 애니메이션(같은 `layoutId`를 가진 요소가 다른 위치에 나타나면 자동 보간 이동) 사용을 권장 — 두 컴포넌트가 부모(`auction-ongoing-captain.tsx`/`auction-ongoing-master.tsx`)에서 함께 `LayoutGroup`으로 감싸져 있어야 동작하므로, 이 두 뷰 파일의 최소 수정(래핑)이 필요할 수 있음.
 
 ### P2 (있으면 좋음)
-- [ ] 효과음 볼륨 조절
-- [ ] 낙찰 시 화면 진동(Vibration API, 모바일 한정) 등 추가 피드백
-- [ ] 모바일 관전자 화면 공유(스크린샷/URL) 최적화
 
-## 제약사항
-- `frontend/src/components/ui/*` (Shadcn 컴포넌트) 수정 금지
-- `frontend/src/lib/utils.ts` 수정 금지
-- `any` 타입 사용 금지
-- Tailwind CSS만 사용, 별도 CSS 파일 생성 금지 — 신규 사운드 재생 유틸도 인라인 스타일/CSS 파일 없이 로직만 추가
-- 오버워치 테마(futuristic, skewed buttons, 고대비 네온) 유지 — 모바일 레이아웃도 기존 디자인 토큰/색상 체계를 그대로 사용
-- 백엔드 변경 최소화: 효과음/모바일 뷰는 프론트 전용 작업으로 백엔드 변경 없음. 이미지 생성 수정은 원인이 프론트(html-to-image 옵션/에러 핸들링)로 확인될 가능성이 높아 원칙적으로 프론트 전용이나, 진단 과정에서 프록시 타임아웃 등 백엔드 원인이 확정되면 `auctions.controller.ts`의 `imageProxy`만 최소 수정 허용
-- `backend/src/modules/*/*.entity.ts` 수정 금지 (이번 스코프에서 DB 스키마 변경 불필요)
-- 신규 오디오 에셋(mp3/webm) 사용 시 라이선스 확인 필수 (무료/CC0 SFX만 사용)
-- 기존 `useAuctionSocket`의 이벤트 리스너 등록 구조를 최대한 재사용 (신규 소켓 연결/이벤트 추가 지양)
-- 로그인 수정은 도메인 통일(방안 2) 등 배포 인프라 변경 없이, 기존 쿠키 기반 인증을 유지하면서 헤더 기반 폴백을 추가하는 최소 침습 방식으로 진행 (`jwt.strategy.ts` 확장 시 기존 쿠키 인증 경로를 깨지 않아야 함 — 회귀 금지)
+#### 4-b. 낙찰 순간 스킬 영상 배경 재생 (검토)
+- **실현 가능성 확인 결과**: OverFast API의 `/heroes/{key}` 상세 엔드포인트(`https://overfast-api.tekrop.fr/heroes/{key}`, 기존 `use-heroes.ts`가 쓰는 목록 엔드포인트와 별개)가 각 스킬의 `video.link.mp4`/`video.link.webm` URL을 실제로 제공함을 curl로 직접 확인했다 (예: Genji Shuriken/Deflect 등, 1920x1080p30 원본). 영상은 `blz-contentstack-assets.akamaized.net` 호스트에 위치.
+- **팀장님이 언급한 "프록시 화이트리스트 등록됨"은 사실과 다름 — 정정 필요**: `backend/src/modules/auctions/auctions.controller.ts`의 `image-proxy`(라인 31-136)는 (1) 호스트 화이트리스트가 `overfast-api.tekrop.fr`/`d15f34w2p8l1cc.cloudfront.net`(OverFast 초상화)/Discord 아바타 2개뿐이며 스킬 영상 호스트(`blz-contentstack-assets.akamaized.net`)는 **포함되어 있지 않고**, (2) 응답 content-type을 `image/png|jpeg|webp|gif|avif`로만 제한해 **video/mp4·video/webm 자체를 차단**한다 (라인 118-127). 즉 현재 프록시로는 스킬 영상을 절대 통과시킬 수 없다.
+- **그럼에도 백엔드 변경 없이 구현 가능**: 위 프록시는 `html-to-image` canvas 캡처 시 발생하는 cross-origin taint 문제를 우회하기 위한 것(2차 요구사항의 결과 이미지 생성과 동일 맥락)이며, 이번 기능은 **캡처가 아닌 단순 `<video>` 재생**이므로 애초에 프록시/CORS 헤더가 필요 없다. `<video src="https://blz-contentstack-assets.akamaized.net/...mp4">`를 프론트에서 직접 렌더링하면 별도 백엔드 변경 없이 재생 가능 (일반 브라우저의 cross-origin video 재생은 CORS 제약을 받지 않음, 픽셀 접근이 필요한 canvas 캡처 시에만 문제가 됨).
+- **P2로 낮추는 이유(리스크)**: (1) 원본 영상이 1920x1080 수준으로 파일 크기가 수 MB~수십 MB로 커 모바일 데이터/성능 부담이 큼 (2) 어떤 스킬 영상을 대표로 쓸지 선정 기준 필요(궁극기 우선 등, API 응답에 궁극기 플래그가 명확하지 않아 휴리스틱 필요) (3) `/heroes/{key}` 상세 API를 낙찰 시점에 새로 fetch해야 해 지연 발생 가능 (4) 모바일 관전자/`prefers-reduced-motion` 환경에서는 재생하지 않는 것이 사실상 필수라 P0/P1 대비 체감 이득이 제한적.
+- **권장**: 데스크톱 한정, feature flag 형태로 검토 구현. 뮤트 자동재생(`muted autoplay loop` 또는 1회 재생 후 정지), 로드 실패/지연 시 기존 골드 카드 연출로 조용히 폴백.
+
+## 등급 프레임 산정 기준 (조사 결론)
+- **실제 티어/MMR 데이터는 현재 프론트에 전달되지 않는다.** `backend/src/modules/users/entities/user.entity.ts:41-42`에 `rating` 컬럼이 존재하나 주석상 "OverFastAPI 연동 후 실제 랭크 사용" 예정 필드로 대다수 값이 비어있을 가능성이 높고, 무엇보다 `AuctionsRoomStateService.getRoomState()`(`auctions-room-state.service.ts:174-188`)의 `currentPlayer` 조립 로직과 프론트 `RoomStatePlayer` 타입(`types.ts:68-74`) 어디에도 `rating`/tier 필드가 포함되어 있지 않다. 코드베이스 전체(backend+frontend)에서 `tier`/`mmr` 키워드 자체가 존재하지 않는다.
+- **기본안(채택 권장)**: 매물(`player.id`) 기반 **결정적 해시 → 등급 매핑** (예: id 문자열 해시값 % 100 구간으로 일반/레어/전설 배분, 시드 고정이라 같은 매물은 새로고침해도 같은 등급 유지). 실제 실력을 반영하지 않는 순수 코스메틱 연출이며, "카드팩 오프닝의 재미" 자체가 목적이므로 하스스톤 등급 시스템의 정신(희소성 연출)에 부합. UI 문구에서 "등급"을 실력 지표처럼 표현하지 않도록 주의(예: "S급 매물" 대신 "레전더리 카드" 등 게임적 표현 권장).
+- **대안(비권장, 3차 이후 검토)**: 실제 데이터 기반 등급을 원할 경우 `auctions-room-state.service.ts`의 `currentPlayer`/`unsoldPlayers` 조립 시 `user.rating`을 추가 노출하는 **최소 백엔드 필드 확장**이 필요(신규 API/신규 소켓 이벤트는 아니고 기존 payload 필드 추가). 다만 (1) `rating` 값의 실제 채움 여부 확인 필요(대부분 null이면 의미 없음) (2) 이번 2차는 "백엔드 신규 API/소켓 이벤트 추가 금지" 원칙이므로 스코프 외로 명확히 제외하고, 필요 시 3차 요구사항으로 별도 상정할 것을 권장.
+
+## 제약사항 (CLAUDE.md + requirement.md 공통 원칙)
+- `any` 타입 사용 금지.
+- Tailwind CSS만 사용, 별도 CSS 파일 신규 생성 금지 — 단, 기존 `globals.css`의 keyframe 확장(예: `.burst-particle`, `.flash-burst`, `prefers-reduced-motion` 블록 추가 항목)은 기존 파일 내 추가이므로 허용 범위로 간주(신규 라이브러리/신규 CSS 파일 생성과는 구분).
+- `frontend/src/components/ui/*`(Shadcn), `frontend/src/lib/utils.ts` 수정 금지 — `cn()` 유틸로 클래스 병합.
+- 신규 npm 라이브러리 도입 최소화 원칙 — 이번 스코프는 기존 `framer-motion` 재사용만으로 4개 기능 모두 구현 가능하다고 판단, **신규 라이브러리 도입 없음**을 기본 방침으로 한다. Implementor가 구현 중 불가피하게 라이브러리가 필요하다고 판단하면 (예: 정밀 사운드 피치 시프트 등) 핸드오프에 (1) 왜 기존 스택으로 불가능한지 (2) 번들 크기 영향 (3) 대안 검토 근거를 명시하고 도입해야 한다.
+- 오버워치 테마(futuristic, skewed buttons, 고대비 네온) 및 기존 디자인 토큰/색상 체계(`--ow-gold`, `--ow-blue`, `--ow-red` 등) 유지 — 하드코딩 색상/폰트/간격 금지.
+- **접근성 — `prefers-reduced-motion` 필수 대응**: `globals.css:477-492`에 이미 감소 모션 시 장식 애니메이션을 정지시키는 미디어쿼리 블록이 있고, `fx/starfield.tsx`가 `window.matchMedia('(prefers-reduced-motion: reduce)')`로 canvas 애니메이션을 정적 렌더로 대체하는 기존 패턴이 있음. 2차의 신규 keyframe/파티클/영상/화면 흔들림 전부 동일 원칙 적용 — reduced-motion 환경에서는 플립/흔들림/파티클/영상을 생략하고 상태 변화만 즉시 반영(정적 등급 프레임·정적 골드 테두리 등은 유지 가능).
+- **모바일 관전자 뷰(task-003 산출물) 동작 범위**: `auction-ongoing-spectator.tsx`의 모바일 블록도 `CurrentPlayerCard`/`BidTimer`/`TeamSidebar`(팀 보드는 모바일에서 숨김 대상이므로 4-a의 flight-in은 모바일 미노출)를 그대로 재사용하므로 2차 연출이 자동 반영된다. 모바일에서는 데이터/성능 절약을 위해 (1) 화면 흔들림 강도 축소 또는 생략 (2) 전설급 화면 플래시/파티클 개수 축소 (3) P2 스킬 영상은 데스크톱 전용으로 제한을 권장.
+- 백엔드 변경 없음이 원칙 (등급 프레임 실데이터화·스킬 영상 프록시화는 모두 스코프 제외, 위 섹션 참조).
 
 ## 성공 기준
-- **효과음**: 입찰 발생 시, 낙찰 확정 시, 유찰 확정 시 각각 구분되는 효과음이 재생된다. 모바일에서 최초 사용자 탭 이후 정상 재생된다. 음소거 시 재생되지 않는다(P1 구현 시).
-- **이미지 생성**: 실패 원인이 콘솔 로그로 확인 가능해야 하며, 조치 후 정상 케이스(팀 2~4개, 멤버 다수, 미낙찰 포함)에서 반복 다운로드 시 일관되게 성공한다. 실패 시에도 사용자에게 명확한 에러 토스트가 표시된다.
-- **모바일 관전자 뷰**: 실제 모바일 뷰포트(375px~430px 폭) 및 Chrome DevTools 반응형 모드에서 "현재 매물/입찰 현황"과 "채팅"이 스크롤 없이 한 화면에 보이거나 세로 스크롤만으로 자연스럽게 확인 가능해야 함. 데스크톱(lg 이상)에서는 기존 레이아웃이 그대로 유지되어야 함(회귀 없음).
-- 전체 공통: `cd frontend && npm run lint` 및 `npm run build` 통과
-- **로그인 무한 새로고침**: 새 브라우저(시크릿 모드) 또는 새 브라우저 프로필/신규 IP 환경에서 로그인 시 무한 리다이렉트 루프 없이 정상적으로 대시보드(`/`)에 진입해야 함. 기존 쿠키 기반 로그인 흐름(동일 브라우저 재방문, 소켓 인증 등)은 회귀 없이 그대로 동작해야 함.
+- [ ] 새 매물이 공개되면 카드 뒷면→플립 애니메이션 후 정면(대표 영웅 아트)이 드러나며, 매물 id 기반 결정적 등급(일반/레어/전설) 프레임이 표시된다.
+- [ ] 전설급 매물 공개 시 화면 플래시 + 파티클 + 전용 사운드가 함께 발화한다(중복 재생 없음, 1차 오디오 unlock 패턴과 충돌 없음).
+- [ ] 입찰 발생 시 금액이 카드에 꽂히는 임팩트 애니메이션과 미세 화면 흔들림이 발생한다.
+- [ ] N초 이내 연속 입찰 시 콤보 카운터가 증가하고, 콤보 단계에 따라 이펙트 강도/사운드 피치가 상승하며, 매물 전환 또는 무입찰 시 리셋된다.
+- [ ] 마감 5초 전부터 타이머 바에 연소 연출과 지지직 사운드가 재생되고, 기존 `isUrgent`/`isEnded`/`aria-live` 접근성 동작은 회귀 없이 유지된다.
+- [ ] 낙찰 시 카드가 골드로 변신하며, 낙찰 팀의 `TeamSidebar` 카드에 신규 멤버 슬롯이 진입 애니메이션과 함께 표시된다.
+- [ ] `prefers-reduced-motion: reduce` 환경에서 위 모든 동적 연출(플립/흔들림/파티클/flight/영상)이 생략되거나 정적 버전으로 대체된다.
+- [ ] 모바일 관전자 뷰(`lg:hidden` 블록)에서 팀 보드(4-a) flight-in은 노출되지 않고(팀 사이드바 자체가 모바일 미노출), 나머지 연출은 축소된 강도로 정상 동작한다.
+- [ ] 데스크톱(`lg` 이상) 캡틴/마스터/관전자 3개 뷰 모두에서 회귀 없이 동작한다(`CurrentPlayerCard`/`BidTimer`/`TeamSidebar` 공유 컴포넌트 특성상 3개 뷰 모두 검증 필요).
+- [ ] `cd frontend && npm run lint && npm run build` 통과.
+- [ ] (P2 채택 시) 스킬 영상 재생 실패/지연 시 골드 카드 연출로 조용히 폴백되고, 모바일에서는 재생되지 않는다.
 
 ## 특이사항
-- 이미지 생성 실패는 실제 브라우저 콘솔 에러 로그가 없는 상태로 코드 리딩만으로 원인을 추정한 것이므로, Implementor 단계에서 1차로 에러 로깅부터 추가한 뒤 재현/확인 후 근본 수정하는 2단계 접근을 권장함 (요구사항에 이미 반영됨)
-- `AuctionStageEvent`(`stageEvent`, seq 기반 1회성 트리거) 패턴이 이미 낙찰/유찰 연출용으로 구축되어 있어 효과음 트리거에 그대로 재사용 가능 — 신규 상태 관리 최소화 가능
-- 모바일 레이아웃은 관전자(`auction-ongoing-spectator.tsx`)만 대상이며, 마스터/캡틴 화면(`auction-ongoing-master.tsx`, `auction-ongoing-captain.tsx`)은 이번 스코프에서 제외 (필요 시 후속 요구사항으로 분리)
-- 이전 요구사항(게스트 매물 수기 업로드)은 `.pipeline/docs/requirement-20260701-guest-upload.md`로 보관됨. 그 이전 이력은 `.pipeline/status.json.bak` 참조
-- 로그인 무한 새로고침의 근본 원인은 크로스사이트(third-party) 쿠키 구조 자체이며, 이번 스코프의 Authorization 헤더 폴백은 완화책. 프론트/백엔드 도메인을 완전히 통일하는 근본 해결(방안 2)은 배포 인프라(Vercel rewrites 등) 변경이 필요해 별도 후속 요구사항으로 분리 권장
+
+### 1차와의 파일 충돌 및 착수 순서 제약
+1차 태스크(`task-001.md`~`task-004.md`)의 변경 파일을 확인한 결과:
+
+| 1차 태스크 | 소유/수정 파일 | 2차와의 관계 |
+|---|---|---|
+| task-001 (효과음) | 신규 `use-auction-sound.ts`, `public/sounds/*.mp3`, 배타적 소유 `use-auction-socket.ts`(배선 1줄) | 2차 기능 1(전설 사운드)·2(콤보 피치)·3(도화선 사운드)이 `use-auction-sound.ts`를 **확장**해야 함 — **1차 task-001 머지 후 착수 필수**. `use-auction-socket.ts`는 2차가 재수정할 필요 없음(콤보는 이미 노출된 `bidEvents` 타임스탬프만으로 계산 가능, 위 기능 2 참조). |
+| task-002 (이미지 생성) | `auction-completed.tsx`, (조건부) `auction-result-poster.tsx` | 2차 스코프와 파일 겹침 없음(팀 보드 연출은 `team-sidebar.tsx` 대상, 완료 후 결과 화면이 아닌 진행 중 화면). 순서 제약 없음. |
+| task-003 (모바일 관전자) | `auction-ongoing-spectator.tsx` (단일 파일) | 직접 파일 충돌은 없으나(2차는 `parts/*.tsx` 공유 컴포넌트를 수정), task-003이 만든 모바일 블록이 그 공유 컴포넌트를 그대로 쓰므로 **논리적 의존**이 있음 — 모바일 레이아웃이 먼저 안정화된 뒤 2차 연출을 얹어야 모바일 QA가 이중으로 흔들리지 않음. **1차 task-003 머지 후 착수 권장**. |
+| task-004 (로그인) | auth 관련 파일 전체 | 2차와 겹침 없음. |
+
+- `current-player-card.tsx`, `bid-timer.tsx`, `team-sidebar.tsx`는 1차 어느 태스크도 배타적으로 소유하지 않지만(task-001/003이 "import만" 하는 대상일 뿐), 1차 파이프라인이 현재 Phase 3(Design)/Phase 4(Implementation) 진행 중이므로 **2차는 1차의 Phase 6(Integration, 전체 브랜치 머지) 완료 후 착수**하는 것을 강하게 권장한다. 파이프라인 아키텍처상으로도 `.pipeline/status.json`이 단일 SSOT이며 동시에 두 파이프라인을 구동할 수 없으므로, 이 문서가 `requirement.md`로 승격되는 시점 자체가 자연히 1차 완료 이후가 된다.
+- `auction-ongoing-captain.tsx`/`auction-ongoing-master.tsx`는 4-a(flight-in `layoutId` 공유)를 위해 `LayoutGroup` 래핑이 필요할 수 있어 최소 수정 대상에 포함될 가능성이 있음 — Planner 단계에서 태스크 분할 시 파일 충돌 방지 표에 명시 필요.
+
+### 등급 프레임 관련 재확인 필요 사항
+- 위 "등급 프레임 산정 기준"에서 결정적 해시 기반 코스메틱 등급을 기본안으로 제시했으나, 이는 사용자가 요청한 "티어/MMR 기반"과는 다른 접근이다. 사용자가 실제 데이터 기반 등급을 원한다면 3차 사이클에서 백엔드 `rating` 필드 노출 여부를 먼저 확인(값이 실제로 채워지고 있는지)한 뒤 별도 요구사항으로 상정해야 한다.
+
+### P2 스킬 영상 관련 정정
+- 팀장 지시에 있던 "OverFast 스킬 영상이 프록시 화이트리스트에 등록되어 있다"는 사실이 아니다(위 "실현 가능성 확인 결과" 참조). 다만 캡처가 아닌 단순 재생 목적이라 프록시 없이도 구현 가능하므로 기능 자체는 백엔드 무변경으로 실현 가능하며, P2로 유지하되 위 리스크(파일 크기/성능/모바일)를 고려해 데스크톱 한정 검토를 권장한다.
+
+## 생성한 파일
+- `/Users/eyjs/Desktop/WorkSpace/potg/potg/.pipeline/docs/requirement-v2-interaction.md` (본 문서)

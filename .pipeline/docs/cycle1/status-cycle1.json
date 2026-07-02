@@ -1,0 +1,26 @@
+{
+  "version": "v2",
+  "pipeline_type": "feature",
+  "cycle": 2,
+  "current_phase": "requirement",
+  "status": "requirement_ready",
+  "updated_at": "2026-07-02T23:58:00+09:00",
+  "requirement": ".pipeline/requirement.md",
+  "scope": "2차: 경매 인터랙션 고도화 — 팩오프닝 공개 연출 + 입찰 카드임팩트/콤보 + 도화선 타이머 + 낙찰 골든카드/팀보드 flight-in",
+  "user_emphasis": "낙찰 시 카드가 해당 팀으로 날아가는 flight-in 연출은 사용자가 명시 요청한 P0 — 생략/하향 금지",
+  "constraints": {
+    "no_modify_shadcn_ui": "frontend/src/components/ui/*",
+    "no_modify_utils": "frontend/src/lib/utils.ts",
+    "no_any_type": true,
+    "no_new_dependencies": "framer-motion 등 기존 의존성만 사용, 신규 npm 패키지 금지",
+    "no_backend_change": "기존 소켓 이벤트/DTO만 사용, 백엔드 무변경",
+    "tailwind_only_no_css_files": true,
+    "preserve_overwatch_theme": true,
+    "rarity_is_cosmetic": "등급 프레임은 매물 id 결정적 해시 (실력 지표 아님, 실데이터 연동은 3차)",
+    "extends_cycle1": "use-auction-sound.ts 확장 허용, use-auction-socket.ts 재수정 금지 (콤보는 bidEvents로 프론트 계산)",
+    "reduced_motion": "prefers-reduced-motion 시 연출 생략/정적 대체",
+    "mobile_reduced_fx": "모바일 관전자 뷰는 연출 강도 축소, 팀보드 flight-in 미노출(사이드바 자체가 모바일 숨김)",
+    "no_push": "사용자 확인 후 직접 push (Vercel 배포 트리거)"
+  },
+  "history": "1차: 경매 고도화 4종 완료·배포 (docs/requirement-20260702-cycle1-auction-enhancement.md, docs/status-cycle1-closed.json, origin 0d5b3ad). 이전: 게스트 매물 업로드 (docs/requirement-20260701-guest-upload.md)"
+}
