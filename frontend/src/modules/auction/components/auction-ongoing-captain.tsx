@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { LayoutGroup } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
 import { Label } from '@/common/components/ui/label'
-import { Gavel } from 'lucide-react'
+import { Gavel, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
@@ -21,6 +21,16 @@ import type {
 import { ChatPanel } from './parts/chat-panel'
 import { BidLog } from './parts/bid-log'
 import { LiveChip } from './parts/fx/live-chip'
+import { MobileTabBar, type MobileTabItem } from './parts/mobile-tab-bar'
+import { MobileAuctionStage } from './parts/mobile-auction-stage'
+
+/** 팀장 모바일 하단 탭 id — 경매(스테이지+입찰+채팅) / 현황(TeamSidebar, 내 팀 강조). */
+type CaptainMobileTab = 'auction' | 'status'
+
+const CAPTAIN_MOBILE_TABS: readonly MobileTabItem<CaptainMobileTab>[] = [
+  { value: 'auction', label: '경매', icon: Gavel },
+  { value: 'status', label: '현황', icon: Users },
+]
 
 /** 증액 단위 버튼 — 현재 최고가 + 증액이 새 입찰가가 된다. */
 const BID_INCREMENTS = [100, 200, 500, 1000] as const
@@ -88,6 +98,8 @@ export function AuctionOngoingCaptain({
   bidEvents,
   stageEvent,
 }: Props) {
+  const [activeTab, setActiveTab] = useState<CaptainMobileTab>('auction')
+
   const me = useMemo(
     () => roomState.participants.find((p) => p.userId === userId),
     [roomState, userId],
@@ -119,9 +131,9 @@ export function AuctionOngoingCaptain({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 flex flex-col h-[calc(100dvh-7rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible">
       {/* 헤더 */}
-      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+      <Card className="shrink-0 relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
         {/* 상단 에너지 스윕 라인 */}
         <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
@@ -153,7 +165,7 @@ export function AuctionOngoingCaptain({
       </Card>
 
       {roomState.auction.status === 'PAUSED' && (
-        <Card className="bg-card border-primary/50">
+        <Card className="shrink-0 bg-card border-primary/50">
           <CardContent className="py-3 text-center text-sm font-bold text-primary">
             ⏸ 마스터가 경매를 일시정지했습니다.
           </CardContent>
@@ -161,7 +173,7 @@ export function AuctionOngoingCaptain({
       )}
 
       {isAssigning && (
-        <Card className="bg-card border-primary/30">
+        <Card className="shrink-0 bg-card border-primary/30">
           <CardContent className="py-4 text-center text-sm text-muted-foreground">
             마스터가 유찰자를 각 팀에 수동 배정 중입니다...
           </CardContent>
@@ -254,74 +266,112 @@ export function AuctionOngoingCaptain({
       </LayoutGroup>
 
       {/*
-        모바일(<lg) — 팀장 전용: 세로 스택 ①매물 ②입찰 컨트롤(sticky 하단, 엄지 접근) ③채팅.
-        팀 현황/입찰 로그는 모바일에서 생략(P1). min-h는 dvh 기준(관전자 뷰와 동일 계산 근거) —
-        페이지 컨테이너 py-6 + 헤더 카드(~4rem) + PAUSED/ASSIGNING 배너 가변 + space-y-4 간격 + 여유값.
+        모바일(<lg) — 팀장 전용 하단 탭 네비게이션(경매/현황). 페이지 자체 스크롤 0(존 내부만 스크롤).
+        루트 h-[calc(100dvh-7rem)]에서 7rem = App Header(h-16=4rem) + main py-6(상하 3rem).
+        상단 상태카드/PAUSED/ASSIGNING 배너는 shrink-0으로 자연 높이를 유지하고, 이 탭 블록이
+        flex-1 min-h-0으로 나머지 높이를 전부 흡수한다(고정 rem 배분 대신 flex로 배너 유무를 흡수).
+        경매/현황 두 패널은 항상 동시 마운트, 비활성 패널만 CSS hidden(display:none) 토글
+        — 언마운트 금지(채팅 draft/스크롤 위치·입찰 버튼 상태·사운드 보존).
       */}
-      <div className="lg:hidden flex flex-col gap-4 min-h-[calc(100dvh-10rem)]">
-        {/* ① 상단 — 현재 매물 카드 (타이머는 헤더에서 상시 노출) */}
-        <div className="shrink-0">
-          <CurrentPlayerCard
-            player={roomState.currentPlayer}
-            currentBid={roomState.currentBid}
-            biddingPhase={phase}
-            stageEvent={stageEvent}
-          />
-        </div>
+      <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+        {/* 탭 콘텐츠 영역 */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* 경매 패널 — 스테이지 → 입찰 컨트롤 → 채팅 */}
+          <div
+            className={cn(
+              'flex-1 min-h-0 flex flex-col gap-2',
+              activeTab !== 'auction' && 'hidden',
+            )}
+          >
+            <div className="h-[40vh] shrink-0">
+              <MobileAuctionStage
+                player={roomState.currentPlayer}
+                currentBid={roomState.currentBid}
+                biddingPhase={phase}
+                stageEvent={stageEvent}
+                bidEvents={bidEvents}
+                timerRemaining={timerRemaining}
+                totalTime={roomState.auction.turnTimeLimit}
+              />
+            </div>
 
-        {/* ② 입찰 컨트롤 — 팀장 핵심 기능, sticky 하단 고정(채팅 스크롤 중에도 항상 접근) */}
-        <div className="sticky bottom-0 z-10 shrink-0 bg-background/95 backdrop-blur-sm pt-2 pb-2 -mx-4 px-4">
-          <Card className="game-panel">
-            <CardContent className="p-4 space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
-                  입찰 — 현재가 {currentBidAmount.toLocaleString()}P · 내 잔여{' '}
-                  {myPoints.toLocaleString()}P
-                </Label>
-                <BidButtonsRow
-                  key={targetPlayerId ?? 'none'}
-                  disabled={bidDisabled}
-                  currentBid={currentBidAmount}
-                  maxBid={myPoints}
-                  onSubmit={handleBid}
+            {/* 입찰 컨트롤 — sticky 오버레이 제거, 스테이지-채팅 사이 shrink-0 존으로 재배치 */}
+            <Card className="game-panel shrink-0">
+              <CardContent className="p-4 space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
+                    입찰 — 현재가 {currentBidAmount.toLocaleString()}P · 내 잔여{' '}
+                    {myPoints.toLocaleString()}P
+                  </Label>
+                  <BidButtonsRow
+                    key={targetPlayerId ?? 'none'}
+                    disabled={bidDisabled}
+                    currentBid={currentBidAmount}
+                    maxBid={myPoints}
+                    onSubmit={handleBid}
+                  />
+                </div>
+
+                {phase === 'WAITING' && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    마스터가 다음 매물을 선택할 때까지 대기 중...
+                  </p>
+                )}
+                {phase === 'SOLD' && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    낙찰 완료. 다음 매물 대기 중...
+                  </p>
+                )}
+                {isHighestBidder && phase === 'BIDDING' && (
+                  <p className="text-sm text-primary text-center font-bold">
+                    ⭐ 현재 최고 입찰자입니다.
+                  </p>
+                )}
+                {teamFull && (
+                  <p className="text-sm text-ow-red text-center font-bold">
+                    🔒 팀 정원(선수 {maxPlayers}명) 마감 — 더 이상 입찰할 수 없습니다.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 채팅 — 남은 높이 전부, 항상 마운트(탭 전환 시 draft/스크롤 보존) */}
+            <div className="flex-1 min-h-0">
+              {chatMessages && (
+                <ChatPanel
+                  messages={chatMessages}
+                  onSend={emit.sendChat}
+                  participants={roomState.participants}
+                  myUserId={userId}
                 />
-              </div>
+              )}
+            </div>
+          </div>
 
-              {phase === 'WAITING' && (
-                <p className="text-xs text-muted-foreground text-center">
-                  마스터가 다음 매물을 선택할 때까지 대기 중...
-                </p>
-              )}
-              {phase === 'SOLD' && (
-                <p className="text-xs text-muted-foreground text-center">
-                  낙찰 완료. 다음 매물 대기 중...
-                </p>
-              )}
-              {isHighestBidder && phase === 'BIDDING' && (
-                <p className="text-sm text-primary text-center font-bold">
-                  ⭐ 현재 최고 입찰자입니다.
-                </p>
-              )}
-              {teamFull && (
-                <p className="text-sm text-ow-red text-center font-bold">
-                  🔒 팀 정원(선수 {maxPlayers}명) 마감 — 더 이상 입찰할 수 없습니다.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ③ 하단 — 채팅, 남은 높이 전부 */}
-        <div className="flex-1 min-h-0">
-          {chatMessages && (
-            <ChatPanel
-              messages={chatMessages}
-              onSend={emit.sendChat}
-              participants={roomState.participants}
-              myUserId={userId}
+          {/* 현황 패널 — TeamSidebar(내 팀 골드 강조) */}
+          <div
+            className={cn(
+              'flex-1 min-h-0 overflow-y-auto',
+              activeTab !== 'status' && 'hidden',
+            )}
+          >
+            <TeamSidebar
+              teams={roomState.teams}
+              myCaptainId={userId}
+              startingPoints={roomState.auction.startingPoints}
+              rosterMode={roomState.auction.rosterMode}
+              highlightCaptainId={roomState.currentBid?.bidderId ?? null}
             />
-          )}
+          </div>
         </div>
+
+        {/* 하단 탭바 */}
+        <MobileTabBar
+          tabs={CAPTAIN_MOBILE_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          ariaLabel="경매 화면 전환"
+        />
       </div>
     </div>
   )
