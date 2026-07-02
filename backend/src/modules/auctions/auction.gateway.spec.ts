@@ -142,7 +142,7 @@ describe('AuctionGateway', () => {
       await gateway.handleJoinRoom({ auctionId: 'a1' }, client);
 
       expect(client.join).toHaveBeenCalledWith('a1');
-      expect(client.emit).toHaveBeenCalledWith('roomState', roomState);
+      expect(client.emit).toHaveBeenCalledWith('roomState', { roomState });
       expect(client.to).toHaveBeenCalledWith('a1');
     });
 
@@ -328,7 +328,7 @@ describe('AuctionGateway', () => {
 
       await gateway.handleConfirmBid({ auctionId: 'a1' }, client);
 
-      expect(serverEmit).toHaveBeenCalledWith('roomState', roomState);
+      expect(serverEmit).toHaveBeenCalledWith('roomState', { roomState });
       expect(serverEmit).not.toHaveBeenCalledWith(
         'bidConfirmed',
         expect.anything(),

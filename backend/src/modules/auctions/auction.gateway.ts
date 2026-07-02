@@ -154,7 +154,7 @@ export class AuctionGateway
 
       // Get full room state
       const roomState = await this.auctionsService.getRoomState(auctionId);
-      client.emit('roomState', roomState);
+      client.emit('roomState', { roomState });
 
       // Notify others
       client.to(auctionId).emit('userJoined', { userId });
@@ -187,7 +187,7 @@ export class AuctionGateway
 
     try {
       const roomState = await this.auctionsService.getRoomState(auctionId);
-      client.emit('roomState', roomState);
+      client.emit('roomState', { roomState });
     } catch (error) {
       client.emit('error', { message: errMsg(error) });
     }
@@ -309,7 +309,7 @@ export class AuctionGateway
         });
       } else {
         // 이미 처리됨 — 최신 상태만 동기화
-        this.server.to(auctionId).emit('roomState', roomState);
+        this.server.to(auctionId).emit('roomState', { roomState });
       }
     } catch (error) {
       client.emit('error', { message: errMsg(error) });
@@ -665,7 +665,7 @@ export class AuctionGateway
       });
       try {
         const roomState = await this.auctionsService.getRoomState(auctionId);
-        this.server.to(auctionId).emit('roomState', roomState);
+        this.server.to(auctionId).emit('roomState', { roomState });
       } catch (stateError) {
         this.logger.error(
           `Failed to resync room state after timer error: ${errMsg(stateError)}`,
@@ -677,6 +677,6 @@ export class AuctionGateway
   // Utility method to broadcast room state update
   async broadcastRoomState(auctionId: string) {
     const roomState = await this.auctionsService.getRoomState(auctionId);
-    this.server.to(auctionId).emit('roomState', roomState);
+    this.server.to(auctionId).emit('roomState', { roomState });
   }
 }

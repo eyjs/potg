@@ -61,8 +61,14 @@ export function useAuctionSocket(
     })
     socketRef.current = socket
 
-    const handleRoomState = (payload: { roomState: RoomState }) => {
-      setRoomState(payload.roomState)
+    // 'roomState' 직접 응답(joinRoom/requestRoomState)과 broadcast({ roomState })
+    // 두 형상을 모두 허용 — 배포 시차(프론트/백엔드)에도 초기 상태 수신이 깨지지 않게.
+    const handleRoomState = (payload: { roomState?: RoomState } | RoomState) => {
+      const next =
+        payload && 'roomState' in payload && payload.roomState
+          ? payload.roomState
+          : (payload as RoomState)
+      if (next && 'auction' in next) setRoomState(next)
     }
 
     // socket.io-client 가 자동 재연결 시 'connect' 이벤트가 다시 발화하므로
