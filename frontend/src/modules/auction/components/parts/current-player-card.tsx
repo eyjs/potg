@@ -140,6 +140,8 @@ export function CurrentPlayerCard({
   // ── 팩 오프닝(P0-1): 뒷면→플립→정면 + 등급 프레임 + 전설 시퀀스 ─────────
   const rarity = useMemo(
     () => (lastPlayer ? getCardRarity(lastPlayer.id) : 'common'),
+    // 등급은 매물 id의 순수 함수이므로 id만 추적한다(전체 lastPlayer 객체를 넣으면 매 렌더 재계산돼 아바타 렌더와 어긋남)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [lastPlayer?.id],
   )
   const [isFlipped, setIsFlipped] = useState(false)
