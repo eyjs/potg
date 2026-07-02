@@ -10,9 +10,12 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuctionsService } from './auctions.service';
+import { AuctionChatMessage } from './entities/auction-chat-message.entity';
 import {
   authenticateSocket,
   WsJwtGuard,
@@ -89,7 +92,12 @@ export class AuctionGateway
     private readonly auctionsService: AuctionsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @InjectRepository(AuctionChatMessage)
+    private readonly chatRepo: Repository<AuctionChatMessage>,
   ) {}
+
+  /** 입장 시 되돌려줄 최근 채팅 개수 (프론트 유지 캡과 동일). */
+  private static readonly CHAT_HISTORY_LIMIT = 200;
 
   handleConnection(client: Socket) {
     try {
@@ -155,6 +163,24 @@ export class AuctionGateway
       // Get full room state
       const roomState = await this.auctionsService.getRoomState(auctionId);
       client.emit('roomState', { roomState });
+
+      // 입장 클라이언트에만 최근 채팅 히스토리 전송 (늦게 입장/재접속해도 이전 대화 복원)
+      const history = await this.chatRepo.find({
+        where: { auctionId },
+        order: { createdAt: 'DESC' },
+        take: AuctionGateway.CHAT_HISTORY_LIMIT,
+      });
+      client.emit(
+        'chatHistory',
+        history.reverse().map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          userName: m.userName,
+          message: m.message,
+          timestamp: m.createdAt.toISOString(),
+          type: 'chat' as const,
+        })),
+      );
 
       // Notify others
       client.to(auctionId).emit('userJoined', { userId });
@@ -395,19 +421,32 @@ export class AuctionGateway
   }
 
   @SubscribeMessage('chatMessage')
-  handleChatMessage(
+  async handleChatMessage(
     @MessageBody() payload: ChatMessagePayload,
     @ConnectedSocket() client: Socket,
   ) {
     const { auctionId, message } = payload;
     const { userId, username } = this.requireUser(client);
 
+    const trimmed = message?.trim();
+    if (!trimmed) return;
+
+    // 저장 후 저장된 row(uuid id, createdAt)를 그대로 broadcast — 프론트가 id 로 dedupe.
+    const saved = await this.chatRepo.save(
+      this.chatRepo.create({
+        auctionId,
+        userId,
+        userName: username,
+        message: trimmed.slice(0, 500),
+      }),
+    );
+
     this.server.to(auctionId).emit('chatMessage', {
-      id: `${userId}-${Date.now()}`,
-      userId,
-      userName: username,
-      message,
-      timestamp: new Date().toISOString(),
+      id: saved.id,
+      userId: saved.userId,
+      userName: saved.userName,
+      message: saved.message,
+      timestamp: saved.createdAt.toISOString(),
       type: 'chat',
     });
   }

@@ -5,9 +5,13 @@ import {
   Patch,
   Body,
   Param,
+  Query,
+  Res,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { AuctionsService } from './auctions.service';
 import { AuctionGateway } from './auction.gateway';
 import { AuthGuard } from '@nestjs/passport';
@@ -17,6 +21,28 @@ import {
   BidDto,
 } from './dto/create-auction.dto';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
+
+/**
+ * 이미지 프록시 허용 호스트 (SSRF 방지). OverFast 초상화(CloudFront)·Discord 아바타·
+ * Blizzard 미디어 출처만 허용. CDN 배포 ID 변경에 견디도록 신뢰 공개 CDN 도메인 접미사로 판정
+ * (모두 공개 CDN이라 내부 호스트로 해석되지 않음 + 응답 content-type 이미지 검증 병행).
+ */
+const IMAGE_PROXY_ALLOWED_EXACT = new Set<string>(['overfast-api.tekrop.fr']);
+const IMAGE_PROXY_ALLOWED_SUFFIXES = [
+  '.cloudfront.net',
+  '.discordapp.com',
+  '.discordapp.net',
+  '.akamaihd.net',
+  '.blizzard.com',
+];
+
+function isAllowedImageHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    IMAGE_PROXY_ALLOWED_EXACT.has(host) ||
+    IMAGE_PROXY_ALLOWED_SUFFIXES.some((s) => host.endsWith(s))
+  );
+}
 
 @Controller('auctions')
 export class AuctionsController {
@@ -52,6 +78,45 @@ export class AuctionsController {
   @Get()
   findAll() {
     return this.auctionsService.findAll();
+  }
+
+  /**
+   * 이미지 프록시 — 결과 포스터/그리드의 원격 이미지(OverFast 초상화·Discord 아바타)를
+   * CORS 헤더와 함께 재전송한다. 원본 CDN이 ACAO 를 주지 않아 html-to-image 캡처 시
+   * canvas 가 taint 되어 다운로드가 실패하던 문제를 해결한다.
+   * SSRF 방지를 위해 https + 화이트리스트 호스트만 허용. (`:id` 라우트보다 먼저 선언)
+   */
+  @Get('image-proxy')
+  async imageProxy(
+    @Query('url') url: string,
+    @Res() res: ExpressResponse,
+  ): Promise<void> {
+    if (!url) throw new BadRequestException('url 파라미터가 필요합니다.');
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new BadRequestException('잘못된 url 입니다.');
+    }
+    if (parsed.protocol !== 'https:' || !isAllowedImageHost(parsed.hostname)) {
+      throw new BadRequestException('허용되지 않은 이미지 도메인입니다.');
+    }
+
+    const upstream = await fetch(parsed.toString());
+    if (!upstream.ok) {
+      throw new BadRequestException('이미지를 불러오지 못했습니다.');
+    }
+    const contentType = upstream.headers.get('content-type') ?? 'image/png';
+    if (!contentType.startsWith('image/')) {
+      throw new BadRequestException('이미지가 아닙니다.');
+    }
+    const buf = Buffer.from(await upstream.arrayBuffer());
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.send(buf);
   }
 
   @Get(':id')
