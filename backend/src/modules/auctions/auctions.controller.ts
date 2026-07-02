@@ -109,13 +109,26 @@ export class AuctionsController {
     if (!upstream.ok) {
       throw new BadRequestException('이미지를 불러오지 못했습니다.');
     }
-    const contentType = upstream.headers.get('content-type') ?? 'image/png';
-    if (!contentType.startsWith('image/')) {
-      throw new BadRequestException('이미지가 아닙니다.');
+    // 래스터 이미지 타입만 허용 — image/svg+xml 은 스크립트 실행이 가능해
+    // 앱 오리진에서 서빙 시 XSS 위험이 있으므로 차단한다.
+    const rawType = (upstream.headers.get('content-type') ?? 'image/png')
+      .split(';')[0]
+      .trim()
+      .toLowerCase();
+    const ALLOWED_IMAGE_TYPES = new Set([
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+    ]);
+    if (!ALLOWED_IMAGE_TYPES.has(rawType)) {
+      throw new BadRequestException('허용되지 않은 이미지 형식입니다.');
     }
     const buf = Buffer.from(await upstream.arrayBuffer());
 
-    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Type', rawType);
+    res.setHeader('Content-Disposition', 'inline');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
