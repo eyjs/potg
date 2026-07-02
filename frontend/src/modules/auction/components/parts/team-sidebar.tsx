@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import {
@@ -62,18 +62,32 @@ export function TeamSidebar({
   const maxPlayers = maxPlayersPerTeam(rosterMode)
   const reducedMotion = useReducedMotion()
 
-  // 직전 렌더에 존재했던 전체 멤버 id 집합 — 이번 렌더에서 새로 나타난 id만 진입 애니메이션 대상.
-  const previousMemberIdsRef = useRef<Set<string>>(new Set())
+  // 신규 멤버 판정은 렌더 단계에서 계산한다(effect 지연 시 마운트 렌더에서
+  // isNew=false 로 그려져 flight-in 진입 애니메이션이 재생되지 않는 문제 방지).
+  // previousMemberIds 는 상태로 보관 — ref 변형은 StrictMode 이중 렌더에서
+  // 부작용을 남겨 diff 결과가 오염될 수 있어 사용하지 않는다(순수 계산 유지).
+  const currentMemberIds = teams.flatMap((team) => team.members.map((m) => m.id))
+  const currentMemberIdsKey = currentMemberIds.join(',')
+
+  const [previousMemberIds, setPreviousMemberIds] = useState<Set<string> | null>(
+    null,
+  )
+  const [previousMemberIdsKey, setPreviousMemberIdsKey] = useState<string | null>(
+    null,
+  )
   const [newMemberIds, setNewMemberIds] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    const currentIds = teams.flatMap((team) => team.members.map((m) => m.id))
-    const added = diffNewMemberIds(previousMemberIdsRef.current, currentIds)
-    if (added.size > 0) {
-      setNewMemberIds(added)
-    }
-    previousMemberIdsRef.current = new Set(currentIds)
-  }, [teams])
+  if (previousMemberIdsKey !== currentMemberIdsKey) {
+    // 최초 렌더(previousMemberIds === null)는 기준선만 세우고 애니메이션 대상 없음 —
+    // 초기 전체 로드 시 전원에 진입 애니메이션이 터지는 것을 방지.
+    const added =
+      previousMemberIds === null
+        ? new Set<string>()
+        : diffNewMemberIds(previousMemberIds, currentMemberIds)
+    setNewMemberIds(added)
+    setPreviousMemberIds(new Set(currentMemberIds))
+    setPreviousMemberIdsKey(currentMemberIdsKey)
+  }
 
   if (teams.length === 0) {
     return (
