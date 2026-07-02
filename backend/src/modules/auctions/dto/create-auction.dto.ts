@@ -8,6 +8,7 @@ import {
   Max,
 } from 'class-validator';
 import { AuctionRole } from '../entities/auction-participant.entity';
+import { RosterMode } from '../entities/auction.entity';
 
 export class CreateAuctionDto {
   @IsString()
@@ -35,6 +36,10 @@ export class CreateAuctionDto {
   @IsNumber()
   @Min(2)
   teamCount?: number;
+
+  @IsOptional()
+  @IsEnum(RosterMode)
+  rosterMode?: RosterMode;
 }
 
 export class JoinAuctionDto {

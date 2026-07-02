@@ -6,6 +6,7 @@ import {
   Auction,
   AuctionStatus,
   BiddingPhase,
+  RosterMode,
 } from '../entities/auction.entity';
 import {
   AuctionParticipant,
@@ -32,6 +33,7 @@ describe('AuctionsBiddingService', () => {
       id: 'auction-1',
       status: AuctionStatus.ONGOING,
       biddingPhase: BiddingPhase.BIDDING,
+      rosterMode: RosterMode.CAPTAIN,
       turnTimeLimit: 30,
       currentBiddingPlayerId: 'player-1',
       currentBiddingEndTime: null,
@@ -143,16 +145,60 @@ describe('AuctionsBiddingService', () => {
   // ==================== placeBidWithValidation (로스터 상한) ====================
 
   describe('placeBidWithValidation — 팀 정원', () => {
-    it('이미 4명(팀장 포함 5명) 확보한 팀은 입찰 거부', async () => {
+    const mockCaptainBidder = () =>
+      (manager.findOne as jest.Mock).mockResolvedValueOnce({
+        userId: 'captain-1',
+        role: AuctionRole.CAPTAIN,
+        currentPoints: 1000,
+        user: { nickname: '캡틴' },
+      });
+
+    it('팀장 모드 — 선수 4명 확보한 팀은 입찰 거부', async () => {
+      (manager.findOne as jest.Mock).mockResolvedValueOnce(
+        baseAuction({ rosterMode: RosterMode.CAPTAIN }),
+      );
+      mockCaptainBidder();
+      (manager.count as jest.Mock).mockResolvedValueOnce(4); // 정원 마감
+
+      await expect(
+        service.placeBidWithValidation(
+          'auction-1',
+          'captain-1',
+          'player-1',
+          100,
+        ),
+      ).rejects.toThrow('팀 정원');
+    });
+
+    it('감독 모드 — 선수 4명은 정원 미달이라 정원 오류 없음', async () => {
       (manager.findOne as jest.Mock)
-        .mockResolvedValueOnce(baseAuction()) // 잠금 경매
+        .mockResolvedValueOnce(baseAuction({ rosterMode: RosterMode.COACH }))
         .mockResolvedValueOnce({
           userId: 'captain-1',
           role: AuctionRole.CAPTAIN,
           currentPoints: 1000,
           user: { nickname: '캡틴' },
-        }); // 입찰자(캡틴)
-      (manager.count as jest.Mock).mockResolvedValueOnce(4); // 이미 4명 확보
+        });
+      (manager.count as jest.Mock).mockResolvedValueOnce(4); // 정원 미달(5명 정원)
+
+      // 정원 체크는 통과해야 함 — 이후 로직(최고가 조회 등)으로 진행하며
+      // '팀 정원' 메시지로는 실패하지 않는다.
+      await expect(
+        service.placeBidWithValidation(
+          'auction-1',
+          'captain-1',
+          'player-1',
+          100,
+        ),
+      ).rejects.not.toThrow('팀 정원');
+    });
+
+    it('감독 모드 — 선수 5명 확보한 팀은 입찰 거부', async () => {
+      (manager.findOne as jest.Mock).mockResolvedValueOnce(
+        baseAuction({ rosterMode: RosterMode.COACH }),
+      );
+      mockCaptainBidder();
+      (manager.count as jest.Mock).mockResolvedValueOnce(5); // 정원 마감
 
       await expect(
         service.placeBidWithValidation(

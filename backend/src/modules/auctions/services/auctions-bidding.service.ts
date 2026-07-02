@@ -12,10 +12,7 @@ import {
 } from '../entities/auction-participant.entity';
 import { AuctionBid } from '../entities/auction-bid.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
-import {
-  MAX_PLAYERS_PER_CAPTAIN,
-  TEAM_SIZE_INCLUDING_CAPTAIN,
-} from '../auction.constants';
+import { maxPlayersPerTeam } from '../auction.constants';
 
 /**
  * 경매 입찰 도메인.
@@ -133,7 +130,8 @@ export class AuctionsBiddingService {
         throw new BadRequestException('캡틴만 입찰할 수 있습니다.');
       }
 
-      // 오버워치 5:5 — 팀장 포함 5명. 이미 4명을 확보한 팀은 더 입찰할 수 없다.
+      // 팀 정원 마감 시 추가 입찰 차단 (로스터 모드에 따라 4명/5명).
+      const maxPlayers = maxPlayersPerTeam(auction.rosterMode);
       const assignedCount = await manager.count(AuctionParticipant, {
         where: {
           auctionId,
@@ -141,9 +139,9 @@ export class AuctionsBiddingService {
           assignedTeamCaptainId: bidderId,
         },
       });
-      if (assignedCount >= MAX_PLAYERS_PER_CAPTAIN) {
+      if (assignedCount >= maxPlayers) {
         throw new BadRequestException(
-          `팀 정원(${TEAM_SIZE_INCLUDING_CAPTAIN}명)이 가득 찼습니다.`,
+          `팀 정원(선수 ${maxPlayers}명)이 가득 찼습니다.`,
         );
       }
 
@@ -198,9 +196,7 @@ export class AuctionsBiddingService {
       return {
         bid,
         bidderName:
-          participant.user?.nickname ||
-          participant.user?.battleTag ||
-          '익명',
+          participant.user?.nickname || participant.user?.battleTag || '익명',
       };
     });
   }

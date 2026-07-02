@@ -41,7 +41,10 @@ describe('AuctionsService', () => {
     Pick<Repository<User>, 'create' | 'save' | 'findOne'>
   >;
   let manager: jest.Mocked<
-    Pick<EntityManager, 'findOne' | 'find' | 'save' | 'create' | 'update' | 'count'>
+    Pick<
+      EntityManager,
+      'findOne' | 'find' | 'save' | 'create' | 'update' | 'count'
+    >
   >;
   let dataSource: { transaction: jest.Mock };
 
@@ -76,7 +79,11 @@ describe('AuctionsService', () => {
       update: jest.fn(),
     };
     const mockBidsRepo = { create: jest.fn(), save: jest.fn() };
-    const mockUsersRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
+    const mockUsersRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

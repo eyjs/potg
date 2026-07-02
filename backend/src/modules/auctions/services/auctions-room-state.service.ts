@@ -5,6 +5,7 @@ import {
   Auction,
   AuctionStatus,
   BiddingPhase,
+  RosterMode,
 } from '../entities/auction.entity';
 import { AuctionRole } from '../entities/auction-participant.entity';
 
@@ -17,6 +18,7 @@ export interface RoomState {
     startingPoints: number;
     turnTimeLimit: number;
     teamCount: number;
+    rosterMode: RosterMode;
     currentBiddingPlayerId: string | null;
     // socket.io 직렬화 계약: ISO 문자열 (frontend types.ts 미러와 일치)
     currentBiddingEndTime: string | null;
@@ -96,7 +98,10 @@ export class AuctionsRoomStateService {
 
   /** 표시명: 회원관리 기반 운영이므로 nickname 우선, battleTag(#앞) 폴백. */
   private displayName(
-    user: { nickname?: string | null; battleTag?: string | null } | null | undefined,
+    user:
+      | { nickname?: string | null; battleTag?: string | null }
+      | null
+      | undefined,
     fallback: string,
   ): string {
     return user?.nickname || user?.battleTag?.split('#')[0] || fallback;
@@ -202,6 +207,7 @@ export class AuctionsRoomStateService {
         startingPoints: auction.startingPoints,
         turnTimeLimit: auction.turnTimeLimit,
         teamCount: auction.teamCount,
+        rosterMode: auction.rosterMode,
         currentBiddingPlayerId: auction.currentBiddingPlayerId,
         currentBiddingEndTime:
           auction.currentBiddingEndTime?.toISOString() ?? null,

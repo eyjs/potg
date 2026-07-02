@@ -45,7 +45,9 @@ describe('AuctionsController', () => {
         { provide: AuctionsService, useValue: service },
         {
           provide: AuctionGateway,
-          useValue: { broadcastRoomState: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            broadcastRoomState: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
