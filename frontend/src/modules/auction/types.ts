@@ -42,6 +42,7 @@ export interface RoomStateParticipant {
   biddingOrder: number
   user: {
     id: string
+    nickname: string | null
     battleTag: string | null
     mainRole: string | null
     avatarUrl: string | null
@@ -68,6 +69,7 @@ export interface RoomStateQueuePlayer extends RoomStatePlayer {
 export interface RoomStateTeam {
   captainId: string
   captainName: string
+  captainAvatarUrl: string | null
   points: number
   members: {
     id: string
@@ -75,6 +77,7 @@ export interface RoomStateTeam {
     role: string
     price: number
     wasUnsold: boolean
+    avatarUrl: string | null
   }[]
 }
 

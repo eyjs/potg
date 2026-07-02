@@ -34,6 +34,7 @@ export interface RoomState {
     biddingOrder: number;
     user: {
       id: string;
+      nickname: string | null;
       battleTag: string | null;
       mainRole: string | null;
       avatarUrl: string | null;
@@ -53,6 +54,7 @@ export interface RoomState {
   teams: {
     captainId: string;
     captainName: string;
+    captainAvatarUrl: string | null;
     points: number;
     members: {
       id: string;
@@ -60,6 +62,7 @@ export interface RoomState {
       role: string;
       price: number;
       wasUnsold: boolean;
+      avatarUrl: string | null;
     }[];
   }[];
   unsoldPlayers: {
@@ -85,6 +88,14 @@ export class AuctionsRoomStateService {
     private auctionsRepository: Repository<Auction>,
   ) {}
 
+  /** 표시명: 회원관리 기반 운영이므로 nickname 우선, battleTag(#앞) 폴백. */
+  private displayName(
+    user: { nickname?: string | null; battleTag?: string | null } | null | undefined,
+    fallback: string,
+  ): string {
+    return user?.nickname || user?.battleTag?.split('#')[0] || fallback;
+  }
+
   async getRoomState(auctionId: string): Promise<RoomState> {
     const auction = await this.auctionsRepository.findOne({
       where: { id: auctionId },
@@ -108,14 +119,16 @@ export class AuctionsRoomStateService {
 
       return {
         captainId: captain.userId,
-        captainName: captain.user?.battleTag || '캡틴',
+        captainName: this.displayName(captain.user, '캡틴'),
+        captainAvatarUrl: captain.user?.avatarUrl ?? null,
         points: captain.currentPoints,
         members: teamMembers.map((m) => ({
           id: m.userId,
-          name: m.user?.battleTag?.split('#')[0] || '선수',
+          name: this.displayName(m.user, '선수'),
           role: m.user?.mainRole?.toLowerCase() || 'flex',
           price: m.soldPrice || 0,
           wasUnsold: m.wasUnsold,
+          avatarUrl: m.user?.avatarUrl ?? null,
         })),
       };
     });
@@ -139,7 +152,7 @@ export class AuctionsRoomStateService {
         );
         currentBid = {
           bidderId: highestBid.bidderId,
-          bidderName: bidder?.user?.battleTag || '익명',
+          bidderName: this.displayName(bidder?.user, '익명'),
           amount: highestBid.amount,
         };
       }
@@ -153,7 +166,7 @@ export class AuctionsRoomStateService {
       if (player) {
         currentPlayer = {
           id: player.userId,
-          name: player.user?.battleTag?.split('#')[0] || '선수',
+          name: this.displayName(player.user, '선수'),
           role: player.user?.mainRole?.toLowerCase() || 'flex',
           avatarUrl: player.user?.avatarUrl ?? null,
         };
@@ -164,7 +177,7 @@ export class AuctionsRoomStateService {
       .filter((p) => p.role === AuctionRole.PLAYER && !p.assignedTeamCaptainId)
       .map((p) => ({
         id: p.userId,
-        name: p.user?.battleTag?.split('#')[0] || '선수',
+        name: this.displayName(p.user, '선수'),
         role: p.user?.mainRole?.toLowerCase() || 'flex',
         avatarUrl: p.user?.avatarUrl ?? null,
         wasUnsold: p.wasUnsold,
@@ -197,6 +210,7 @@ export class AuctionsRoomStateService {
         user: p.user
           ? {
               id: p.user.id,
+              nickname: p.user.nickname ?? null,
               battleTag: p.user.battleTag ?? null,
               mainRole: p.user.mainRole ?? null,
               avatarUrl: p.user.avatarUrl ?? null,
