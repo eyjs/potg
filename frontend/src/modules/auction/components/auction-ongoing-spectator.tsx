@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { LayoutGroup } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
-import { Eye } from 'lucide-react'
+import { Eye, Gavel, Users } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
@@ -16,6 +18,16 @@ import type {
 import { ChatPanel } from './parts/chat-panel'
 import { BidLog } from './parts/bid-log'
 import { LiveChip } from './parts/fx/live-chip'
+import { MobileTabBar, type MobileTabItem } from './parts/mobile-tab-bar'
+import { MobileAuctionStage } from './parts/mobile-auction-stage'
+
+/** 관전자 모바일 하단 탭 id — 경매(스테이지+채팅) / 현황(TeamSidebar). */
+type SpectatorMobileTab = 'auction' | 'status'
+
+const SPECTATOR_MOBILE_TABS: readonly MobileTabItem<SpectatorMobileTab>[] = [
+  { value: 'auction', label: '경매', icon: Gavel },
+  { value: 'status', label: '현황', icon: Users },
+]
 
 interface Props {
   roomState: RoomState
@@ -38,10 +50,11 @@ export function AuctionOngoingSpectator({
 }: Props) {
   const phase = roomState.auction.biddingPhase
   const isAssigning = roomState.auction.status === 'ASSIGNING'
+  const [activeTab, setActiveTab] = useState<SpectatorMobileTab>('auction')
 
   return (
-    <div className="space-y-4">
-      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+    <div className="space-y-4 flex flex-col h-[calc(100dvh-7rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible">
+      <Card className="shrink-0 relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
         {/* 상단 에너지 스윕 라인 */}
         <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
@@ -64,7 +77,7 @@ export function AuctionOngoingSpectator({
       </Card>
 
       {roomState.auction.status === 'PAUSED' && (
-        <Card className="bg-card border-primary/50">
+        <Card className="shrink-0 bg-card border-primary/50">
           <CardContent className="py-3 text-center text-sm font-bold text-primary">
             ⏸ 경매가 일시정지되었습니다.
           </CardContent>
@@ -120,41 +133,79 @@ export function AuctionOngoingSpectator({
       </LayoutGroup>
 
       {/*
-        모바일(<lg) — 트위치/치지직 세로형: 상단 실시간 경매현황 + 하단 채팅.
-        min-h는 dvh 기준(모바일 주소창 리사이즈 대응) — 페이지 컨테이너 py-6(상하 총 3rem) +
-        헤더 카드(아이콘+타이틀+타이머, 약 4rem) + space-y-4 간격(1rem) + 여유값(2rem) = 10rem.
-        PAUSED 배너가 추가로 표시될 때도 min-height일 뿐이라 페이지가 자연스럽게 늘어난다.
+        모바일(<lg) — 하단 탭 네비게이션(경매/현황). 페이지 자체 스크롤 0(존 내부만 스크롤).
+        루트 h-[calc(100dvh-7rem)]에서 7rem = Header(h-16=4rem) + main px-4 py-6(상하 3rem).
+        상단 상태카드/PAUSED 배너는 shrink-0으로 자연 높이를 유지하고, 이 탭 블록이
+        flex-1 min-h-0으로 나머지 높이를 전부 흡수한다(고정 rem 배분 대신 flex로 배너 유무를 흡수).
+        경매/현황 두 패널은 항상 동시 마운트, 비활성 패널만 CSS hidden(display:none) 토글
+        — 언마운트 금지(채팅 draft/스크롤 위치·헤더 타이머 사운드 보존).
       */}
-      <div className="lg:hidden flex flex-col gap-4 min-h-[calc(100dvh-10rem)]">
-        {/* 상단 — 실시간 경매현황 */}
-        <div className="shrink-0">
-          {isAssigning ? (
-            <Card className="bg-card border-border">
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                마스터가 유찰자를 각 팀에 수동 배정 중입니다...
-              </CardContent>
-            </Card>
-          ) : (
-            <CurrentPlayerCard
-              player={roomState.currentPlayer}
-              currentBid={roomState.currentBid}
-              biddingPhase={phase}
-              stageEvent={stageEvent}
+      <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+        {/* 탭 콘텐츠 영역 */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* 경매 패널 — 스테이지 + 채팅 */}
+          <div
+            className={cn(
+              'flex-1 min-h-0 flex flex-col',
+              activeTab !== 'auction' && 'hidden',
+            )}
+          >
+            {isAssigning ? (
+              <Card className="shrink-0 bg-card border-border">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  마스터가 유찰자를 각 팀에 수동 배정 중입니다...
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="h-[40vh] shrink-0">
+                <MobileAuctionStage
+                  player={roomState.currentPlayer}
+                  currentBid={roomState.currentBid}
+                  biddingPhase={phase}
+                  stageEvent={stageEvent}
+                  bidEvents={bidEvents}
+                  timerRemaining={timerRemaining}
+                  totalTime={roomState.auction.turnTimeLimit}
+                />
+              </div>
+            )}
+
+            {/* 채팅 — 배정 중에도 항상 마운트(데스크톱과 동일하게 isAssigning과 무관) */}
+            <div className="flex-1 min-h-0">
+              {chatMessages && onSendChat && (
+                <ChatPanel
+                  messages={chatMessages}
+                  onSend={onSendChat}
+                  participants={roomState.participants}
+                  myUserId={myUserId}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* 현황 패널 — TeamSidebar */}
+          <div
+            className={cn(
+              'flex-1 min-h-0 overflow-y-auto',
+              activeTab !== 'status' && 'hidden',
+            )}
+          >
+            <TeamSidebar
+              teams={roomState.teams}
+              startingPoints={roomState.auction.startingPoints}
+              rosterMode={roomState.auction.rosterMode}
+              highlightCaptainId={roomState.currentBid?.bidderId ?? null}
             />
-          )}
+          </div>
         </div>
 
-        {/* 하단 — 채팅, 남은 높이 전부 */}
-        <div className="flex-1 min-h-0">
-          {chatMessages && onSendChat && (
-            <ChatPanel
-              messages={chatMessages}
-              onSend={onSendChat}
-              participants={roomState.participants}
-              myUserId={myUserId}
-            />
-          )}
-        </div>
+        {/* 하단 탭바 */}
+        <MobileTabBar
+          tabs={SPECTATOR_MOBILE_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          ariaLabel="경매 화면 전환"
+        />
       </div>
     </div>
   )
