@@ -12,6 +12,12 @@ interface Props {
   /** 입찰 단계 — SOLD 면 0(종료)으로 고정, WAITING 이면 대기(--) 표시. */
   phase?: 'WAITING' | 'BIDDING' | 'SOLD'
   size?: 'sm' | 'lg'
+  /** 'bar' = 스테이지 전폭 게이지 바(숫자 배지 대신 얇은 바만). 기본 'default'는 기존 마크업 그대로. */
+  variant?: 'default' | 'bar'
+  /** 숫자(Clock 아이콘 + 초 숫자) 시각 표시 여부. false여도 role=timer/aria-live/srLabel은 sr-only로 유지. 기본 true(기존 동작). */
+  showNumber?: boolean
+  /** 도화선 크래클 사운드(startFuseCrackle/stopFuseCrackle) 소유 여부. false면 비주얼만, 사운드 완전 무음. 기본 true(기존 동작 — 헤더 타이머가 단독 소유). */
+  soundEnabled?: boolean
 }
 
 /** 스파크 개수(데스크톱 3개/모바일 2개) 판정 기준 — Tailwind `lg` 브레이크포인트와 동일. */
@@ -40,6 +46,9 @@ export function BidTimer({
   totalTime,
   phase,
   size = 'lg',
+  variant = 'default',
+  showNumber = true,
+  soundEnabled = true,
 }: Props) {
   // 단계 기반 보정 — 낙찰 직후 마지막 숫자에 얼어붙지 않도록 SOLD=0, WAITING=대기.
   const remainingTime =
@@ -84,85 +93,100 @@ export function BidTimer({
   const sparkCount = isDesktop ? 3 : 2
 
   // 도화선 크래클 사운드 — isUrgent 진입(false→true) 시 1회 시작, 이탈/언마운트 시 정지.
+  // soundEnabled=false(예: 스테이지 무음 바)면 크래클 호출을 완전히 건너뛴다(비주얼만 유지) —
+  // 헤더 상태카드 타이머(soundEnabled 기본값=true)가 크래클 단독 소유자.
   const wasUrgentRef = useRef(false)
   useEffect(() => {
     if (isUrgent && !wasUrgentRef.current) {
-      startFuseCrackle()
+      if (soundEnabled) startFuseCrackle()
     } else if (!isUrgent && wasUrgentRef.current) {
-      stopFuseCrackle()
+      if (soundEnabled) stopFuseCrackle()
     }
     wasUrgentRef.current = isUrgent
 
     return () => {
-      // 언마운트 시 진행 중이던 크래클 잔류 방지.
-      if (wasUrgentRef.current) {
+      // 언마운트 시 진행 중이던 크래클 잔류 방지(무음 인스턴스는 애초에 시작 안 했으므로 정지 호출 없음).
+      if (wasUrgentRef.current && soundEnabled) {
         stopFuseCrackle()
       }
     }
-  }, [isUrgent])
+  }, [isUrgent, soundEnabled])
 
   return (
     <div
       className={cn(
-        'inline-flex flex-col gap-1',
-        size === 'lg' ? 'min-w-[9rem]' : 'min-w-[6rem]',
+        'flex flex-col gap-1',
+        variant === 'bar'
+          ? 'w-full'
+          : cn('inline-flex', size === 'lg' ? 'min-w-[9rem]' : 'min-w-[6rem]'),
       )}
     >
-      <div
-        role="timer"
-        aria-live={isUrgent || isEnded ? 'assertive' : 'polite'}
-        aria-label={srLabel}
-        className={cn(
-          'flex items-center justify-center gap-2 rounded-sm transition-all duration-150',
-          (isUrgent || isEnded) && 'px-2 py-0.5 ring-2',
-          isUrgent &&
-            'ring-ow-red/70 bg-ow-red/10 scale-105 animate-pulse shadow-[0_0_18px_rgba(255,70,73,0.55)]',
-          isEnded && 'ring-ow-red bg-ow-red/20 scale-105',
-        )}
-      >
-        <Clock
-          aria-hidden="true"
-          className={cn(numberColor, size === 'lg' ? 'w-6 h-6' : 'w-4 h-4')}
+      {showNumber ? (
+        <div
+          role="timer"
+          aria-live={isUrgent || isEnded ? 'assertive' : 'polite'}
+          aria-label={srLabel}
+          className={cn(
+            'flex items-center justify-center gap-2 rounded-sm transition-all duration-150',
+            (isUrgent || isEnded) && 'px-2 py-0.5 ring-2',
+            isUrgent &&
+              'ring-ow-red/70 bg-ow-red/10 scale-105 animate-pulse shadow-[0_0_18px_rgba(255,70,73,0.55)]',
+            isEnded && 'ring-ow-red bg-ow-red/20 scale-105',
+          )}
+        >
+          <Clock
+            aria-hidden="true"
+            className={cn(numberColor, size === 'lg' ? 'w-6 h-6' : 'w-4 h-4')}
+          />
+          {isEnded ? (
+            <span
+              className={cn(
+                'font-black uppercase italic text-ow-red',
+                size === 'lg' ? 'text-3xl' : 'text-base',
+              )}
+            >
+              종료
+            </span>
+          ) : (
+            <>
+              <span
+                className={cn(
+                  'font-black tabular-nums',
+                  numberColor,
+                  size === 'lg' ? 'text-5xl' : 'text-xl',
+                )}
+              >
+                {remainingTime === null ? '--' : value}
+              </span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'text-muted-foreground uppercase font-bold',
+                  size === 'lg' ? 'text-sm' : 'text-xs',
+                )}
+              >
+                sec
+              </span>
+            </>
+          )}
+        </div>
+      ) : (
+        // 숫자 시각은 생략하되(스테이지 바 등), 스크린리더 안내(role=timer/aria-live/srLabel)는 유지.
+        <div
+          role="timer"
+          aria-live={isUrgent || isEnded ? 'assertive' : 'polite'}
+          aria-label={srLabel}
+          className="sr-only"
         />
-        {isEnded ? (
-          <span
-            className={cn(
-              'font-black uppercase italic text-ow-red',
-              size === 'lg' ? 'text-3xl' : 'text-base',
-            )}
-          >
-            종료
-          </span>
-        ) : (
-          <>
-            <span
-              className={cn(
-                'font-black tabular-nums',
-                numberColor,
-                size === 'lg' ? 'text-5xl' : 'text-xl',
-              )}
-            >
-              {remainingTime === null ? '--' : value}
-            </span>
-            <span
-              aria-hidden="true"
-              className={cn(
-                'text-muted-foreground uppercase font-bold',
-                size === 'lg' ? 'text-sm' : 'text-xs',
-              )}
-            >
-              sec
-            </span>
-          </>
-        )}
-      </div>
+      )}
 
       {/* 초록→빨강 그라데이션 게이지 — 시간이 줄면 폭도 줄고 색도 붉어진다. */}
       {remainingTime !== null && (
         <div
           aria-hidden="true"
           className={cn(
-            'relative h-1.5 w-full overflow-visible rounded-full bg-muted/40',
+            'relative w-full overflow-visible rounded-full bg-muted/40',
+            variant === 'bar' ? 'h-2.5' : 'h-1.5',
             isUrgent && 'animate-pulse',
           )}
         >
