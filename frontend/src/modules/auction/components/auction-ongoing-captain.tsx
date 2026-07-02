@@ -125,7 +125,7 @@ export function AuctionOngoingCaptain({
         <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
+            <h2 className="pr-2 text-xl font-black italic uppercase tracking-tighter break-keep leading-tight drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
               {roomState.auction.title}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">

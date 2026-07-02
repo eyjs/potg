@@ -235,7 +235,7 @@ export function AuctionPendingMaster({
       <Card className="bg-card border-primary/30">
         <CardContent className="py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate">
+            <h2 className="pr-2 text-xl font-black italic uppercase tracking-tighter break-keep leading-tight">
               {title}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">
