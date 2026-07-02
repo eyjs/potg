@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { toast } from 'sonner'
+import { ACCESS_TOKEN_STORAGE_KEY } from '@/lib/api'
 import type { RoomState } from '../types'
 import { useAuctionSound } from './use-auction-sound'
 
@@ -90,10 +91,18 @@ export function useAuctionSocket(
       return
     }
 
+    // 쿠키가 차단되는 환경(모바일/시크릿)용 폴백 — HTTP Bearer 폴백과 동일한 토큰을
+    // 핸드셰이크 auth 로 병행 전달한다 (백엔드는 쿠키 우선, auth.token 폴백).
+    const storedToken =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+        : null
+
     const socket = io(`${SOCKET_BASE}/auction`, {
       withCredentials: true,
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      ...(storedToken ? { auth: { token: storedToken } } : {}),
     })
     socketRef.current = socket
 

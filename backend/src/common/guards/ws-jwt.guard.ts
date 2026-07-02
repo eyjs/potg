@@ -53,7 +53,9 @@ function parseCookieHeader(header: string | undefined): Record<string, string> {
 }
 
 /**
- * 소켓 핸드셰이크의 HttpOnly `access_token` 쿠키를 검증하고 사용자 정보를 반환한다.
+ * 소켓 핸드셰이크의 HttpOnly `access_token` 쿠키(우선) 또는 handshake.auth.token(폴백)을
+ * 검증하고 사용자 정보를 반환한다. 폴백은 크로스사이트 쿠키가 차단되는 브라우저(모바일 등)에서
+ * HTTP 의 Authorization Bearer 폴백과 동일한 역할을 한다.
  * 실패 시 throw — 호출부(connection 핸들러)에서 disconnect 처리.
  */
 export function authenticateSocket(
@@ -62,7 +64,11 @@ export function authenticateSocket(
   secret: string,
 ): SocketUser {
   const cookies = parseCookieHeader(client.handshake.headers.cookie);
-  const token = cookies[ACCESS_TOKEN_COOKIE];
+  const authToken = (client.handshake.auth as { token?: unknown } | undefined)
+    ?.token;
+  const token =
+    cookies[ACCESS_TOKEN_COOKIE] ??
+    (typeof authToken === 'string' && authToken ? authToken : undefined);
   if (!token) {
     throw new WsException('인증 토큰이 없습니다.');
   }

@@ -14,9 +14,9 @@ import { authenticateSocket } from './ws-jwt.guard';
 describe('authenticateSocket', () => {
   const SECRET = 'test-secret-at-least-16-chars';
 
-  function makeSocket(cookie?: string): Socket {
+  function makeSocket(cookie?: string, auth?: Record<string, unknown>): Socket {
     return {
-      handshake: { headers: cookie ? { cookie } : {} },
+      handshake: { headers: cookie ? { cookie } : {}, auth: auth ?? {} },
     } as unknown as Socket;
   }
 
@@ -68,6 +68,40 @@ describe('authenticateSocket', () => {
     });
     expect(() =>
       authenticateSocket(makeSocket('access_token=bad'), jwt, SECRET),
+    ).toThrow(WsException);
+  });
+
+  it('쿠키 없음 + handshake.auth.token 있음 → 폴백으로 SocketUser 반환 (모바일 쿠키 차단 회귀)', () => {
+    const jwt = makeJwt(() => ({
+      sub: 'user-2',
+      username: 'mobile',
+      role: 'USER',
+    }));
+    const client = makeSocket(undefined, { token: 'fallback.jwt.token' });
+
+    const user = authenticateSocket(client, jwt, SECRET);
+
+    expect(user.userId).toBe('user-2');
+    expect(jwt.verify).toHaveBeenCalledWith('fallback.jwt.token', {
+      secret: SECRET,
+    });
+  });
+
+  it('쿠키와 auth.token 둘 다 있으면 쿠키 우선', () => {
+    const jwt = makeJwt(() => ({ sub: 'x', username: 'y', role: 'USER' }));
+    const client = makeSocket('access_token=cookie.jwt', {
+      token: 'auth.jwt',
+    });
+
+    authenticateSocket(client, jwt, SECRET);
+
+    expect(jwt.verify).toHaveBeenCalledWith('cookie.jwt', { secret: SECRET });
+  });
+
+  it('auth.token 이 문자열이 아니면 무시 → WsException', () => {
+    const jwt = makeJwt(() => ({ sub: 'x' }));
+    expect(() =>
+      authenticateSocket(makeSocket(undefined, { token: 123 }), jwt, SECRET),
     ).toThrow(WsException);
   });
 });
