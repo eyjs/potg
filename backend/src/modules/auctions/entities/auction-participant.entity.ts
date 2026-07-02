@@ -44,4 +44,8 @@ export class AuctionParticipant extends BaseEntity {
 
   @Column({ default: 0 })
   biddingOrder: number; // Order in which this player was put up for auction
+
+  /** 팀명 — CAPTAIN 행에서만 사용. null 이면 "{팀장닉네임} 팀" 으로 표시. */
+  @Column({ name: 'team_name', type: 'varchar', length: 40, nullable: true })
+  teamName: string | null;
 }

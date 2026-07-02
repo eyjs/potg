@@ -199,6 +199,34 @@ export class AuctionsController {
       .then((r) => this.broadcastAfter(id, r));
   }
 
+  // 매물 대표 영웅 설정 (회원 영속)
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/participants/:userId/hero')
+  setParticipantHero(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body('hero') hero: string | null,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.auctionsService
+      .setParticipantHero(id, req.user.userId, userId, hero ?? null)
+      .then((r) => this.broadcastAfter(id, r));
+  }
+
+  // 팀명 설정 (CAPTAIN 행)
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/captains/:userId/team-name')
+  setTeamName(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body('teamName') teamName: string | null,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.auctionsService
+      .setTeamName(id, req.user.userId, userId, teamName ?? null)
+      .then((r) => this.broadcastAfter(id, r));
+  }
+
   // 경매 설정 업데이트
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/settings')

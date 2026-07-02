@@ -46,6 +46,26 @@ export const auctionsApi = {
       .post(`/auctions/${id}/participants/${userId}/remove`)
       .then(() => undefined),
 
+  /** 매물 대표 영웅 설정 (회원 영속, null 해제) — OverFast 영웅 key. */
+  setParticipantHero: (
+    id: string,
+    userId: string,
+    hero: string | null,
+  ): Promise<void> =>
+    api
+      .patch(`/auctions/${id}/participants/${userId}/hero`, { hero })
+      .then(() => undefined),
+
+  /** 팀명 설정 (CAPTAIN 행, 빈 값이면 해제). */
+  setTeamName: (
+    id: string,
+    userId: string,
+    teamName: string | null,
+  ): Promise<void> =>
+    api
+      .patch(`/auctions/${id}/captains/${userId}/team-name`, { teamName })
+      .then(() => undefined),
+
   /** 경매 설정 변경 (PENDING 한정) — startingPoints 변경 시 팀장 포인트도 동기화됨. */
   updateSettings: (
     id: string,

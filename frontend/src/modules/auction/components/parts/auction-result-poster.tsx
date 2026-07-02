@@ -8,6 +8,8 @@ interface Props {
   teams: RoomStateTeam[]
   unsoldPlayers: RoomStatePlayer[]
   startingPoints: number
+  /** 영웅 key → 초상화 URL (OverFast). 없으면 아바타/이니셜 폴백. */
+  heroPortraits?: Map<string, string>
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -25,7 +27,7 @@ const ROLE_COLORS: Record<string, string> = {
  */
 export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
   function AuctionResultPoster(
-    { title, teams, unsoldPlayers, startingPoints },
+    { title, teams, unsoldPlayers, startingPoints, heroPortraits },
     ref,
   ) {
     const totalRecruited = teams.reduce((sum, t) => sum + t.members.length, 0)
@@ -151,7 +153,10 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
                         TEAM {idx + 1}
                       </p>
                       <p style={{ fontWeight: 900, fontSize: '18px' }}>
-                        {team.captainName}
+                        {team.teamName ?? `${team.captainName} 팀`}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#d4d4d4' }}>
+                        팀장 {team.captainName}
                       </p>
                     </div>
                   </div>
@@ -194,7 +199,11 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
                           <div className="flex items-center gap-2 min-w-0">
                             <PosterAvatar
                               name={m.name}
-                              avatarUrl={m.avatarUrl}
+                              avatarUrl={
+                                (m.hero
+                                  ? (heroPortraits?.get(m.hero) ?? null)
+                                  : null) ?? m.avatarUrl
+                              }
                               size={22}
                             />
                             <span

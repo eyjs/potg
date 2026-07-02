@@ -1,7 +1,10 @@
+'use client'
+
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
 import { Gavel } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useHeroes } from '../../hooks/use-heroes'
 import type { RoomState } from '../../types'
 
 type PlayerStatus = 'current' | 'waiting' | 'unsold' | 'sold'
@@ -45,6 +48,7 @@ const STATUS_BADGE: Record<PlayerStatus, string> = {
  * 낙찰자는 낙찰가를 함께 보여준다. 진행 중 매물은 강조 테두리.
  */
 export function PlayerStatusGrid({ roomState }: Props) {
+  const { portraitByKey } = useHeroes()
   const currentId = roomState.auction.currentBiddingPlayerId
   const priceByUserId = new Map<string, number>()
   for (const team of roomState.teams) {
@@ -62,11 +66,15 @@ export function PlayerStatusGrid({ roomState }: Props) {
             : p.wasUnsold
               ? 'unsold'
               : 'waiting'
+      const heroPortrait = p.user?.representativeHero
+        ? (portraitByKey.get(p.user.representativeHero) ?? null)
+        : null
       return {
         id: p.userId,
         name:
           p.user?.nickname || p.user?.battleTag?.split('#')[0] || '선수',
-        avatarUrl: p.user?.avatarUrl ?? null,
+        // 아이콘 우선순위: 대표 영웅 초상화 > 디스코드 아바타 > 이니셜
+        avatarUrl: heroPortrait ?? p.user?.avatarUrl ?? null,
         status,
         soldPrice:
           status === 'sold' ? (priceByUserId.get(p.userId) ?? null) : null,

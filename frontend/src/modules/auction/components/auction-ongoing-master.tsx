@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Users,
   Play,
+  Pause,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
@@ -85,6 +86,25 @@ export function AuctionOngoingMaster({
     emit.enterAssignmentPhase()
   }
 
+  const isPaused = status === 'PAUSED'
+
+  const handleTogglePause = () => {
+    if (isPaused) emit.resumeAuction()
+    else emit.pauseAuction()
+  }
+
+  // 경매 임의 종료 — 남은 매물 전부 유찰 처리 후 수동 배정 단계로
+  const handleEndToAssignment = async () => {
+    const ok = await confirm({
+      title: '경매를 종료하시겠습니까?',
+      description: `미배정 매물 ${unassigned.length}명이 전부 유찰 처리되고, 각 팀 카드에 드래그앤드롭으로 수동 배정하는 단계로 이동합니다.`,
+      variant: 'destructive',
+      confirmText: '종료 (유찰 → 배정)',
+    })
+    if (!ok) return
+    emit.enterAssignmentPhase()
+  }
+
   const handleReset = async () => {
     const ok = await confirm({
       title: '경매를 리셋하시겠습니까?',
@@ -133,6 +153,14 @@ export function AuctionOngoingMaster({
           </div>
         </CardContent>
       </Card>
+
+      {isPaused && (
+        <Card className="bg-card border-primary/50">
+          <CardContent className="py-3 text-center text-sm font-bold text-primary">
+            ⏸ 경매가 일시정지되었습니다 — 재개 버튼으로 계속하세요.
+          </CardContent>
+        </Card>
+      )}
 
       {isAssigning ? (
         <>
@@ -263,31 +291,62 @@ export function AuctionOngoingMaster({
                   </div>
                 )}
 
-                {/* 리셋 + 종료 */}
+                {/* 일시정지/리셋 + 종료(유찰→배정) */}
                 <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3">
-                  <Button
-                    onClick={handleReset}
-                    variant="ghost"
-                    size="sm"
-                    className="text-ow-red hover:text-ow-red hover:bg-ow-red/10"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                    리셋
-                  </Button>
-                  <Button
-                    onClick={handleComplete}
-                    disabled={!allAssigned}
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      'border-primary text-primary',
-                      allAssigned && 'bg-primary text-black hover:bg-primary/90',
-                      'disabled:opacity-40',
-                    )}
-                  >
-                    <Square className="w-3.5 h-3.5 mr-1" />
-                    {allAssigned ? '종료' : `종료 (${unassigned.length})`}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      onClick={handleTogglePause}
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        isPaused
+                          ? 'border-primary text-primary bg-primary/10'
+                          : 'border-border text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {isPaused ? (
+                        <>
+                          <Play className="w-3.5 h-3.5 mr-1" />
+                          재개
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-3.5 h-3.5 mr-1" />
+                          일시정지
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleReset}
+                      variant="ghost"
+                      size="sm"
+                      className="text-ow-red hover:text-ow-red hover:bg-ow-red/10"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                      리셋
+                    </Button>
+                  </div>
+                  {allAssigned ? (
+                    <Button
+                      onClick={handleComplete}
+                      variant="outline"
+                      size="sm"
+                      className="border-primary bg-primary text-black hover:bg-primary/90"
+                    >
+                      <Square className="w-3.5 h-3.5 mr-1" />
+                      경매 종료
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleEndToAssignment}
+                      variant="outline"
+                      size="sm"
+                      className="border-ow-red text-ow-red hover:bg-ow-red/10"
+                    >
+                      <Square className="w-3.5 h-3.5 mr-1" />
+                      종료 — 남은 {unassigned.length}명 유찰 → 배정
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

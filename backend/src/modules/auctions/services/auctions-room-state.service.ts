@@ -32,12 +32,14 @@ export interface RoomState {
     assignedTeamCaptainId: string | null;
     wasUnsold: boolean;
     biddingOrder: number;
+    teamName: string | null;
     user: {
       id: string;
       nickname: string | null;
       battleTag: string | null;
       mainRole: string | null;
       avatarUrl: string | null;
+      representativeHero: string | null;
     } | null;
   }[];
   currentBid: {
@@ -49,12 +51,14 @@ export interface RoomState {
     id: string;
     name: string;
     role: string;
+    hero: string | null;
     avatarUrl: string | null;
   } | null;
   teams: {
     captainId: string;
     captainName: string;
     captainAvatarUrl: string | null;
+    teamName: string | null;
     points: number;
     members: {
       id: string;
@@ -63,12 +67,14 @@ export interface RoomState {
       price: number;
       wasUnsold: boolean;
       avatarUrl: string | null;
+      hero: string | null;
     }[];
   }[];
   unsoldPlayers: {
     id: string;
     name: string;
     role: string;
+    hero: string | null;
     avatarUrl: string | null;
     wasUnsold: boolean;
   }[];
@@ -121,6 +127,7 @@ export class AuctionsRoomStateService {
         captainId: captain.userId,
         captainName: this.displayName(captain.user, '캡틴'),
         captainAvatarUrl: captain.user?.avatarUrl ?? null,
+        teamName: captain.teamName ?? null,
         points: captain.currentPoints,
         members: teamMembers.map((m) => ({
           id: m.userId,
@@ -129,6 +136,7 @@ export class AuctionsRoomStateService {
           price: m.soldPrice || 0,
           wasUnsold: m.wasUnsold,
           avatarUrl: m.user?.avatarUrl ?? null,
+          hero: m.user?.representativeHero ?? null,
         })),
       };
     });
@@ -168,6 +176,7 @@ export class AuctionsRoomStateService {
           id: player.userId,
           name: this.displayName(player.user, '선수'),
           role: player.user?.mainRole?.toLowerCase() || 'flex',
+          hero: player.user?.representativeHero ?? null,
           avatarUrl: player.user?.avatarUrl ?? null,
         };
       }
@@ -179,6 +188,7 @@ export class AuctionsRoomStateService {
         id: p.userId,
         name: this.displayName(p.user, '선수'),
         role: p.user?.mainRole?.toLowerCase() || 'flex',
+        hero: p.user?.representativeHero ?? null,
         avatarUrl: p.user?.avatarUrl ?? null,
         wasUnsold: p.wasUnsold,
       }));
@@ -207,11 +217,13 @@ export class AuctionsRoomStateService {
         assignedTeamCaptainId: p.assignedTeamCaptainId,
         wasUnsold: p.wasUnsold,
         biddingOrder: p.biddingOrder,
+        teamName: p.teamName ?? null,
         user: p.user
           ? {
               id: p.user.id,
               nickname: p.user.nickname ?? null,
               battleTag: p.user.battleTag ?? null,
+              representativeHero: p.user.representativeHero ?? null,
               mainRole: p.user.mainRole ?? null,
               avatarUrl: p.user.avatarUrl ?? null,
             }

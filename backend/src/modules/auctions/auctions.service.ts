@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, IsNull } from 'typeorm';
 import {
   Auction,
   AuctionStatus,
@@ -344,6 +344,65 @@ export class AuctionsService {
 
     await this.participantsRepository.remove(captain);
     return { removed: true, userId: captainUserId };
+  }
+
+  /**
+   * 매물 대표 영웅 설정 — 회원(users.representative_hero)에 영속 저장.
+   * hero 는 OverFast API 영웅 key (null 이면 해제).
+   */
+  async setParticipantHero(
+    auctionId: string,
+    adminId: string,
+    targetUserId: string,
+    hero: string | null,
+  ) {
+    if (hero !== null && (typeof hero !== 'string' || hero.length > 64))
+      throw new BadRequestException('영웅 key 가 올바르지 않습니다.');
+
+    await this.loadAsCreator(
+      auctionId,
+      adminId,
+      '경매 마스터만 대표 영웅을 설정할 수 있습니다.',
+    );
+
+    const participant = await this.participantsRepository.findOne({
+      where: { auctionId, userId: targetUserId },
+    });
+    if (!participant)
+      throw new BadRequestException('참가자를 찾을 수 없습니다.');
+
+    await this.usersRepository.update(
+      { id: targetUserId },
+      { representativeHero: hero },
+    );
+    return { userId: targetUserId, representativeHero: hero };
+  }
+
+  /** 팀명 설정 — CAPTAIN participant 의 team_name. 빈 문자열/null 이면 해제. */
+  async setTeamName(
+    auctionId: string,
+    adminId: string,
+    captainUserId: string,
+    teamName: string | null,
+  ) {
+    const normalized = teamName?.trim() || null;
+    if (normalized !== null && normalized.length > 40)
+      throw new BadRequestException('팀명은 40자 이내여야 합니다.');
+
+    await this.loadAsCreator(
+      auctionId,
+      adminId,
+      '경매 마스터만 팀명을 변경할 수 있습니다.',
+    );
+
+    const captain = await this.participantsRepository.findOne({
+      where: { auctionId, userId: captainUserId, role: AuctionRole.CAPTAIN },
+    });
+    if (!captain) throw new BadRequestException('팀장을 찾을 수 없습니다.');
+
+    captain.teamName = normalized;
+    await this.participantsRepository.save(captain);
+    return { captainId: captainUserId, teamName: normalized };
   }
 
   // 경매 설정 업데이트
@@ -767,6 +826,38 @@ export class AuctionsService {
         auctionId,
         adminId,
         '관리자만 배정 단계로 이동할 수 있습니다.',
+      );
+
+      if (
+        auction.status !== AuctionStatus.ONGOING &&
+        auction.status !== AuctionStatus.PAUSED
+      )
+        throw new BadRequestException(
+          '진행 중인 경매에서만 배정 단계로 이동할 수 있습니다.',
+        );
+
+      // 진행 중이던 매물의 활성 입찰 비활성화 (마스터 임의 종료 대비)
+      if (auction.currentBiddingPlayerId) {
+        await manager.update(
+          AuctionBid,
+          {
+            auctionId,
+            targetPlayerId: auction.currentBiddingPlayerId,
+            isActive: true,
+          },
+          { isActive: false },
+        );
+      }
+
+      // 남은(미배정) 매물 전원 유찰 처리 — 이후 마스터가 수동 배정
+      await manager.update(
+        AuctionParticipant,
+        {
+          auctionId,
+          role: AuctionRole.PLAYER,
+          assignedTeamCaptainId: IsNull(),
+        },
+        { wasUnsold: true },
       );
 
       auction.status = AuctionStatus.ASSIGNING;

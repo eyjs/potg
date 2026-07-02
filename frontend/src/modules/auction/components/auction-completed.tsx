@@ -12,6 +12,7 @@ import { useConfirm } from '@/common/components/confirm-dialog'
 import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
 import { TeamRosters } from './parts/team-rosters'
+import { useHeroes } from '../hooks/use-heroes'
 import { AuctionResultPoster } from './parts/auction-result-poster'
 import { CreateAuctionDialog } from './parts/create-auction-dialog'
 import type { RoomState } from '../types'
@@ -34,6 +35,7 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
     return window.localStorage.getItem(HELP_DISMISS_KEY) === '1'
   })
   const posterRef = useRef<HTMLDivElement>(null)
+  const { portraitByKey } = useHeroes()
 
   const handleDismissHelp = () => {
     window.localStorage.setItem(HELP_DISMISS_KEY, '1')
@@ -223,6 +225,7 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
           teams={roomState.teams}
           unsoldPlayers={unsold}
           startingPoints={roomState.auction.startingPoints}
+          heroPortraits={portraitByKey}
         />
       </div>
 

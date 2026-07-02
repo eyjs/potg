@@ -1,8 +1,11 @@
+'use client'
+
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
 import { Gavel } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useHeroes } from '../../hooks/use-heroes'
 import type { RoomStateBid, RoomStatePlayer } from '../../types'
 
 interface Props {
@@ -25,6 +28,7 @@ const PHASE_LABEL: Record<Props['biddingPhase'], string> = {
 }
 
 export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
+  const { portraitByKey } = useHeroes()
   if (!player) {
     return (
       <Card className="bg-card border-border border-dashed">
@@ -51,7 +55,14 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
     >
       <CardContent className="p-8 flex flex-col items-center text-center gap-4">
         <Avatar className="w-48 h-48 border-4 border-primary/40">
-          <AvatarImage src={player.avatarUrl ?? undefined} alt={player.name} />
+          <AvatarImage
+            src={
+              (player.hero ? portraitByKey.get(player.hero) : undefined) ??
+              player.avatarUrl ??
+              undefined
+            }
+            alt={player.name}
+          />
           <AvatarFallback className="bg-muted text-6xl font-black">
             {player.name[0]}
           </AvatarFallback>

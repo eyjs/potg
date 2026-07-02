@@ -47,6 +47,14 @@ export function AuctionOngoingSpectator({
         </CardContent>
       </Card>
 
+      {roomState.auction.status === 'PAUSED' && (
+        <Card className="bg-card border-primary/50">
+          <CardContent className="py-3 text-center text-sm font-bold text-primary">
+            ⏸ 경매가 일시정지되었습니다.
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-12 gap-4">
         <aside className="col-span-12 lg:col-span-3 space-y-2">
           <TeamSidebar teams={roomState.teams} />

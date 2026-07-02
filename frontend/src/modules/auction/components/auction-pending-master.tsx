@@ -12,6 +12,8 @@ import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
 import { useConfirm } from '@/common/components/confirm-dialog'
 import { UserPickerDialog } from './parts/user-picker-dialog'
+import { HeroPickerDialog } from './parts/hero-picker-dialog'
+import { useHeroes } from '../hooks/use-heroes'
 import { ParticipantList } from './parts/participant-list'
 import type { RoomState } from '../types'
 
@@ -37,6 +39,8 @@ export function AuctionPendingMaster({
   const confirm = useConfirm()
   const [captainPickerOpen, setCaptainPickerOpen] = useState(false)
   const [playerPickerOpen, setPlayerPickerOpen] = useState(false)
+  const [heroTargetId, setHeroTargetId] = useState<string | null>(null)
+  const { portraitByKey } = useHeroes()
 
   const captains = useMemo(
     () => roomState?.participants.filter((p) => p.role === 'CAPTAIN') ?? [],
@@ -173,6 +177,27 @@ export function AuctionPendingMaster({
       await refresh()
     } catch (error) {
       handleApiError(error, '매물 제거 실패')
+    }
+  }
+
+  const handleSetHero = async (heroKey: string | null) => {
+    if (!heroTargetId) return
+    try {
+      await auctionsApi.setParticipantHero(auctionId, heroTargetId, heroKey)
+      toast.success(heroKey ? '대표 영웅이 설정되었습니다.' : '대표 영웅을 해제했습니다.')
+      await refresh()
+    } catch (error) {
+      handleApiError(error, '대표 영웅 설정 실패')
+    }
+  }
+
+  const handleSaveTeamName = async (userId: string, teamName: string) => {
+    try {
+      await auctionsApi.setTeamName(auctionId, userId, teamName || null)
+      toast.success('팀명이 저장되었습니다.')
+      await refresh()
+    } catch (error) {
+      handleApiError(error, '팀명 저장 실패')
     }
   }
 
@@ -359,6 +384,11 @@ export function AuctionPendingMaster({
               canRemove={!readOnly}
               onRemove={handleRemoveCaptain}
               emptyMessage="팀장을 추가하세요"
+              heroPortraits={portraitByKey}
+              teamNames={
+                new Map(captains.map((c) => [c.userId, c.teamName ?? null]))
+              }
+              onSaveTeamName={readOnly ? undefined : handleSaveTeamName}
             />
           </CardContent>
         </Card>
@@ -389,6 +419,8 @@ export function AuctionPendingMaster({
               canRemove={!readOnly}
               onRemove={handleRemovePlayer}
               emptyMessage="경매 매물을 추가하세요"
+              heroPortraits={portraitByKey}
+              onPickHero={readOnly ? undefined : setHeroTargetId}
             />
           </CardContent>
         </Card>
@@ -437,6 +469,21 @@ export function AuctionPendingMaster({
         excludeIds={allParticipantUserIds}
         onConfirm={handleAddPlayers}
         onConfirmGuests={handleAddGuestPlayers}
+      />
+      <HeroPickerDialog
+        open={heroTargetId !== null}
+        onOpenChange={(open) => !open && setHeroTargetId(null)}
+        currentHero={
+          players.find((pl) => pl.userId === heroTargetId)?.user
+            ?.representativeHero ?? null
+        }
+        targetName={
+          (() => {
+            const t = players.find((pl) => pl.userId === heroTargetId)
+            return t?.user?.nickname ?? t?.user?.battleTag ?? '매물'
+          })()
+        }
+        onSelect={handleSetHero}
       />
     </div>
   )

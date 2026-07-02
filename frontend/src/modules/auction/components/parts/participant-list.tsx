@@ -1,9 +1,15 @@
 'use client'
 
-import { Avatar, AvatarFallback } from '@/common/components/ui/avatar'
+import { useState } from 'react'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/common/components/ui/avatar'
 import { Badge } from '@/common/components/ui/badge'
 import { Button } from '@/common/components/ui/button'
-import { X } from 'lucide-react'
+import { Input } from '@/common/components/ui/input'
+import { X, UserRound, Pencil, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomStateParticipant } from '../../types'
 
@@ -13,6 +19,12 @@ interface Props {
   onRemove?: (userId: string) => Promise<void>
   emptyMessage?: string
   highlightUserId?: string | null
+  /** 매물 모드: 대표 영웅 세팅 버튼 + 영웅 초상화 아이콘 */
+  heroPortraits?: Map<string, string>
+  onPickHero?: (userId: string) => void
+  /** 팀장 모드: 팀명 인라인 편집 (userId → 현재 팀명) */
+  teamNames?: Map<string, string | null>
+  onSaveTeamName?: (userId: string, teamName: string) => Promise<void>
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -28,7 +40,14 @@ export function ParticipantList({
   onRemove,
   emptyMessage = '아직 없습니다.',
   highlightUserId = null,
+  heroPortraits,
+  onPickHero,
+  teamNames,
+  onSaveTeamName,
 }: Props) {
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
+  const [teamDraft, setTeamDraft] = useState('')
+
   if (participants.length === 0) {
     return (
       <p className="text-sm text-muted-foreground text-center py-6">
@@ -37,11 +56,30 @@ export function ParticipantList({
     )
   }
 
+  const startTeamEdit = (userId: string) => {
+    setEditingTeamId(userId)
+    setTeamDraft(teamNames?.get(userId) ?? '')
+  }
+
+  const saveTeamEdit = async (userId: string) => {
+    if (!onSaveTeamName) return
+    await onSaveTeamName(userId, teamDraft.trim())
+    setEditingTeamId(null)
+  }
+
   return (
     <ul className="space-y-1.5">
       {participants.map((p) => {
         const isMe = highlightUserId && p.userId === highlightUserId
         const roleKey = (p.user?.mainRole ?? 'flex').toLowerCase()
+        const name = p.user?.nickname ?? p.user?.battleTag ?? '이름 없음'
+        const heroKey = p.user?.representativeHero ?? null
+        const heroPortrait = heroKey
+          ? (heroPortraits?.get(heroKey) ?? null)
+          : null
+        const isEditingTeam = editingTeamId === p.userId
+        const teamName = teamNames?.get(p.userId) ?? null
+
         return (
           <li
             key={p.id}
@@ -51,18 +89,68 @@ export function ParticipantList({
             )}
           >
             <Avatar className="w-7 h-7">
+              {/* 아이콘 우선순위: 대표 영웅 초상화 > 디스코드 아바타 > 이니셜 */}
+              <AvatarImage
+                src={heroPortrait ?? p.user?.avatarUrl ?? undefined}
+              />
               <AvatarFallback className="bg-muted text-xs">
-                {(p.user?.nickname ?? p.user?.battleTag)?.[0] ?? '?'}
+                {name[0] ?? '?'}
               </AvatarFallback>
             </Avatar>
+
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">
-                {p.user?.nickname ?? p.user?.battleTag ?? '이름 없음'}
-                {isMe && (
-                  <span className="text-primary text-xs ml-2">(나)</span>
-                )}
-              </p>
+              {isEditingTeam ? (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={teamDraft}
+                    onChange={(e) => setTeamDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void saveTeamEdit(p.userId)
+                      if (e.key === 'Escape') setEditingTeamId(null)
+                    }}
+                    maxLength={40}
+                    placeholder={`${name} 팀`}
+                    autoFocus
+                    className="h-6 text-xs bg-background"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-primary shrink-0"
+                    onClick={() => void saveTeamEdit(p.userId)}
+                    aria-label="팀명 저장"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold truncate">
+                    {name}
+                    {isMe && (
+                      <span className="text-primary text-xs ml-2">(나)</span>
+                    )}
+                  </p>
+                  {teamNames && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSaveTeamName && startTeamEdit(p.userId)
+                      }
+                      className={cn(
+                        'flex items-center gap-1 text-[11px] truncate',
+                        teamName ? 'text-primary' : 'text-muted-foreground',
+                        onSaveTeamName && 'hover:underline',
+                      )}
+                    >
+                      {teamName ?? `${name} 팀`}
+                      {onSaveTeamName && <Pencil className="w-2.5 h-2.5" />}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
+
             {p.user?.mainRole && (
               <Badge
                 variant="outline"
@@ -73,6 +161,23 @@ export function ParticipantList({
               >
                 {p.user.mainRole.toUpperCase()}
               </Badge>
+            )}
+            {onPickHero && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-6 w-6 shrink-0',
+                  heroKey
+                    ? 'text-primary hover:text-primary'
+                    : 'text-muted-foreground',
+                )}
+                onClick={() => onPickHero(p.userId)}
+                aria-label="대표 영웅 설정"
+                title="대표 영웅 설정"
+              >
+                <UserRound className="w-3.5 h-3.5" />
+              </Button>
             )}
             {canRemove && onRemove && (
               <Button

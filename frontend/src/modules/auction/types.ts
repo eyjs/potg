@@ -40,12 +40,14 @@ export interface RoomStateParticipant {
   assignedTeamCaptainId: string | null
   wasUnsold: boolean
   biddingOrder: number
+  teamName: string | null
   user: {
     id: string
     nickname: string | null
     battleTag: string | null
     mainRole: string | null
     avatarUrl: string | null
+    representativeHero: string | null
   } | null
 }
 
@@ -59,6 +61,7 @@ export interface RoomStatePlayer {
   id: string
   name: string
   role: string
+  hero: string | null
   avatarUrl: string | null
 }
 
@@ -70,6 +73,7 @@ export interface RoomStateTeam {
   captainId: string
   captainName: string
   captainAvatarUrl: string | null
+  teamName: string | null
   points: number
   members: {
     id: string
@@ -78,6 +82,7 @@ export interface RoomStateTeam {
     price: number
     wasUnsold: boolean
     avatarUrl: string | null
+    hero: string | null
   }[]
 }
 

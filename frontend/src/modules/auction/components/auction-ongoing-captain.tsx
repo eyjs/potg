@@ -122,6 +122,14 @@ export function AuctionOngoingCaptain({
         </CardContent>
       </Card>
 
+      {roomState.auction.status === 'PAUSED' && (
+        <Card className="bg-card border-primary/50">
+          <CardContent className="py-3 text-center text-sm font-bold text-primary">
+            ⏸ 마스터가 경매를 일시정지했습니다.
+          </CardContent>
+        </Card>
+      )}
+
       {isAssigning && (
         <Card className="bg-card border-primary/30">
           <CardContent className="py-4 text-center text-sm text-muted-foreground">

@@ -32,6 +32,8 @@ export interface AuctionEmitFns {
   enterAssignmentPhase: () => void
   manualAssignPlayer: (playerId: string, captainId: string) => void
   resetAuction: () => void
+  pauseAuction: () => void
+  resumeAuction: () => void
   sendChat: (message: string) => void
 }
 
@@ -187,6 +189,12 @@ export function useAuctionSocket(
   const resetAuction = useCallback(() => {
     socketRef.current?.emit('resetAuction', { auctionId })
   }, [auctionId])
+  const pauseAuction = useCallback(() => {
+    socketRef.current?.emit('pauseAuction', { auctionId })
+  }, [auctionId])
+  const resumeAuction = useCallback(() => {
+    socketRef.current?.emit('resumeAuction', { auctionId })
+  }, [auctionId])
   const sendChat = useCallback(
     (message: string) => {
       const trimmed = message.trim()
@@ -208,6 +216,8 @@ export function useAuctionSocket(
       enterAssignmentPhase,
       manualAssignPlayer,
       resetAuction,
+      pauseAuction,
+      resumeAuction,
       sendChat,
     }),
     [
@@ -221,6 +231,8 @@ export function useAuctionSocket(
       enterAssignmentPhase,
       manualAssignPlayer,
       resetAuction,
+      pauseAuction,
+      resumeAuction,
       sendChat,
     ],
   )

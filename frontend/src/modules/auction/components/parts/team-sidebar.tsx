@@ -47,9 +47,14 @@ export function TeamSidebar({ teams, myCaptainId }: Props) {
               <div className="flex items-center justify-between border-b border-border/40 pb-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Crown className="w-4 h-4 text-primary shrink-0" />
-                  <span className="font-bold text-sm truncate">
-                    {team.captainName}
-                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate leading-tight">
+                      {team.teamName ?? `${team.captainName} 팀`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      팀장 {team.captainName}
+                    </p>
+                  </div>
                 </div>
                 <span className="text-sm font-bold tabular-nums text-primary">
                   {team.points.toLocaleString()}P

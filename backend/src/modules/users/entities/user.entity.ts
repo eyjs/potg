@@ -68,6 +68,18 @@ export class User extends BaseEntity {
   @Column({ name: 'is_guest', default: false })
   isGuest: boolean;
 
+  /**
+   * 대표 오버워치 영웅 key (OverFast API 기준, ex: 'genji').
+   * 경매 매물 아이콘 등에서 영웅 초상화로 표시된다. 회원에 영속.
+   */
+  @Column({
+    name: 'representative_hero',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  representativeHero: string | null;
+
   @OneToMany(() => ClanMember, (clanMember) => clanMember.user)
   clanMembers: ClanMember[];
 }
