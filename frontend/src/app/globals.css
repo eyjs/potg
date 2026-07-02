@@ -410,7 +410,8 @@
     opacity: 0.55;
   }
   50% {
-    opacity: 0.85;
+    /* 모바일에서 .timer-ember 인라인 스타일로 --timer-ember-peak-opacity: 0.65 축소 — motion-spec §3.4 */
+    opacity: var(--timer-ember-peak-opacity, 0.85);
   }
 }
 .timer-ember {
