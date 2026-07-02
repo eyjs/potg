@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '@/lib/api';
+import api, { ACCESS_TOKEN_STORAGE_KEY } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -98,24 +98,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  const fetchUser = async () => {
+  // 프로필 조회 결과(User | null)를 반환한다. 반환값으로 로그인 성공 여부를
+  // 즉시 판단할 수 있어 setState의 비동기성에 의존하지 않는다.
+  const fetchUser = async (): Promise<User | null> => {
     setIsLoading(true);
     try {
       const response = await api.get<User>('/auth/profile');
       setUser(response.data);
+      return response.data;
     } catch {
       // 401 또는 네트워크 오류 — 미로그인 상태로 처리
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (credentials: LoginCredentials) => {
-    // POST /auth/login → 백엔드가 HttpOnly 쿠키 set
-    await api.post('/auth/login', credentials);
-    // 쿠키가 설정된 후 프로필 재조회하여 user 상태 갱신
-    await fetchUser();
+    // POST /auth/login → 백엔드가 HttpOnly 쿠키 set + 응답 바디로 access_token 반환
+    const response = await api.post<{ ok: true; access_token?: string }>(
+      '/auth/login',
+      credentials,
+    );
+    // 서드파티 쿠키 차단 브라우저 대응: 응답 바디의 토큰을 Bearer 폴백용으로 저장
+    if (typeof window !== 'undefined' && response.data.access_token) {
+      window.localStorage.setItem(
+        ACCESS_TOKEN_STORAGE_KEY,
+        response.data.access_token,
+      );
+    }
+    // 쿠키(또는 Bearer 폴백)가 설정된 후 프로필 재조회하여 user 상태 갱신
+    const fetchedUser = await fetchUser();
+    if (!fetchedUser) {
+      // 쿠키와 Bearer 폴백 모두 실패 — 로그인 페이지가 무한 새로고침되지 않도록
+      // 실패를 명시적으로 표면화한다.
+      throw new Error('로그인 세션 확인에 실패했습니다.');
+    }
   };
 
   const logout = async () => {
@@ -123,6 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.post('/auth/logout');
     } catch {
       // 로그아웃 실패해도 클라이언트 상태는 클리어
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     }
     setUser(null);
     setIsLoading(false);
