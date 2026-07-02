@@ -10,6 +10,7 @@ import { Button } from "@/common/components/ui/button"
 import { Input } from "@/common/components/ui/input"
 import { Label } from "@/common/components/ui/label"
 import { Checkbox } from "@/common/components/ui/checkbox"
+import { isAxiosError } from "axios"
 import { useAuth } from "@/context/auth-context"
 import { handleApiError } from "@/lib/api-error"
 import { loginSchema, type LoginFormValues } from "@/modules/auth/schemas/login.schema"
@@ -30,9 +31,19 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await login({ username: values.username, password: values.password })
+      // 세션 확인까지 성공한 경우에만 이동. 실패 시 로그인 페이지에 머무른다.
       router.replace("/")
     } catch (error) {
-      handleApiError(error, "로그인 실패: 아이디나 비밀번호를 확인해주세요.")
+      // 자격증명 오류(POST /auth/login 401)와 세션 확인 실패(쿠키/Bearer 폴백 모두
+      // 실패)를 구분해 사용자에게 더 정확한 메시지를 보여준다.
+      if (isAxiosError(error)) {
+        handleApiError(error, "로그인 실패: 아이디나 비밀번호를 확인해주세요.")
+      } else {
+        handleApiError(
+          error,
+          "브라우저의 서드파티 쿠키 차단 설정을 확인하거나 다시 시도해 주세요.",
+        )
+      }
     } finally {
       setIsLoading(false)
     }

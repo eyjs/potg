@@ -88,8 +88,9 @@ describe('AuthController', () => {
         res,
       );
 
-      // 쿠키 신호 응답 검증 (token은 쿠키로만 전달)
-      expect(result).toEqual({ ok: true });
+      // 쿠키 발급과 더불어 응답 바디에도 access_token을 병행 반환한다
+      // (서드파티 쿠키 차단 브라우저 대응 Bearer 폴백용)
+      expect(result).toEqual({ ok: true, access_token: token });
 
       // 쿠키 설정 검증 — 크로스사이트(Vercel ↔ potg.joonbi.co.kr) 필수 속성
       expect(res.cookie).toHaveBeenCalledWith(
