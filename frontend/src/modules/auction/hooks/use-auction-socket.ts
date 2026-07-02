@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { toast } from 'sonner'
 import type { RoomState } from '../types'
+import { useAuctionSound } from './use-auction-sound'
 
 const SOCKET_BASE =
   process.env.NEXT_PUBLIC_API_URL || 'https://potg.joonbi.co.kr'
@@ -324,6 +325,8 @@ export function useAuctionSocket(
       sendChat,
     ],
   )
+
+  useAuctionSound(bidEvents, stageEvent)
 
   return {
     isConnected,
