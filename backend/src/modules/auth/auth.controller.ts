@@ -33,15 +33,23 @@ export class AuthController {
 
   /**
    * 자체 로그인.
-   * JWT는 HttpOnly 쿠키로만 전달한다.
-   * 프론트는 로그인 후 GET /auth/profile 로 세션 정보를 조회한다.
+   * JWT는 HttpOnly 쿠키로 발급하되, 응답 바디에도 access_token을 함께 내려준다.
+   * 일부 브라우저가 서드파티/크로스사이트 쿠키를 차단해 쿠키만으로는 로그인
+   * 직후 세션 확인(/auth/profile)이 실패해 로그인 페이지가 무한 새로고침되는
+   * 문제를 완화하기 위함이다. 프론트는 이 토큰을 Authorization: Bearer 헤더
+   * 폴백으로 사용한다.
+   *
+   * 트레이드오프: 토큰을 응답 바디로 노출하면 XSS 공격 표면이 넓어진다
+   * (localStorage 등에 저장 시 스크립트로 탈취 가능). 근본 해결책은 프론트와
+   * 백엔드를 동일 사이트(same-site) 도메인으로 통합해 쿠키만으로 인증이
+   * 정상 동작하게 하는 것이며, 이는 인프라 변경이 필요해 별도 과제로 미룬다.
    */
   @Post('login')
-  @ApiOperation({ summary: '자체 로그인 (HttpOnly 쿠키 발급)' })
+  @ApiOperation({ summary: '자체 로그인 (HttpOnly 쿠키 발급 + 토큰 병행 응답)' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ ok: true }> {
+  ): Promise<{ ok: true; access_token: string }> {
     const user = await this.authService.validateUser(
       loginDto.username,
       loginDto.password,
@@ -55,7 +63,7 @@ export class AuthController {
       tokens.access_token,
       buildAccessTokenCookieOptions(),
     );
-    return { ok: true };
+    return { ok: true, access_token: tokens.access_token };
   }
 
   /**
