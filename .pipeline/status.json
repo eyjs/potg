@@ -1,10 +1,10 @@
 {
   "version": "v2",
   "pipeline_type": "feature",
-  "current_phase": "implementation",
-  "status": "in_progress",
+  "current_phase": "report",
+  "status": "success",
   "started_at": "2026-07-02T22:56:00+09:00",
-  "updated_at": "2026-07-02T23:15:00+09:00",
+  "updated_at": "2026-07-03T00:15:00+09:00",
   "requirement": ".pipeline/requirement.md",
   "scope": "경매 고도화: 효과음 + 최종 이미지 생성 수정 + 모바일 관전자 뷰 + 로그인 무한 새로고침 수정",
   "phases": {
@@ -12,21 +12,28 @@
     "plan_review": { "status": "done", "retries": 0, "verdict": "PASS" },
     "design": { "status": "done", "retries": 0, "scope": ["task-003"], "output": ".pipeline/design/screen-specs/mobile-spectator.md" },
     "implementation": {
-      "status": "in_progress",
+      "status": "done",
       "retries": 0,
       "parallel_tasks": ["task-001", "task-002", "task-003", "task-004"],
-      "completed_tasks": ["task-001", "task-002", "task-004"],
+      "completed_tasks": ["task-001", "task-002", "task-003", "task-004"],
       "worktrees": {
-        "task-001": { "branch": "worktree-agent-a56b5e7ed176bb789", "status": "implemented", "commit": "489b2aa", "lint_build": "pass" },
-        "task-002": { "branch": "worktree-agent-a577303abc0d99471", "status": "implemented", "commit": "6a050d8", "lint_build": "pass" },
-        "task-003": { "branch": "worktree-agent-mobile-pending", "status": "in_progress" },
-        "task-004": { "branch": "worktree-agent-a7805c0dd3e7bc1fb", "status": "implemented", "commits": ["272a74b", "a8e64ae"], "lint_build": "pass", "backend_test": "18 passed (npx jest src/modules/auth)" }
+        "task-001": { "branch": "worktree-agent-a56b5e7ed176bb789", "status": "merged", "commit": "489b2aa", "lint_build": "pass" },
+        "task-002": { "branch": "worktree-agent-a577303abc0d99471", "status": "merged", "commit": "6a050d8", "lint_build": "pass" },
+        "task-003": { "branch": "worktree-agent-a938bb14ffe8dc7e7", "status": "merged", "commit": "ac67603", "lint_build": "pass" },
+        "task-004": { "branch": "worktree-agent-a7805c0dd3e7bc1fb", "status": "merged", "commits": ["272a74b", "a8e64ae"], "lint_build": "pass", "backend_test": "18 passed (npx jest src/modules/auth)" }
       }
     },
-    "code_review": { "status": "pending", "retries": 0 },
-    "integration": { "status": "pending", "retries": 0 },
-    "documentation": { "status": "pending", "retries": 0 },
-    "report": { "status": "pending", "retries": 0 }
+    "code_review": { "status": "done", "retries": 0, "verdict": "PASS" },
+    "integration": {
+      "status": "done",
+      "retries": 0,
+      "frontend_lint": "pass (0 errors, 2 pre-existing warnings)",
+      "frontend_build": "pass (all routes incl. /auction, /login)",
+      "backend_unit": "pass (27 suites, 275 tests)",
+      "backend_e2e_integration": "skipped (requires Postgres, sandbox limitation)"
+    },
+    "documentation": { "status": "done", "retries": 0, "output": ".pipeline/docs/ + docs/" },
+    "report": { "status": "done", "retries": 0, "output": ".pipeline/REPORT.md" }
   },
   "constraints": {
     "no_modify_shadcn_ui": "frontend/src/components/ui/*",
