@@ -644,6 +644,13 @@ describe('AuctionsService', () => {
       );
       expect(auction.currentBiddingPlayerId).toBeNull();
       expect(auction.currentBiddingEndTime).toBeNull();
+      // 유찰 마크 + 다음 매물 선택 가능 상태 복귀 (BIDDING 고착 회귀 방지)
+      expect(manager.update).toHaveBeenCalledWith(
+        AuctionParticipant,
+        { auctionId: 'auction-1', userId: 'player-1' },
+        { wasUnsold: true },
+      );
+      expect(auction.biddingPhase).toBe(BiddingPhase.WAITING);
       expect(result).toEqual({ passed: true });
     });
 

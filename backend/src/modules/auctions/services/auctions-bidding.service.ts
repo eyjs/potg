@@ -287,8 +287,17 @@ export class AuctionsBiddingService {
         { isActive: false },
       );
 
+      // 유찰 마크 — 매물 그리드 라벨/배정 단계 유찰 풀의 기준
+      await manager.update(
+        AuctionParticipant,
+        { auctionId, userId: auction.currentBiddingPlayerId },
+        { wasUnsold: true },
+      );
+
       auction.currentBiddingPlayerId = null;
       auction.currentBiddingEndTime = null;
+      // BIDDING 에 고착되면 다음 매물 선택이 영영 불가 — 대기 상태로 복귀
+      auction.biddingPhase = BiddingPhase.WAITING;
       await manager.save(auction);
 
       return { passed: true };
@@ -323,8 +332,15 @@ export class AuctionsBiddingService {
       });
 
       if (!highestBid) {
+        // 무입찰 자동 유찰 — 수동 유찰과 동일하게 마크 + 대기 상태 복귀
+        await manager.update(
+          AuctionParticipant,
+          { auctionId, userId: auction.currentBiddingPlayerId },
+          { wasUnsold: true },
+        );
         auction.currentBiddingPlayerId = null;
         auction.currentBiddingEndTime = null;
+        auction.biddingPhase = BiddingPhase.WAITING;
         await manager.save(auction);
         return { confirmed: false as const };
       }
