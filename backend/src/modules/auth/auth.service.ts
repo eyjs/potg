@@ -24,7 +24,9 @@ export class AuthService {
     return null;
   }
 
-  async login(user: Omit<User, 'password'>) {
+  async login(
+    user: Omit<User, 'password'>,
+  ): Promise<{ access_token: string }> {
     const clanId = user.clanMembers?.[0]?.clanId;
     const payload = {
       username: user.username,
