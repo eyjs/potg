@@ -1,0 +1,28 @@
+## task-001 구현 완료
+
+### 수정 파일 및 변경 요약
+
+#### 1. frontend/src/app/page.tsx
+- `useAuth()` 구조분해에서 `isAdmin` 제거
+- `router.replace(isAdmin ? "/admin" : "/utility")` → `router.replace("/utility")`
+- `useEffect` 의존성 배열에서 `isAdmin` 제거
+
+#### 2. frontend/src/common/layouts/header.tsx
+- `navItems`에서 `{ href: "/admin", label: "운영", icon: Shield }` 항목 삭제
+- `DropdownMenuSeparator` import 추가 (`@/common/components/ui/dropdown-menu`)
+- `user && isAdmin` 조건부 데스크톱 [어드민] 버튼 추가 (`hidden sm:flex`, `Link href="/admin"`, `skew-btn` 테마)
+- 모바일 드롭다운에 `isAdmin` 조건부 `DropdownMenuItem`("어드민 페이지로 이동", `asChild Link href="/admin"`) + `DropdownMenuSeparator` 추가 (로그아웃 위)
+- `Shield` import 유지 (ADMIN 배지 + 어드민 버튼 아이콘에서 계속 사용)
+
+#### 3. frontend/src/modules/admin/components/admin-sidebar.tsx
+- `Radio`, `Home` lucide-react import 추가
+- `navItems`에 `{ href: '/auction', label: '실시간 경매', icon: <Radio className="size-4" /> }` 추가 (경매 이력 바로 위)
+- 하단 로그아웃 영역에 `Link href="/"` [유저 화면으로 돌아가기] 버튼 추가 (Home 아이콘, 기존 사이드바 링크 클래스 재사용, `cn()` 사용)
+- `/auction` isActive: `pathname.startsWith('/auction')` 동작 — `/admin/auctions`와 충돌 없음 확인
+
+### 검증 결과
+- `npx tsc --noEmit`: 에러 없음 (담당 파일 관련)
+- `npx eslint src/app/page.tsx src/common/layouts/header.tsx src/modules/admin/components/admin-sidebar.tsx`: clean (출력 없음)
+
+### 남은 이슈
+없음.

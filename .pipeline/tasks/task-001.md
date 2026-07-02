@@ -1,65 +1,66 @@
-# Task 001: 레이아웃/네비게이션 통일 (랜딩 + 헤더 + 어드민 사이드바)
+# Task 001: 경매 효과음 (입찰 / 낙찰 / 유찰 + 모바일 autoplay unlock)
 
 ## 메타데이터
+- 우선순위: P0
 - 복잡도: M
 - 병렬그룹: A
-- 의존: 없음 (즉시 실행 가능, task-002와 병렬)
+- 의존: 없음
 - 변경 파일 (충돌 방지용):
-  - 수정: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/app/page.tsx`
-  - 수정: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/common/layouts/header.tsx`
-  - 수정: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/admin/components/admin-sidebar.tsx`
-- 예상 파일 충돌: 없음 (task-002와 파일셋 분리)
+  - 신규: `frontend/src/modules/auction/hooks/use-auction-sound.ts`
+  - 신규: `frontend/public/sounds/bid.mp3`, `frontend/public/sounds/sold.mp3`, `frontend/public/sounds/pass.mp3` (기본안 채택 시 / Web Audio 합성 폴백 채택 시 이 3개 파일은 생성하지 않음)
+  - 수정: `frontend/src/modules/auction/hooks/use-auction-socket.ts` (신규 훅 호출 배선만 추가 — 소켓 리스너/이벤트 구조 변경 금지)
+- 이 태스크 외 파일 수정 금지. `use-auction-socket.ts`는 이 태스크만 수정하며, 다른 태스크는 이 파일에서 타입 import만 한다.
 
 ## 목적
-관리자·일반유저가 로그인 후 동일한 유저 화면으로 랜딩하도록 분기를 제거하고, 유저 헤더에서 권한 없는 사용자에게 노출되던 "운영" 메뉴를 제거해 `isAdmin` 조건부 [어드민 페이지로 이동] 버튼으로 대체하며, 어드민 사이드바에 [유저 화면으로 돌아가기] 및 실시간 경매(`/auction`) 진입 링크를 추가해 두 레이아웃 영역 간 전환 동선을 명확히 한다.
+실시간 경매의 3대 순간(입찰 발생 / 낙찰 확정 / 유찰 확정)에 각각 구분되는 효과음을 1회 재생해 청각 피드백을 제공한다. 모바일 브라우저 autoplay 정책에 대응해 최초 사용자 제스처로 오디오를 unlock 한다.
 
-## 백엔드 계약 참조
-- 해당 없음 (순수 프론트 라우팅/네비 변경). `useAuth()` → `{ user, isAdmin, logout }`, `user.role`만 사용.
+## 배경 (조사 완료 — requirement.md P0-1)
+- `use-auction-socket.ts`에는 이미 다음 상태가 존재한다:
+  - `bidEvents: AuctionBidEvent[]` — `bidPlaced` 시 `pushBidEvent({ kind: 'bid', ... })`, `bidConfirmed` 시 `pushBidEvent({ kind: 'sold', ... })`로 push (라인 ~124-158). 각 이벤트는 고유 `id`를 가진다.
+  - `stageEvent: AuctionStageEvent | null` — `bidConfirmed`에서 `{ kind: 'sold', seq++ }`, `playerPassed`에서 `{ kind: 'pass', seq++ }` (라인 ~147, ~161). seq 증가 = 1회성 연출 트리거.
+- `current-player-card.tsx`가 이미 `stageEvent.seq` 변화를 구독해 낙찰/유찰 셀레브레이션을 재생하는 검증된 패턴이 있다. 효과음도 **동일 패턴을 재사용**한다.
+- 오디오 관련 기존 코드/의존성은 전무하다. 신규 npm 라이브러리(howler 등) 도입 불필요.
 
 ## 구현 가이드
+1. **신규 훅 `use-auction-sound.ts` 작성**
+   - 시그니처 예: `useAuctionSound(bidEvents: AuctionBidEvent[], stageEvent: AuctionStageEvent | null): void`
+   - 입찰음: `bidEvents`의 마지막 항목 `id`(또는 길이 증가)를 `useRef`로 추적해, 새 `kind: 'bid'` 이벤트가 들어올 때만 입찰음 1회 재생. `kind: 'sold'` bidEvent는 낙찰음과 중복되지 않게 무시(낙찰음은 stageEvent로 처리).
+   - 낙찰/유찰음: `stageEvent.seq`를 `useRef`로 추적(`current-player-card.tsx`의 `seenSeq` 패턴 참조). seq가 증가하면 `kind === 'sold'`면 낙찰음, `'pass'`면 유찰음 1회 재생.
+   - 최초 마운트 시점(seq 초기값, bidEvents 초기 seed)에서는 재생하지 않도록 초기 ref를 현재값으로 세팅(과거 이벤트 소급 재생 방지).
+2. **오디오 재생 방식 — 아래 두 경로 중 하나 선택 (둘 다 성공기준 충족, 어느 쪽이든 진행 가능)**
+   - **[기본안·권장] 네이티브 HTMLAudioElement + CC0 mp3**:
+     - `frontend/public/sounds/`에 `bid.mp3` / `sold.mp3` / `pass.mp3` (각 0.3~1.0s 짧은 SFX) 배치.
+     - **라이선스 필수: CC0/퍼블릭도메인만.** 출처 예: freesound.org(CC0 필터), mixkit, kenney.nl 등 CC0 SFX. 출처·라이선스를 커밋 메시지 또는 태스크 핸드오프에 기록.
+     - 재생: `new Audio('/sounds/bid.mp3')` 인스턴스를 모듈/ref로 준비해 `.currentTime = 0; .play()`. `.play()`가 반환하는 Promise의 rejection은 `.catch(() => {})`로 삼켜 콘솔 에러 방지(autoplay 차단은 정상 케이스).
+     - 톤 가이드: 입찰=짧은 클릭/틱, 낙찰=상승하는 골드톤(긍정), 유찰=하강 저음(부정). 오버워치 테마에 맞는 절제된 UI SFX.
+   - **[폴백] Web Audio API 오실레이터 합성** (CC0 에셋 확보 실패 시):
+     - `public/sounds/` 파일을 생성하지 말고, 훅 내부에서 `AudioContext` + `OscillatorNode` + `GainNode`로 3종 톤을 합성.
+     - 예: 입찰 = 880Hz square 40ms, 낙찰 = 523→784Hz sine 상승 200ms, 유찰 = 330→160Hz sawtooth 하강 250ms (짧은 gain envelope로 클릭 노이즈 방지).
+3. **모바일 autoplay unlock**
+   - 훅 내부 `useEffect`에서 최초 1회 `pointerdown`(또는 `touchstart`/`click`) 리스너를 `window`/`document`에 `{ once: true }`로 등록.
+   - 제스처 발생 시: (기본안) 각 Audio를 `muted` 상태로 `.play()` 후 즉시 `.pause()`/`.currentTime=0`로 unlock, 또는 (폴백) `AudioContext.resume()` 호출. unlock 완료 플래그를 ref로 관리.
+   - unlock 전 재생 시도는 조용히 무시(무음이 정상, 에러로 처리하지 않음).
+4. **훅 배선 — `use-auction-socket.ts` 최소 수정**
+   - `import { useAuctionSound } from './use-auction-sound'` 추가.
+   - `return { ... }` 직전에 `useAuctionSound(bidEvents, stageEvent)` 호출 1줄 추가.
+   - 소켓 리스너 등록/해제, 이벤트명, 기존 상태 로직은 **일절 변경 금지** (신규 소켓 이벤트 추가 금지).
 
-### 1) `app/page.tsx` — 랜딩 통일 (P0)
-- 현재 line 17: `router.replace(isAdmin ? "/admin" : "/utility")`
-- 변경: `router.replace("/utility")` (역할 분기 제거, 전 역할 유저 화면 랜딩)
-- `isAdmin`이 더 이상 사용되지 않으면 line 9 구조분해(`const { user, isLoading, isAdmin } = useAuth()`)와 useEffect 의존성 배열(line 18)에서 `isAdmin` 제거하여 lint 미사용 경고 방지.
-- 근거: `/`는 redirect 전용 페이지로 대시보드 콘텐츠가 없고, 실질 유저 홈은 `/utility`. (plan.md 아키텍처 결정 참조)
-
-### 2) `common/layouts/header.tsx` — "운영" 제거 + 어드민 이동 버튼 (P0/P1)
-- **navItems에서 운영 제거**: line 18 `{ href: "/admin", label: "운영", icon: Shield }` 항목 삭제. (나머지 대시보드/경매/유틸리티 항목 유지)
-- **데스크톱 [어드민 페이지로 이동] 버튼**: `user && isAdmin`일 때만 노출. 우측 영역(line 58 `<div className="flex items-center gap-2">`) 안, 기존 ADMIN 배지(line 60-63) 근처에 `hidden sm:flex`로 배치. `Link href="/admin"` + `Button`(오버워치 테마: `skew-btn`, 기존 nav 버튼 클래스 계열, `cn()` 사용). 라벨 예: "어드민". 아이콘 `Shield` 재사용 가능.
-- **모바일 드롭다운 항목(P1)**: 데스크톱 nav가 `hidden md:flex`라 모바일 미노출 → 우측 `DropdownMenu`(line 67-82)에 `isAdmin` 조건부 `DropdownMenuItem`("어드민 페이지로 이동", `onClick`으로 `router.push('/admin')` 또는 `Link` asChild) 추가하고, 로그아웃 위에 `DropdownMenuSeparator` 삽입.
-  - `DropdownMenuSeparator`는 `@/common/components/ui/dropdown-menu`에서 import (export 확인됨).
-  - 네비게이션은 `next/navigation`의 `useRouter().push` 또는 `Link`(asChild) 중 기존 패턴에 맞춰 사용. `Link`를 `DropdownMenuItem asChild`로 감싸는 방식 권장.
-- **주의**: `Shield` import는 ADMIN 배지에서 계속 사용하므로 제거하지 말 것. navItems에서 운영만 빼면 됨.
-
-### 3) `modules/admin/components/admin-sidebar.tsx` — 실시간 경매 링크 + 유저 복귀 버튼 (P0/P1)
-- **실시간 경매 링크 추가**: navItems(line 26-36)에 `{ href: '/auction', label: '실시간 경매', icon: <아이콘 /> }` 추가. 기존 경매이력(`/admin/auctions`, `Gavel`)과 **아이콘·라벨로 구분**할 것 — 실시간 경매용 아이콘은 `Radio` / `Zap` / `PlayCircle` 등 lucide-react에서 하나 선택(Gavel과 시각적으로 구분). 배치는 경매이력 인접 또는 목록 상단 등 논리적 위치.
-- **active 하이라이트 정합성(P1)**: 기존 `isActive`(line 42-45)는 `/admin`만 exact, 나머지는 `startsWith`. `/auction`은 `pathname.startsWith('/auction')`로 동작하며 `/admin/auctions`(경매이력)와 충돌하지 않음(후자는 `/admin`으로 시작). 별도 처리 불필요하나, 추가 후 `/auction` 진입 시 실시간 경매만 하이라이트되는지 확인.
-- **[유저 화면으로 돌아가기] 버튼**: 하단 로그아웃 영역(line 79-93) 위 또는 인접에 `Link href="/"` 버튼 추가. 클릭 시 `/`로 이동(= `/utility`로 자동 랜딩). 스타일은 기존 사이드바 링크/로그아웃 버튼 클래스 계열 재사용(`cn()`), 아이콘은 `Home` 또는 `ArrowLeft` 등. (P2: skew 테마 적용 시 사이드바 톤과 일관되게)
+## 제약사항 (requirement.md + CLAUDE.md)
+- `any` 타입 사용 금지 (오디오 관련 타입 명시: `HTMLAudioElement`, `AudioContext` 등).
+- Tailwind CSS만 사용, 별도 CSS 파일 생성 금지 (이 태스크는 로직만 — 시각 변경 없음).
+- `frontend/src/components/ui/*`, `frontend/src/lib/utils.ts` 수정 금지.
+- 기존 `useAuctionSocket` 이벤트 리스너 구조 재사용 — **신규 소켓 연결/이벤트 추가 금지**.
+- 신규 오디오 에셋 사용 시 **CC0/무료 라이선스만** — 출처 기록 필수.
+- 오버워치 테마(절제된 futuristic UI SFX) 유지.
+- 백엔드 변경 없음 (프론트 전용).
 
 ## 성공 기준
-- [ ] 관리자 로그인 시 `/admin` 자동 이동 없이 유저 화면(`/utility`)에 랜딩된다
-- [ ] 일반유저 헤더에 "운영" 메뉴가 보이지 않는다
-- [ ] 관리자 계정에서만 헤더에 [어드민 페이지로 이동] 버튼이 보이고, 클릭 시 `/admin`으로 이동한다
-- [ ] 모바일(드롭다운)에서도 관리자에게 어드민 이동 항목이 접근 가능하다 (P1)
-- [ ] 어드민 사이드바 [유저 화면으로 돌아가기] 클릭 시 `/`로 이동한다
-- [ ] 어드민 사이드바 실시간 경매(`/auction`) 링크로 경매 페이지 진입 가능하고, 경매이력과 아이콘·라벨이 구분된다
-- [ ] `/auction` 진입 시 사이드바 active 하이라이트가 실시간 경매 항목에만 적용된다 (P1)
-
-## 제약
-- 수정 금지: `frontend/src/common/components/ui/*` (Shadcn), `frontend/src/lib/utils.ts`
-- `any` 타입 금지. Tailwind CSS + `cn()`만 사용(별도 CSS 파일 금지)
-- 오버워치 테마 유지 (skew-btn, 고대비 네온) — 기존 헤더/사이드바 스타일 톤 준수
-- 하드코딩 색상/폰트/간격 금지 (디자인 토큰/CSS 변수 사용)
-- 스코프 외 변경 금지 (헤더/사이드바 구조 통합 X, 두 메뉴바 각각 유지)
-
-## 검증 방법
-```bash
-cd /Users/eyjs/Desktop/WorkSpace/potg/potg/frontend
-npm run lint
-npm run build
-```
-- 수동: 관리자/일반유저 각각 로그인 후 랜딩 위치, 헤더 버튼 노출 여부, 사이드바 전환 버튼 동작, `/auction` 하이라이트 확인.
+- [ ] 입찰 발생 시 입찰음이, 낙찰 확정 시 낙찰음이, 유찰 확정 시 유찰음이 각각 구분되어 1회씩 재생된다 (수동/자동 낙찰·유찰 공통).
+- [ ] 최초 마운트/재접속 시 과거 이벤트가 소급 재생되지 않는다.
+- [ ] 모바일에서 최초 탭 이후 정상 재생된다(그 전에는 무음이 정상, 콘솔 에러 없음).
+- [ ] 낙찰음/유찰음이 `current-player-card.tsx`의 시각 셀레브레이션과 동시에 1회 발화한다(중복·이중 재생 없음).
+- [ ] `cd frontend && npm run lint && npm run build` 통과.
+- [ ] (기본안 채택 시) `public/sounds/` 에셋의 CC0 출처가 기록되어 있다.
 
 ## 테스트 요구사항
-- 단위 테스트: 프론트 라우팅/네비 UI 변경으로 기존 프로젝트에 컴포넌트 테스트 인프라 부재 시 신규 테스트 강제 아님. 검증은 lint + build + 수동 시나리오로 갈음. (테스트 러너 존재 시 header/sidebar 조건부 렌더 스냅샷/RTL 추가 권장)
+- 단위 테스트: 프론트 훅은 오디오/타이머 의존이 커 자동 테스트 비용이 높음 — 필수 아님. 대신 다음 수동 검증 시나리오를 핸드오프에 기록: (1) 데스크톱에서 입찰→낙찰, 입찰→유찰 각 사운드 확인, (2) 모바일(또는 DevTools 모바일 에뮬레이션)에서 탭 전후 재생 차이 확인, (3) 재접속 시 소급 재생 없음 확인.

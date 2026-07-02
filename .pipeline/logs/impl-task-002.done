@@ -1,0 +1,51 @@
+## task-002 구현 완료
+
+### 수정/신규 파일 목록
+
+1. **수정** `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/admin/api/members.ts`
+   - `AdminMember` 인터페이스에 `nickname?: string | null` 필드 추가
+   - `update` 메서드 추가: `PATCH /admin/members/:id` 호출, dto `{ username?, nickname?, role?, password? }` 지원
+
+2. **신규** `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/admin/schemas/member-form.schema.ts`
+   - `makeMemberFormSchema(isEdit: boolean)` zod 팩토리 함수
+   - 추가 모드: password min4 필수 / 수정 모드: 빈 값 허용, 입력 시 min4
+   - `MemberFormValues` 타입 export
+
+3. **신규** `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/admin/components/member-form-dialog.tsx`
+   - `MemberFormDialog` 컴포넌트: 추가/수정 공용 단일 Dialog
+   - `MemberFormInner` 내부 컴포넌트 (`key={isEdit ? 'edit-${id}' : 'create'}` 로 모드 전환 시 재마운트)
+   - 공통 필드(아이디, 닉네임, 권한 Select, 비밀번호) + react-hook-form + zodResolver
+   - 수정 모드 전용: 잔액 조정 섹션(delta/memo/적용, 현재 잔액+예상 잔액 미리보기), 삭제 버튼(useConfirm destructive)
+   - 자기자신 삭제 비활성화: `useAuth().user?.id === member.id` 시 disabled + 안내 텍스트
+   - 수정 submit: 변경 필드만 dto에 포함, 빈 password 제외
+   - 추가 submit: `membersApi.create()` 호출
+   - `errMsg` 헬퍼로 백엔드 에러 메시지 추출
+
+4. **수정** `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/app/admin/members/page.tsx`
+   - 탭 기반 편집 다이얼로그 및 별도 추가 다이얼로그 → `MemberFormDialog` 단일 컴포넌트로 교체
+   - 제거: `DETAIL_TABS`, `DetailMode` 타입, `dialogMode`, `pendingRole`, `usernameInput`, `passwordInput`, `createOpen`, `createForm` 상태
+   - 제거: `handleRoleSave`, `handleAdjust`, `handleUsernameSave`, `handlePasswordSave`, `handleDelete`, `handleCreate` 핸들러
+   - 유지: `DataTable`, `columns`, `useQuery`, 페이지네이션, `onRowClick`(→수정모달), "+ 회원 추가"(→추가모달)
+   - 미사용 import 전부 제거
+
+### 통합 폼 구조
+
+```
+MemberFormDialog (Dialog wrapper)
+└── MemberFormInner (key로 재마운트)
+    ├── DialogHeader (제목)
+    ├── <form> 공통 필드 (아이디, 닉네임, 권한, 비밀번호)
+    │   └── DialogFooter (취소/저장|생성)
+    └── [isEdit 전용]
+        ├── 잔액 조정 섹션 (별도 <form>, 별도 submit)
+        └── 위험 구역 (삭제 버튼, 자기자신 disabled)
+```
+
+### 검증 결과
+
+- `npx tsc --noEmit`: 오류 없음 (exit 0)
+- `npx eslint` (4개 파일): 오류/경고 없음 (exit 0)
+
+### 남은 이슈
+
+없음.

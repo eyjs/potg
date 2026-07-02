@@ -1,17 +1,48 @@
 {
   "version": "v2",
   "pipeline_type": "feature",
-  "current_phase": "requirement",
-  "status": "requirement_ready",
-  "updated_at": "2026-07-01T00:00:00+09:00",
+  "current_phase": "implementation",
+  "status": "in_progress",
+  "started_at": "2026-07-02T22:56:00+09:00",
+  "updated_at": "2026-07-02T23:15:00+09:00",
   "requirement": ".pipeline/requirement.md",
-  "scope": "경매 매물 수기 업로드 UI (프론트엔드 중심)",
+  "scope": "경매 고도화: 효과음 + 최종 이미지 생성 수정 + 모바일 관전자 뷰 + 로그인 무한 새로고침 수정",
+  "phases": {
+    "planning": { "status": "done", "retries": 0, "tasks": 4, "parallel_groups": 1, "design_needed": ["task-003"] },
+    "plan_review": { "status": "done", "retries": 0, "verdict": "PASS" },
+    "design": { "status": "done", "retries": 0, "scope": ["task-003"], "output": ".pipeline/design/screen-specs/mobile-spectator.md" },
+    "implementation": {
+      "status": "in_progress",
+      "retries": 0,
+      "parallel_tasks": ["task-001", "task-002", "task-003", "task-004"],
+      "completed_tasks": ["task-001", "task-002", "task-004"],
+      "worktrees": {
+        "task-001": { "branch": "worktree-agent-a56b5e7ed176bb789", "status": "implemented", "commit": "489b2aa", "lint_build": "pass" },
+        "task-002": { "branch": "worktree-agent-a577303abc0d99471", "status": "implemented", "commit": "6a050d8", "lint_build": "pass" },
+        "task-003": { "branch": "worktree-agent-mobile-pending", "status": "in_progress" },
+        "task-004": { "branch": "worktree-agent-a7805c0dd3e7bc1fb", "status": "implemented", "commits": ["272a74b", "a8e64ae"], "lint_build": "pass", "backend_test": "18 passed (npx jest src/modules/auth)" }
+      }
+    },
+    "code_review": { "status": "pending", "retries": 0 },
+    "integration": { "status": "pending", "retries": 0 },
+    "documentation": { "status": "pending", "retries": 0 },
+    "report": { "status": "pending", "retries": 0 }
+  },
   "constraints": {
     "no_modify_shadcn_ui": "frontend/src/components/ui/*",
     "no_modify_utils": "frontend/src/lib/utils.ts",
     "no_any_type": true,
     "no_backend_rework": true,
-    "frontend_first": true
+    "frontend_first": true,
+    "no_modify_entities": "backend/src/modules/*/*.entity.ts",
+    "tailwind_only_no_css_files": true,
+    "preserve_overwatch_theme": true,
+    "sfx_assets_license": "CC0/무료 라이선스만 사용",
+    "reuse_stage_event_pattern": "AuctionStageEvent(seq 기반) 재사용, 신규 소켓 이벤트 추가 지양",
+    "image_proxy_backend_change_only_if_confirmed": "auctions.controller.ts imageProxy 최소 수정만 허용, 원인 확정 전 변경 금지",
+    "auth_fix_min_invasive": "쿠키 기반 인증 유지 + Authorization 헤더 폴백 병행 추가만 허용, 도메인 통일 등 배포 인프라 변경은 이번 스코프 제외",
+    "no_regression_existing_cookie_auth": "jwt.strategy.ts 확장 시 기존 쿠키 인증 경로 회귀 금지",
+    "no_push": "사용자 확인 후 직접 push (Vercel 배포 트리거)"
   },
-  "history": "이전 파이프라인 이력은 status.json.bak 참조"
+  "history": "이전: 게스트 매물 수기 업로드 (docs/requirement-20260701-guest-upload.md), 그 이전은 status.json.bak 참조"
 }
