@@ -61,15 +61,35 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
     }
   }
 
+  const captureResultImage = async () => {
+    if (!posterRef.current) throw new Error('poster ref is not ready')
+    // 웹폰트(Exo 2) 로드가 끝나기 전에 캡처하면 폴백 폰트로 그려지는 경우가 있어 대기한다.
+    await document.fonts.ready
+    return toPng(posterRef.current, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: '#0b0b0b',
+      // html-to-image 가 폰트를 인라인 임베딩할 때 document.styleSheets 를 순회하며
+      // cross-origin stylesheet 의 cssRules 에 접근하다 SecurityError 로 캡처 전체가
+      // 실패하는 경로가 있다. 포스터는 인라인 스타일 기반이라 폰트 임베딩이 시각적으로
+      // 크게 중요하지 않으므로 스킵하여 이 실패 경로를 원천 차단한다.
+      skipFonts: true,
+    })
+  }
+
   const handleDownload = async () => {
     if (!posterRef.current) return
     setIsDownloading(true)
     try {
-      const dataUrl = await toPng(posterRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: '#0b0b0b',
-      })
+      let dataUrl: string
+      try {
+        dataUrl = await captureResultImage()
+      } catch (firstError) {
+        console.error('[AuctionResultPoster] image generation failed (1st attempt)', firstError)
+        // 일시적 실패(폰트/네트워크 타이밍 등)를 감안해 짧은 지연 후 1회만 재시도한다.
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        dataUrl = await captureResultImage()
+      }
       const link = document.createElement('a')
       const date = new Date()
         .toISOString()
@@ -81,7 +101,8 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
       link.click()
       toast.success('결과 이미지를 다운로드했습니다.')
     } catch (error) {
-      handleApiError(error, '이미지 생성 실패')
+      console.error('[AuctionResultPoster] image generation failed', error)
+      handleApiError(error, '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setIsDownloading(false)
     }
