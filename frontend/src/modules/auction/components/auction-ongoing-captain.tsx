@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { LayoutGroup } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
 import { Label } from '@/common/components/ui/label'
@@ -167,6 +168,7 @@ export function AuctionOngoingCaptain({
         </Card>
       )}
 
+      <LayoutGroup>
       <div className="grid grid-cols-12 gap-4">
         {/* 좌측 — 팀 카드 (본인 팀 강조) */}
         <aside className="col-span-12 lg:col-span-2 space-y-2">
@@ -249,6 +251,7 @@ export function AuctionOngoingCaptain({
           )}
         </aside>
       </div>
+      </LayoutGroup>
     </div>
   )
 }

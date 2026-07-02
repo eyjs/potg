@@ -1,5 +1,6 @@
 'use client'
 
+import { LayoutGroup } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Eye } from 'lucide-react'
 import { CurrentPlayerCard } from './parts/current-player-card'
@@ -70,6 +71,7 @@ export function AuctionOngoingSpectator({
         </Card>
       )}
 
+      <LayoutGroup>
       <div className="hidden lg:grid grid-cols-12 gap-4">
         <aside className="col-span-12 lg:col-span-2 space-y-2">
           <TeamSidebar
@@ -115,6 +117,7 @@ export function AuctionOngoingSpectator({
           )}
         </aside>
       </div>
+      </LayoutGroup>
 
       {/*
         모바일(<lg) — 트위치/치지직 세로형: 상단 실시간 경매현황 + 하단 채팅.
