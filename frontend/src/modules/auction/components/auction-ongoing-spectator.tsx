@@ -5,15 +5,26 @@ import { Eye } from 'lucide-react'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
-import { PlayerQueue } from './parts/player-queue'
+import { PlayerStatusGrid } from './parts/player-status-grid'
 import type { RoomState } from '../types'
+import type { AuctionChatMessage } from '../hooks/use-auction-socket'
+import { ChatPanel } from './parts/chat-panel'
 
 interface Props {
   roomState: RoomState
   timerRemaining: number | null
+  chatMessages?: AuctionChatMessage[]
+  onSendChat?: (message: string) => void
+  myUserId?: string | null
 }
 
-export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
+export function AuctionOngoingSpectator({
+  roomState,
+  timerRemaining,
+  chatMessages,
+  onSendChat,
+  myUserId,
+}: Props) {
   const phase = roomState.auction.biddingPhase
   const isAssigning = roomState.auction.status === 'ASSIGNING'
 
@@ -55,11 +66,16 @@ export function AuctionOngoingSpectator({ roomState, timerRemaining }: Props) {
             />
           )}
         </section>
-        <aside className="col-span-12 lg:col-span-3">
-          <PlayerQueue
-            players={roomState.unsoldPlayers}
-            currentPlayerId={roomState.auction.currentBiddingPlayerId}
-          />
+        <aside className="col-span-12 lg:col-span-3 space-y-3">
+          <PlayerStatusGrid roomState={roomState} />
+          {chatMessages && onSendChat && (
+            <ChatPanel
+              messages={chatMessages}
+              onSend={onSendChat}
+              participants={roomState.participants}
+              myUserId={myUserId}
+            />
+          )}
         </aside>
       </div>
     </div>

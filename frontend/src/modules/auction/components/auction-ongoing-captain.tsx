@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
-import { PlayerQueue } from './parts/player-queue'
+import { PlayerStatusGrid } from './parts/player-status-grid'
 import type { RoomState } from '../types'
-import type { AuctionEmitFns } from '../hooks/use-auction-socket'
+import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
+import { ChatPanel } from './parts/chat-panel'
 
 /**
  * 입찰 input + 버튼.
@@ -77,6 +78,7 @@ interface Props {
   timerRemaining: number | null
   userId: string | null
   emit: AuctionEmitFns
+  chatMessages?: AuctionChatMessage[]
 }
 
 export function AuctionOngoingCaptain({
@@ -84,6 +86,7 @@ export function AuctionOngoingCaptain({
   timerRemaining,
   userId,
   emit,
+  chatMessages,
 }: Props) {
   const me = useMemo(
     () => roomState.participants.find((p) => p.userId === userId),
@@ -194,12 +197,17 @@ export function AuctionOngoingCaptain({
           </Card>
         </section>
 
-        {/* 우측 — 남은 매물 큐 */}
-        <aside className="col-span-12 lg:col-span-3">
-          <PlayerQueue
-            players={roomState.unsoldPlayers}
-            currentPlayerId={roomState.auction.currentBiddingPlayerId}
-          />
+        {/* 우측 — 매물 그리드 + 채팅 */}
+        <aside className="col-span-12 lg:col-span-3 space-y-3">
+          <PlayerStatusGrid roomState={roomState} />
+          {chatMessages && (
+            <ChatPanel
+              messages={chatMessages}
+              onSend={emit.sendChat}
+              participants={roomState.participants}
+              myUserId={userId}
+            />
+          )}
         </aside>
       </div>
     </div>

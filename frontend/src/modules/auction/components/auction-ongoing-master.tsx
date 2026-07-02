@@ -24,18 +24,27 @@ import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
-import { PlayerQueue } from './parts/player-queue'
+import { PlayerStatusGrid } from './parts/player-status-grid'
 import { AssignmentPanel } from './parts/assignment-panel'
 import type { RoomState } from '../types'
-import type { AuctionEmitFns } from '../hooks/use-auction-socket'
+import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
+import { ChatPanel } from './parts/chat-panel'
 
 interface Props {
   roomState: RoomState
   timerRemaining: number | null
   emit: AuctionEmitFns
+  chatMessages?: AuctionChatMessage[]
+  myUserId?: string | null
 }
 
-export function AuctionOngoingMaster({ roomState, timerRemaining, emit }: Props) {
+export function AuctionOngoingMaster({
+  roomState,
+  timerRemaining,
+  emit,
+  chatMessages,
+  myUserId,
+}: Props) {
   const confirm = useConfirm()
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
 
@@ -284,12 +293,17 @@ export function AuctionOngoingMaster({ roomState, timerRemaining, emit }: Props)
             </Card>
           </section>
 
-          {/* 우측 — 남은 매물 큐 */}
-          <aside className="col-span-12 lg:col-span-3">
-            <PlayerQueue
-              players={roomState.unsoldPlayers}
-              currentPlayerId={roomState.auction.currentBiddingPlayerId}
-            />
+          {/* 우측 — 매물 그리드 + 채팅 */}
+          <aside className="col-span-12 lg:col-span-3 space-y-3">
+            <PlayerStatusGrid roomState={roomState} />
+            {chatMessages && (
+              <ChatPanel
+                messages={chatMessages}
+                onSend={emit.sendChat}
+                participants={roomState.participants}
+                myUserId={myUserId}
+              />
+            )}
           </aside>
         </div>
       )}
