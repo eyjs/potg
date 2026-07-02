@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
+import { TeamDetailDialog } from './parts/team-detail-dialog'
 import { PlayerStatusGrid } from './parts/player-status-grid'
 import { AssignmentPanel } from './parts/assignment-panel'
 import type { RoomState } from '../types'
@@ -48,6 +49,9 @@ export function AuctionOngoingMaster({
 }: Props) {
   const confirm = useConfirm()
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
+  const [detailCaptainId, setDetailCaptainId] = useState<string | null>(null)
+  const detailTeam =
+    roomState.teams.find((t) => t.captainId === detailCaptainId) ?? null
 
   const phase = roomState.auction.biddingPhase
   const status = roomState.auction.status
@@ -208,6 +212,7 @@ export function AuctionOngoingMaster({
               teams={roomState.teams}
               startingPoints={roomState.auction.startingPoints}
               rosterMode={roomState.auction.rosterMode}
+              onTeamClick={setDetailCaptainId}
             />
           </aside>
 
@@ -387,6 +392,15 @@ export function AuctionOngoingMaster({
           </aside>
         </div>
       )}
+
+      {/* 팀 상세 + 낙찰 선수 회수 (마스터 전용) */}
+      <TeamDetailDialog
+        team={detailTeam}
+        open={detailCaptainId !== null}
+        onOpenChange={(o) => !o && setDetailCaptainId(null)}
+        onRecall={emit.undoSoldPlayer}
+        rosterMode={roomState.auction.rosterMode}
+      />
     </div>
   )
 }

@@ -3,6 +3,20 @@ import { Crown, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomStatePlayer, RoomStateTeam } from '../../types'
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || 'https://potg.joonbi.co.kr'
+
+/**
+ * 원격 이미지(OverFast 초상화·Discord 아바타)를 백엔드 프록시로 우회시킨다.
+ * 프록시가 CORS 헤더(ACAO)를 붙여 재전송하므로 html-to-image 캡처 시 canvas 가
+ * taint 되지 않아 다운로드가 성공한다. data:/상대경로는 그대로 사용.
+ */
+function proxiedImage(url: string | null): string | null {
+  if (!url) return null
+  if (url.startsWith('data:') || url.startsWith('/')) return url
+  return `${API_BASE}/auctions/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 interface Props {
   title: string
   teams: RoomStateTeam[]
@@ -325,11 +339,12 @@ function PosterAvatar({
     flexShrink: 0,
     border: ring ? `2px solid ${ring}` : '1px solid #3a3a3a',
   }
-  if (avatarUrl) {
+  const src = proxiedImage(avatarUrl)
+  if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- html-to-image 캡처 대상은 원본 img 필요
       <img
-        src={avatarUrl}
+        src={src}
         alt=""
         crossOrigin="anonymous"
         style={{ ...common, objectFit: 'cover' }}

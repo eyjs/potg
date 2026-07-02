@@ -31,6 +31,8 @@ export interface AuctionEmitFns {
   completeAuction: () => void
   enterAssignmentPhase: () => void
   manualAssignPlayer: (playerId: string, captainId: string) => void
+  /** 낙찰/배정 회수 — 캡틴 포인트 환불 + 선수를 대기 풀로 복귀 (마스터 전용) */
+  undoSoldPlayer: (playerId: string) => void
   resetAuction: () => void
   pauseAuction: () => void
   resumeAuction: () => void
@@ -106,11 +108,26 @@ export function useAuctionSocket(
     socket.on('auctionResumed', handleRoomState)
     socket.on('assignmentPhaseStarted', handleRoomState)
     socket.on('playerManuallyAssigned', handleRoomState)
+    socket.on('playerUndone', handleRoomState)
     socket.on('auctionReset', handleRoomState)
 
+    // 입장 시 서버가 보내는 최근 채팅 히스토리로 seed (늦게 입장/재접속/새로고침 복원).
+    // id 기준 dedupe 로 재연결 시 중복을 방지한다.
+    socket.on('chatHistory', (history: AuctionChatMessage[]) => {
+      if (!Array.isArray(history)) return
+      setChatMessages((prev) => {
+        const byId = new Map<string, AuctionChatMessage>()
+        for (const m of history) byId.set(m.id, m)
+        for (const m of prev) byId.set(m.id, m)
+        return Array.from(byId.values()).slice(-200)
+      })
+    })
+
     socket.on('chatMessage', (m: AuctionChatMessage) => {
-      // 최근 200개만 유지 (장시간 경매 메모리 보호)
-      setChatMessages((prev) => [...prev.slice(-199), m])
+      // 최근 200개만 유지 (장시간 경매 메모리 보호). id 중복은 무시.
+      setChatMessages((prev) =>
+        prev.some((x) => x.id === m.id) ? prev : [...prev.slice(-199), m],
+      )
     })
 
     socket.on('timerUpdate', (payload: { remainingTime: number }) => {
@@ -186,6 +203,12 @@ export function useAuctionSocket(
     },
     [auctionId],
   )
+  const undoSoldPlayer = useCallback(
+    (playerId: string) => {
+      socketRef.current?.emit('undoSoldPlayer', { auctionId, playerId })
+    },
+    [auctionId],
+  )
   const resetAuction = useCallback(() => {
     socketRef.current?.emit('resetAuction', { auctionId })
   }, [auctionId])
@@ -215,6 +238,7 @@ export function useAuctionSocket(
       completeAuction,
       enterAssignmentPhase,
       manualAssignPlayer,
+      undoSoldPlayer,
       resetAuction,
       pauseAuction,
       resumeAuction,
@@ -230,6 +254,7 @@ export function useAuctionSocket(
       completeAuction,
       enterAssignmentPhase,
       manualAssignPlayer,
+      undoSoldPlayer,
       resetAuction,
       pauseAuction,
       resumeAuction,

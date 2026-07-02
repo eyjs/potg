@@ -14,6 +14,8 @@ interface Props {
   startingPoints?: number
   /** 로스터 모드 — 정원 표시(팀장 포함/제외) 결정. 기본 CAPTAIN. */
   rosterMode?: RosterMode
+  /** 팀 카드 클릭 핸들러 — 제공 시 카드가 클릭 가능(팀 상세/회수 모달용). */
+  onTeamClick?: (captainId: string) => void
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -32,6 +34,7 @@ export function TeamSidebar({
   myCaptainId,
   startingPoints,
   rosterMode = 'CAPTAIN',
+  onTeamClick,
 }: Props) {
   const maxPlayers = maxPlayersPerTeam(rosterMode)
   if (teams.length === 0) {
@@ -55,9 +58,14 @@ export function TeamSidebar({
         return (
           <Card
             key={team.captainId}
+            onClick={
+              onTeamClick ? () => onTeamClick(team.captainId) : undefined
+            }
             className={cn(
               'bg-card border-border',
               isMine && 'border-primary border-2',
+              onTeamClick &&
+                'cursor-pointer transition-colors hover:border-primary/60 hover:bg-primary/5',
             )}
           >
             <CardContent className="p-3 space-y-2">
