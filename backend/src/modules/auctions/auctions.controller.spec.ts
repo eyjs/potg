@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuctionsController } from './auctions.controller';
+import { AuctionGateway } from './auction.gateway';
 import { AuctionsService } from './auctions.service';
 import { AuctionRole } from './entities/auction-participant.entity';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
@@ -40,7 +41,13 @@ describe('AuctionsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuctionsController],
-      providers: [{ provide: AuctionsService, useValue: service }],
+      providers: [
+        { provide: AuctionsService, useValue: service },
+        {
+          provide: AuctionGateway,
+          useValue: { broadcastRoomState: jest.fn().mockResolvedValue(undefined) },
+        },
+      ],
     }).compile();
 
     controller = module.get(AuctionsController);

@@ -9,6 +9,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuctionsService } from './auctions.service';
+import { AuctionGateway } from './auction.gateway';
 import { AuthGuard } from '@nestjs/passport';
 import {
   CreateAuctionDto,
@@ -19,7 +20,25 @@ import type { AuthenticatedRequest } from '../../common/interfaces/authenticated
 
 @Controller('auctions')
 export class AuctionsController {
-  constructor(private readonly auctionsService: AuctionsService) {}
+  constructor(
+    private readonly auctionsService: AuctionsService,
+    private readonly gateway: AuctionGateway,
+  ) {}
+
+  /**
+   * REST 변이 후 방 전체에 최신 roomState 를 push.
+   * 소켓 경로 변이는 gateway 가 직접 broadcast 하지만, REST 경로(팀장/매물
+   * 등록·제거, 설정 변경 등)는 이것이 없으면 클라이언트가 새로고침해야
+   * 반영되던 문제가 있었다. 브로드캐스트 실패는 응답을 막지 않는다.
+   */
+  private async broadcastAfter<T>(id: string, result: T): Promise<T> {
+    try {
+      await this.gateway.broadcastRoomState(id);
+    } catch (error) {
+      console.warn(`roomState broadcast 실패 (auction ${id}):`, error);
+    }
+    return result;
+  }
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
@@ -69,7 +88,9 @@ export class AuctionsController {
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/start')
   start(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.auctionsService.start(id, req.user.userId);
+    return this.auctionsService
+      .start(id, req.user.userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -85,13 +106,17 @@ export class AuctionsController {
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/complete')
   complete(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.auctionsService.complete(id, req.user.userId);
+    return this.auctionsService
+      .complete(id, req.user.userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/reset')
   reset(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.auctionsService.reset(id, req.user.userId);
+    return this.auctionsService
+      .reset(id, req.user.userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // ========== 경매 마스터 기능 ==========
@@ -104,7 +129,9 @@ export class AuctionsController {
     @Body('userId') userId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.addPlayer(id, req.user.userId, userId);
+    return this.auctionsService
+      .addPlayer(id, req.user.userId, userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 매물 일괄 등록
@@ -115,7 +142,9 @@ export class AuctionsController {
     @Body('userIds') userIds: string[],
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.addPlayers(id, req.user.userId, userIds);
+    return this.auctionsService
+      .addPlayers(id, req.user.userId, userIds)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 게스트(비회원) 매물 수기 등록 — 이름 명단 업로드
@@ -126,7 +155,9 @@ export class AuctionsController {
     @Body('names') names: string[],
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.addGuestPlayers(id, req.user.userId, names);
+    return this.auctionsService
+      .addGuestPlayers(id, req.user.userId, names)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 참가자 제거
@@ -137,7 +168,9 @@ export class AuctionsController {
     @Param('userId') userId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.removeParticipant(id, req.user.userId, userId);
+    return this.auctionsService
+      .removeParticipant(id, req.user.userId, userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 팀장 추가
@@ -148,7 +181,9 @@ export class AuctionsController {
     @Body('userId') userId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.addCaptain(id, req.user.userId, userId);
+    return this.auctionsService
+      .addCaptain(id, req.user.userId, userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 팀장 제거
@@ -159,7 +194,9 @@ export class AuctionsController {
     @Param('userId') userId: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.removeCaptain(id, req.user.userId, userId);
+    return this.auctionsService
+      .removeCaptain(id, req.user.userId, userId)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 경매 설정 업데이트
@@ -175,11 +212,9 @@ export class AuctionsController {
     },
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.auctionsService.updateAuctionSettings(
-      id,
-      req.user.userId,
-      settings,
-    );
+    return this.auctionsService
+      .updateAuctionSettings(id, req.user.userId, settings)
+      .then((r) => this.broadcastAfter(id, r));
   }
 
   // 경매 삭제
