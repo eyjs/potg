@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import {
   Avatar,
@@ -13,6 +15,23 @@ import { maxPlayersPerTeam, type RoomStateTeam, type RosterMode } from '../../ty
 
 /** 한 팀은 5명 — 감독 모드는 선수 5명, 팀장 모드는 팀장 포함 5명. */
 const TEAM_SIZE = 5
+
+/**
+ * 신규 멤버 id 집합 계산 — 이전 렌더의 id 집합과 비교해 새로 추가된 id만 반환.
+ * 순수 함수로 분리(단위 테스트 대상).
+ */
+export function diffNewMemberIds(
+  previousIds: ReadonlySet<string>,
+  currentIds: readonly string[],
+): Set<string> {
+  const added = new Set<string>()
+  for (const id of currentIds) {
+    if (!previousIds.has(id)) {
+      added.add(id)
+    }
+  }
+  return added
+}
 
 interface Props {
   teams: RoomStateTeam[]
@@ -41,6 +60,20 @@ export function TeamSidebar({
 }: Props) {
   const { portraitByKey } = useHeroes()
   const maxPlayers = maxPlayersPerTeam(rosterMode)
+  const reducedMotion = useReducedMotion()
+
+  // 직전 렌더에 존재했던 전체 멤버 id 집합 — 이번 렌더에서 새로 나타난 id만 진입 애니메이션 대상.
+  const previousMemberIdsRef = useRef<Set<string>>(new Set())
+  const [newMemberIds, setNewMemberIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const currentIds = teams.flatMap((team) => team.members.map((m) => m.id))
+    const added = diffNewMemberIds(previousMemberIdsRef.current, currentIds)
+    if (added.size > 0) {
+      setNewMemberIds(added)
+    }
+    previousMemberIdsRef.current = new Set(currentIds)
+  }, [teams])
 
   if (teams.length === 0) {
     return (
@@ -137,34 +170,62 @@ export function TeamSidebar({
                   </span>
                 </div>
                 {/* 영입 선수 */}
-                {team.members.map((m) => (
-                  <div key={m.id} className="flex flex-col items-center gap-0.5">
-                    <Avatar
-                      className={cn(
-                        'h-9 w-9 border',
-                        m.wasUnsold
-                          ? 'border-muted-foreground/40'
-                          : 'border-ow-blue/50',
-                      )}
+                {team.members.map((m) => {
+                  const isNew = newMemberIds.has(m.id)
+                  return (
+                    <motion.div
+                      key={m.id}
+                      layoutId={isNew ? `flight-card-${m.id}` : undefined}
+                      layout={!reducedMotion}
+                      initial={
+                        isNew && !reducedMotion
+                          ? { opacity: 0, scale: 0.6, rotateY: -90 }
+                          : false
+                      }
+                      animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                      transition={
+                        reducedMotion
+                          ? { duration: 0 }
+                          : {
+                              type: 'spring',
+                              stiffness: 380,
+                              damping: 22,
+                              mass: 0.8,
+                              layout: {
+                                duration: 0.6,
+                                ease: [0.22, 1, 0.36, 1],
+                              },
+                            }
+                      }
+                      className="flex flex-col items-center gap-0.5"
                     >
-                      <AvatarImage
-                        src={
-                          (m.hero
-                            ? (portraitByKey.get(m.hero) ?? undefined)
-                            : undefined) ??
-                          m.avatarUrl ??
-                          undefined
-                        }
-                      />
-                      <AvatarFallback className="bg-muted text-[10px] font-bold">
-                        {m.name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="max-w-10 truncate text-[9px] text-foreground/80">
-                      {m.name}
-                    </span>
-                  </div>
-                ))}
+                      <Avatar
+                        className={cn(
+                          'h-9 w-9 border',
+                          m.wasUnsold
+                            ? 'border-muted-foreground/40'
+                            : 'border-ow-blue/50',
+                        )}
+                      >
+                        <AvatarImage
+                          src={
+                            (m.hero
+                              ? (portraitByKey.get(m.hero) ?? undefined)
+                              : undefined) ??
+                            m.avatarUrl ??
+                            undefined
+                          }
+                        />
+                        <AvatarFallback className="bg-muted text-[10px] font-bold">
+                          {m.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="max-w-10 truncate text-[9px] text-foreground/80">
+                        {m.name}
+                      </span>
+                    </motion.div>
+                  )
+                })}
                 {/* 빈 슬롯 */}
                 {Array.from({
                   length: Math.max(0, maxPlayers - team.members.length),

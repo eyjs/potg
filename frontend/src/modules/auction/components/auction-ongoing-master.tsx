@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { LayoutGroup } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
 import {
@@ -219,6 +220,7 @@ export function AuctionOngoingMaster({
           <AssignmentPanel roomState={roomState} emit={emit} />
         </>
       ) : (
+        <LayoutGroup>
         <div className="grid grid-cols-12 gap-4">
           {/* 좌측 — 팀 카드 */}
           <aside className="col-span-12 lg:col-span-2 space-y-2">
@@ -410,6 +412,7 @@ export function AuctionOngoingMaster({
             )}
           </aside>
         </div>
+        </LayoutGroup>
       )}
 
       {/* 팀 상세 + 낙찰 선수 회수 (마스터 전용) */}
