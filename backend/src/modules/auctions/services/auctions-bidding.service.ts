@@ -11,6 +11,7 @@ import {
   AuctionRole,
 } from '../entities/auction-participant.entity';
 import { AuctionBid } from '../entities/auction-bid.entity';
+import { User, UserRole } from '../../users/entities/user.entity';
 
 /**
  * 경매 입찰 도메인.
@@ -51,8 +52,12 @@ export class AuctionsBiddingService {
       lock: { mode: 'pessimistic_write' },
     });
     if (!auction) throw new BadRequestException('경매를 찾을 수 없습니다.');
-    if (auction.creatorId !== adminId)
-      throw new BadRequestException(forbiddenMsg);
+    if (auction.creatorId !== adminId) {
+      // creator 가 아니어도 ADMIN 이면 마스터 권한 (관리자 공동 운영)
+      const caller = await manager.findOne(User, { where: { id: adminId } });
+      if (caller?.role !== UserRole.ADMIN)
+        throw new BadRequestException(forbiddenMsg);
+    }
     return auction;
   }
 
@@ -174,7 +179,10 @@ export class AuctionsBiddingService {
 
       return {
         bid,
-        bidderName: participant.user?.battleTag || '익명',
+        bidderName:
+          participant.user?.nickname ||
+          participant.user?.battleTag ||
+          '익명',
       };
     });
   }

@@ -6,7 +6,8 @@ interface AuthUserLike {
 }
 
 /**
- * 페이지 view 분기 키 — auction.creatorId === user.id 면 master,
+ * 페이지 view 분기 키 — ADMIN 이거나 auction.creatorId === user.id 면 master
+ * (관리자 공동 운영 — 백엔드 loadAsCreator 도 동일 정책),
  * participants 에 role=CAPTAIN 으로 등록된 본인이면 captain,
  * 그 외 로그인 유저는 spectator.
  *
@@ -19,6 +20,8 @@ export function getAuctionRole(
   user: AuthUserLike | null,
 ): AuctionRoleView {
   if (!user) return 'spectator'
+
+  if (user.role === 'ADMIN') return 'master'
 
   const creatorId = roomState?.auction.creatorId ?? fallbackCreatorId
   if (creatorId && creatorId === user.id) return 'master'
