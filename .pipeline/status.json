@@ -1,17 +1,18 @@
 {
   "version": "v2",
   "pipeline_type": "feature",
-  "cycle": 2,
-  "current_phase": "report",
-  "status": "complete",
-  "started_at": "2026-07-02T23:56:00+09:00",
-  "updated_at": "2026-07-03T01:20:00+09:00",
-  "head_commit": "e6c7b30",
+  "cycle": 3,
+  "current_phase": "planning",
+  "status": "in_progress",
+  "started_at": "2026-07-03T00:00:00+09:00",
+  "updated_at": "2026-07-03T03:22:00+09:00",
+  "head_commit": "355999a",
   "deploy_status": "not_pushed",
   "requirement": ".pipeline/requirement.md",
-  "scope": "2차: 경매 인터랙션 고도화 — 팩오프닝 공개 연출 + 입찰 카드임팩트/콤보 + 도화선 타이머 + 낙찰 골든카드/팀보드 flight-in",
-  "user_emphasis": "낙찰 시 카드가 해당 팀으로 날아가는 flight-in 연출은 사용자가 명시 요청한 P0 — 생략/하향 금지",
-  "base_commit": "0d5b3ad",
+  "scope": "3차: 모바일 경매 뷰 하단 탭 네비게이션 재설계 — 탭1 경매(스테이지 HUD+팀장 베팅버튼+채팅) / 탭2 현황(TeamSidebar 무변경 재사용). 탭 전환은 CSS hidden 토글(언마운트 금지), 페이지 스크롤 제거(100dvh). 관전자/팀장 모바일 뷰만, 마스터 제외. 데스크톱 무변경.",
+  "user_emphasis": "requirement 최종본 = 하단 탭 네비게이션(v1 팀 가로 스트립 설계는 폐기). 팀 정보는 메인(경매 탭)에 노출 금지, 현황 탭으로 분리. 오늘(금) 경매 당일 — 속도 우선, P0 얇게.",
+  "base_commit": "355999a",
+  "clean_restart_note": "HOLD/RESUME(team-lead): v1 가로스트립 requirement 기반 plan/tasks 폐기(.pipeline/docs/cycle3-discarded-v1strip/). 최종 requirement(탭 네비)로 planning 처음부터 재시작.",
   "constraints": {
     "no_modify_shadcn_ui": "frontend/src/components/ui/*",
     "no_modify_utils": "frontend/src/lib/utils.ts",
@@ -20,42 +21,21 @@
     "no_backend_change": "기존 소켓 이벤트/DTO만 사용, 백엔드 무변경",
     "tailwind_only_no_css_files": true,
     "preserve_overwatch_theme": true,
-    "rarity_is_cosmetic": "등급 프레임은 매물 id 결정적 해시 (실력 지표 아님, 실데이터 연동은 3차)",
-    "extends_cycle1": "use-auction-sound.ts 확장 허용, use-auction-socket.ts 재수정 금지 (콤보는 bidEvents로 프론트 계산)",
+    "desktop_unchanged": "lg 이상 hidden lg:grid 블록 및 공유 컴포넌트 기본 동작 무변경 — 신규 prop/variant는 기본값이 기존 데스크톱 동작과 동일해야 함",
     "reduced_motion": "prefers-reduced-motion 시 연출 생략/정적 대체",
-    "mobile_reduced_fx": "모바일 관전자 뷰는 연출 강도 축소, 팀보드 flight-in 미노출(사이드바 자체가 모바일 숨김)",
-    "no_push": "사용자 확인 후 직접 push (Vercel 배포 트리거)"
+    "tab_impl": "탭 전환 = activeTab 클라이언트 상태 + CSS hidden 토글, 언마운트 금지(채팅 draft/스크롤/사운드 타이머 보존), 라우트 이동 금지",
+    "auto_push": "이번 사이클 한정 사용자 사전 승인 — 통합 검증 통과 + 프론트 전용 diff 확인 후 orchestrator가 자동 push"
   },
   "phases": {
-    "planning": { "status": "done", "retries": 0, "tasks": ["task-001", "task-002", "task-003", "task-004", "task-005"] },
+    "planning": { "status": "done", "retries": 0, "tasks": 8, "parallel_groups": { "A": ["task-001","task-002","task-003","task-004"], "B": ["task-005"], "C": ["task-006","task-007"], "D": ["task-008"] }, "note": "클린 재시작(fresh planner) — 최종 탭 네비 requirement 기준" },
     "plan_review": { "status": "done", "retries": 0, "verdict": "PASS" },
-    "design": { "status": "done", "artifacts": ["design/motion-spec.md", "design/rarity-frame-spec.md"] },
-    "implementation": {
-      "status": "in_progress",
-      "retries": 0,
-      "groups": {
-        "A": { "tasks": ["task-001", "task-002"], "status": "merged" },
-        "B": { "tasks": ["task-003", "task-004"], "status": "merged" },
-        "C": { "tasks": ["task-005"], "status": "deferred", "reason": "P2 스킬영상 — 성능/모바일 리스크로 이번 사이클 보류 (P0 안정성 우선)" }
-      },
-      "worktrees": {
-        "task-001": { "branch": "cycle2/task-001", "commit": "99b9362", "status": "merged" },
-        "task-002": { "branch": "cycle2/task-002", "commit": "0dd2bca", "status": "merged" },
-        "task-003": { "branch": "cycle2/task-003", "commit": "11d480d", "status": "merged" },
-        "task-004": { "branch": "cycle2/task-004", "commit": "52bce0f", "status": "merged" }
-      }
-    }
-    "code_review": { "status": "done", "retries": 1, "round1_verdict": "FAIL", "round2_verdict": "PASS", "resolved_p1": "team-sidebar 렌더단계 판정으로 flight-in 마운트 발화 보장", "open_p2": ["P2-2 flight morph 런타임 품질 관찰", "P2-3 콤보 만료 타이머 엣지"] },
-    "integration": { "status": "done", "retries": 0, "verdict": "PASS", "log": ".pipeline/logs/integration.md" },
-    "documentation": { "status": "done", "artifacts": ["docs/release-note-cycle2.md", "docs/adr-002-audio-engine-ssot.md", "docs/changelog-entry-cycle2.md", "docs/insights-cycle2.md"] },
-    "report": { "status": "done", "file": ".pipeline/REPORT.md" }
+    "design": { "status": "done", "specs": ["mobile-layout-spec.md", "mobile-tab-bar-spec.md", "mobile-stage-spec.md"] },
+    "implementation": { "status": "in_progress", "group": "A", "completed_tasks": [], "worktrees": {} },
+    "code_review": { "status": "pending" },
+    "integration": { "status": "pending" },
+    "documentation": { "status": "pending" },
+    "report": { "status": "pending" }
   },
-  "feedback_handled": {
-    "feedback-001": "task-001 오디오 엔진 전면 재설계로 반영",
-    "feedback-002": "task-006 팀장 화면 모바일 대응으로 반영 (P0, flight-in 머지 후 순차)"
-  },
-  "merged_branches": ["cycle2/task-001", "cycle2/task-002", "cycle2/task-003", "cycle2/task-004", "cycle2/task-006"],
-  "deferred": ["task-005 (P2 스킬 영상 배경 — 성능/모바일 리스크)"],
-  "open_followups": ["P2-2 flight morph 런타임 품질 관찰", "P2-3 콤보 만료 타이머 엣지"],
-  "history": "1차: 경매 고도화 4종 완료·배포 (docs/requirement-20260702-cycle1-auction-enhancement.md, docs/status-cycle1-closed.json, origin 0d5b3ad). 이전: 게스트 매물 업로드 (docs/requirement-20260701-guest-upload.md). cycle1 파이프라인 산출물 보존: .pipeline/docs/cycle1/"
+  "discarded_artifacts": ".pipeline/docs/cycle3-discarded-v1strip/ (v1 가로 스트립 설계 기반 plan.md + task-001~007 + plan-review-FAIL.md)",
+  "history": "2차: 경매 인터랙션 고도화(팩오프닝/입찰임팩트/도화선타이머/낙찰골든카드+flight-in) 완료 (.pipeline/docs/requirement-v2-interaction.md, .pipeline/docs/status-cycle2-closed.json, origin e6c7b30). 1차: 경매 고도화 4종 완료·배포 (docs/requirement-20260702-cycle1-auction-enhancement.md, docs/status-cycle1-closed.json, origin 0d5b3ad). 이전: 게스트 매물 업로드 (docs/requirement-20260701-guest-upload.md). cycle1 파이프라인 산출물 보존: .pipeline/docs/cycle1/. cycle2 워킹 산출물: .pipeline/docs/cycle2/"
 }

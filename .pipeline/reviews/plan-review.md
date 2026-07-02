@@ -1,74 +1,75 @@
-# 계획 리뷰 — 2차 사이클 (경매 인터랙션 고도화)
+VERDICT: PASS
 
-## VERDICT: PASS
+# 계획 리뷰 — POTG 3차 사이클 (하단 탭 네비게이션 재설계)
 
-리뷰어: 시니어 리뷰어 (읽기 전용) · 일시: 2026-07-03
-대상: `.pipeline/plan.md`, `.pipeline/tasks/task-001.md`~`task-005.md`
-기준: `requirement.md`, `feedback-001.md`, `status.json` constraints, `rules/custom/review-criteria.md`
+- 리뷰 대상: `.pipeline/plan.md` + `.pipeline/tasks/task-001.md`~`task-008.md`
+- 기준: `.pipeline/requirement.md` 최종본(하단 탭 네비게이션, v2)
+- 리뷰 일자: 2026-07-03 (경매 당일 · 속도 우선 게이트)
+- 소스 실측 대조: 완료 (spectator/captain/current-player-card/bid-timer/audio-engine/card-rarity/socket 타입)
 
-승인. P0 4종 전부 태스크에 온전히 매핑됐고, 사용자 명시 P0인 낙찰 flight-in이 생략/하향 없이 보존됐다. feedback-001(효과음 재설계)이 task-001에 구체적으로 반영됐고, 파일 충돌표의 "각 파일 정확히 1태스크 소유" 증명이 각 태스크 메타데이터와 실제 소스로 교차검증됐다. plan.md가 인용한 라인 번호/구조는 실제 파일과 일치한다. 아래 권고(P2)는 전부 비차단이며, 구현 단계에서 참고하면 된다.
-
----
-
-## 1. P0 전부 포함 — PASS
-| P0 항목 | 담당 태스크 | 상태 |
-|---|---|---|
-| 매물 공개 (팩 오프닝) | task-003 단계1 | 포함 |
-| 입찰 임팩트/콤보 | task-003 단계2 (시각) + task-001 (사운드 피치) | 포함 |
-| 도화선 타이머 | task-004 (시각) + task-001 (크래클) | 포함 |
-| 낙찰 골든카드 + flight-in | task-003 단계3 (골드/소스 layoutId) + task-002 (LayoutGroup/타겟) | 포함 |
-
-- 사용자 명시 P0 **flight-in**: task-002가 "생략/하향 금지"를 3회 명시. LayoutGroup 래핑(뷰3) + 사이드바 신규멤버 타겟 layoutId(task-002), 골든카드 소스 layoutId(task-003)로 온전히 유지. **하향 없음.**
-- 참고: requirement.md 원문은 타이머/낙찰을 P1로 표기하나, status.json `user_emphasis`가 flight-in을 P0로 승격했고 리뷰 프레임(4개 P0)과 일치. 판정에 영향 없음.
-
-## 2. feedback-001 (효과음 재설계) 반영 — PASS
-- task-001에 Web Audio 레이어링 재설계가 구체적으로 포함: ADSR 엔벨로프 / 오실레이터 2~3개 레이어링+디튠 / BiquadFilter 스윕 / 노이즈 버스트 / ConvolverNode 임펄스 리버브 / 미세 랜덤 피치 변주 / 마스터 게인 정리. 입찰(탁·척 타격음, 200→80Hz 피치드롭)·낙찰(메이저 3음 아르페지오+shimmer+리버브)·유찰(마이너 하강+lowpass)·도화선 크래클 4종 모두 매핑.
-- 성공기준 "삐- 계열 원시 톤 0개, 타격감/공간감" 태스크 완료 기준에 명시됨.
-- **주의(비차단)**: feedback-001 원문은 "효과음 유틸을 확장하는 태스크(입찰 콤보 담당)에 사운드 재설계를 포함"이라 했으나, 계획은 사운드를 별도 SSOT 엔진(task-001)으로 분리했다. 이는 AD-1로 정당화된 **더 나은 아키텍처**(단일 AudioContext, 소켓 우회 명령형 export)이며 재설계 자체는 온전히 포함되므로 요구 충족. 의도 이탈 아님.
-
-## 3. 태스크 분할 — PASS (권고 A1)
-- **current-player-card 단일 태스크(task-003, AD-2)**: 공개/입찰/낙찰이 동일 파일의 겹치는 영역(카드 프론트·입찰가 패널·셀레브레이션 오버레이)을 수정 → 병렬 분할 시 머지 충돌 불가피. 한 태스크 배타 소유가 타당. 내부는 3단계 순차 구획.
-- **사운드 SSOT 분리(task-001, AD-1)**: 3개 기능이 사운드를 공유하므로 "하나의 소유 파일 + 명령형 export"로 충돌 해소. 타당.
-- **[권고 A1·P2] task-003 XL 리스크**: 3서브기능+유틸을 한 워크트리에 묶어 규모가 큼. 단일 파일 소유 제약상 재분할은 오히려 충돌을 재유발하므로 현 분할이 옳으나, 구현 시 단계(공개→입찰→낙찰)별 내부 커밋 체크포인트로 리스크를 낮출 것을 권고.
-
-## 4. 의존성 그래프 — PASS
-- Group A(001·002) → B(003·004) → C(005) 순서 정확.
-- **import 의존(실선)**: 001→003(`playRevealLegendary`+콤보 상수), 001→004(`startFuseCrackle/stopFuseCrackle`), 003→005(카드 재수정). 모두 선행 머지 필수로 올바름.
-- **문자열 규약 결합(점선)**: 002⋯003 layoutId(`flight-card-${id}`)는 코드 import가 아니라 순서만 A→B로 보장. 구분 정확.
-- task-003이 002의 layoutId 규약 + 001의 엔진에 의존하는 매핑 정확. 002는 무의존이라 Group A 배치가 최적(최조기 실행). LayoutGroup은 뷰(002)에 있고 카드(003)는 런타임 자식으로 합성 — 코드 import 아님을 확인.
-
-## 5. 병렬 그룹 파일 충돌 — PASS (교차검증 완료)
-파일 충돌표를 각 태스크 메타데이터 + 실제 소스로 교차검증한 결과, 각 파일이 정확히 하나의 태스크에 소유됨을 확인:
-- `use-auction-sound.ts` / `auction-audio-engine.ts` → **001 단독 소유**. 003·004 메타데이터의 "읽기전용: auction-audio-engine.ts (import만)" 항목과 일치 → **import만, 편집 없음** 확인.
-- `team-sidebar.tsx` + 뷰 3개 → **002 단독**. 003/004는 미접근.
-- `current-player-card.tsx` → **003 소유**, 005가 Group C에서 **순차 재수정**(배경 mount 1지점). B→C 순차라 병렬 충돌 아님.
-- `globals.css` → **004 단독 소유**. task-002는 미접근, task-003 메타데이터는 "globals.css (task-004, 기존 클래스 재사용만)" 읽기전용 → 편집 없음 확인. 003이 신규 모션을 framer-motion/portal로만 처리(AD-5)해 globals.css 미수정을 설계로 보장.
-- Group A 교집합: {sound 2파일} ∩ {sidebar+뷰3} = ∅. Group B 교집합: {card, card-rarity} ∩ {bid-timer, globals.css} = ∅. **워크트리 병렬 충돌 없음.**
-
-## 6. 제약 위반 소지 — PASS
-- `any` 금지: 전 태스크 "any 미사용" 명시. ✔
-- 신규 패키지 금지: framer-motion / Web Audio 재사용만. ✔
-- `use-auction-socket.ts` 재수정 금지: task-001 읽기전용 명시. **실제 소스 329행 `useAuctionSound(bidEvents, stageEvent)` 호출 + bidEvents/stageEvent 노출 확인** → 시그니처 유지 시 0줄 수정 성립. ✔
-- 백엔드 무변경: task-005도 단순 `<video>` 직재생(프록시/CORS 불필요), 백엔드 미접근. ✔
-- shadcn `components/ui/*` / `lib/utils.ts` 금지: task-003 명시, 타 태스크 미접근. ✔
-- reduced-motion: 002/003/004 처리. task-001은 "사운드는 모션 아님 → 정지 대상 아님, 볼륨 절제"로 처리 — 전정 자극(모션) 관점상 방어 가능한 해석. ✔
-- 모바일: 002(사이드바 숨김), 003(fx 축소), 005(데스크톱 한정). ✔
-
-## 7. 실제 소스 정합성 — PASS (직접 열람 검증)
-plan.md 인용 라인/구조를 실제 파일과 대조한 결과 **전부 일치**:
-- `current-player-card.tsx`: Props `player/currentBid/biddingPhase/stageEvent` **bidEvents 미수신 확인**(14-20행), `overflow-hidden`(108행), `lastPlayer`(63-64행), `seenSeq`/`celebrate`/1700ms(66-76행), `BURST_PARTICLES`(36-44행), 입찰가 패널·`bid-pop`(203-227/210-216행), 낙찰 오버레이 `.flash-burst`/`.ring-expand`/`.burst-particle`(231-310행) — 모두 일치.
-- `use-auction-sound.ts`: 시그니처 `useAuctionSound(bidEvents, stageEvent)`(61-64행), Web Audio 오실레이터(mp3 아님), **bid=880Hz square**(feedback가 지적한 삐- 톤 확인), `resolveAudioContextCtor` 폴백, unlock(115-134), bid(137-146)/sold·pass(149-155) — 일치.
-- 뷰(captain): `grid grid-cols-12`(170행), `TeamSidebar`(173행), `CurrentPlayerCard`(184행) 형제 렌더 + **stageEvent만 전달·bidEvents 미전달** 확인 → AD-3 근거 성립.
-- `bid-timer.tsx`: `isUrgent`(32행), `isEnded`(33행), `role=timer`/`aria-live`(63-64행) — 일치.
-- **[가점] flight-in id 규약 백엔드 검증**: `auctions-room-state.service.ts`에서 `currentPlayer.id = player.userId`(181행), `member.id = m.userId`(138행). 낙찰 매물과 신규 팀멤버가 **동일 참가자 userId**를 공유하므로 `sold player.id == member.id` 규약이 백엔드 레벨에서 실제 성립. 사용자 명시 P0 flight-in의 layoutId 매칭(`flight-card-${id}`)이 엔드투엔드로 검증됨.
+## 결론
+**PASS. BLOCKER 없음.** 폐기된 v1(팀 가로 스트립) 흔적 없음, P0 6개 전부 매핑, 병렬 그룹 파일 교집합 실측 ∅, 데스크톱 무변경 보장 논리 성립, 백엔드/신규패키지 무변경, 이중 마운트 사운드 방어 반영, CSS hidden 토글 + 크래클 단일 소유자 항상 마운트 성립. 소스 라인 참조·prop명·export 모두 실제 파일과 1:1 일치. 오늘 경매 착수 승인.
 
 ---
 
-## 권고 사항 (전부 P2·비차단)
-- **A1 [P2]** task-003(XL): 단계별(공개→입찰→낙찰) 내부 커밋 체크포인트로 규모 리스크 완화.
-- **A2 [P2]** task-003은 신규 시각 모션을 전부 framer-motion/inline으로 처리해 globals.css 단일소유(004)를 지켜야 한다. 구현 중 신규 CSS 키프레임이 필요해지면 globals.css 소유 규칙과 충돌하므로, 애초에 JS 애니메이션/inline-style로 해결할 것을 재확인.
-- **A3 [P2]** 콤보 이중 계산(AD-3/R4): 사운드(bidEvents 기반, task-001)와 카드(currentBid.amount 링버퍼, task-003)가 이론상 ±1 어긋날 수 있음. 공유 상수(`COMBO_WINDOW_MS=3000`, L0~L3 임계값)로 완화되나, 카드가 매물 전환 시 반드시 리셋하도록 하고 테스트에서 가시적 divergence가 관찰되면 단일 소스로 통합 검토.
-- **A4 [P2]** task-004 타이머 불꽃/스파크는 모바일 동작 언급이 없음. requirement 모바일 축소 대상(흔들림/전설플래시/파티클/영상)에 타이머 불꽃은 미포함이라 현 상태 허용되나, "불꽃은 경량이라 모바일 유지" 한 줄 명시하면 완결성↑.
+## 기준별 판정
 
-## 승인 결론
-2차 계획은 병렬 충돌 무해성·소스 정합성·P0 커버리지·사용자 피드백 반영이 모두 충족됐다. **PASS.** design/implementation 단계로 진행 가능. 위 A1~A4는 구현 단계 참고 권고이며 재계획을 요하지 않는다.
+### 1. requirement P0 ①~⑥ 전부 태스크 매핑 — PASS
+| P0 | 항목 | 매핑 | 검증 |
+|---|---|---|---|
+| ① | 탭구현 = state + CSS hidden 토글, 언마운트/라우트이동 금지 | 006, 007 (AD-4) | 양 뷰 모바일 블록 최상단 `useState<'auction'\|'status'>`, 양 패널 상시 마운트, 조건부 렌더 금지 명시(§4). ✔ |
+| ② | 하단 탭바(경매/현황, role=tablist/tab, aria-selected, 44px, skewed/네온) | 003 (+006/007 배선) | `h-14`(≥44px), controlled(부모 state 소유), 접근성 수동 부여. ✔ |
+| ③ | 경매탭 스테이지(초상화+현재가+선두+도화선 바+티커) | 005 (+001/002/004) | MobileAuctionStage 신규, 공유 훅 구독. ✔ |
+| ④ | 현황탭 TeamSidebar 무변경 재사용 | 006, 007 (AD-5) | team-sidebar.tsx 편집 금지, `overflow-y-auto` 래핑만. ✔ |
+| ⑤ | 탭전환 채팅 draft/스크롤 유지 | 006, 007 | `display:none` 상태 보존, 조건부 렌더 금지(R1). ✔ |
+| ⑥ | 탭전환 사운드 유지 | 006/007(언마운트 금지) + 001(뷰포트 게이트, 훅 상시 마운트) + 002(헤더 크래클 상시 마운트) | AD-2/AD-3/AD-4. ✔ |
+
+6개 전부 매핑. 게이트 통과.
+
+### 2. 폐기 스트립 부활 방지 — PASS
+- `mobile-team-strip.tsx`: 소스 트리 검색 결과 **부재**(현재도 없음), 전 태스크 제약에 "생성 금지" 명시, plan.md 3행/R8에 명문. 신규 파일 목록에도 부재.
+- 팀 정보가 경매 탭 메인에 노출되지 않음: 경매 패널 = 스테이지 → (팀장)입찰컨트롤 → 채팅. 팀 카드는 **현황 탭 전용**(TeamSidebar). requirement 30행 "완전히 제거" 준수. ✔
+
+### 3. 태스크 분할 · DAG — PASS
+- DAG: A{001,002,003,004} → B{005} → C{006,007} → D{008(P1)}. 단방향, 순환 없음. ✔
+- 분할 적정: 001(L, 615줄 카드에서 상태로직 순수추출→~440줄), 002(M, prop 3종 추가), 003/004(S, 소형 신규), 005(L, 스테이지 HUD 200~400줄), 006/007(M, lg:hidden 블록 재작성), 008(P1 선택). 과대/과소 없음.
+- 의존 정합: 005 deps=001(훅)+002(bar variant)+004(티커) 실제 import와 일치. 003은 005와 무관(006/007에서만 배선). ✔
+
+### 4. 병렬 그룹 파일 충돌 — PASS (실측 대조)
+소스에서 각 소유 파일이 실제로 분리됨을 확인:
+- Group A 배타 소유: 001={`hooks/use-player-card-stage.ts`(신규), `parts/current-player-card.tsx`}, 002={`parts/bid-timer.tsx`}, 003={`parts/mobile-tab-bar.tsx`(신규)}, 004={`parts/fx/mobile-bid-ticker.tsx`(신규)}. 교집합 = ∅. ✔
+- Group C: 006={`auction-ongoing-spectator.tsx`}, 007={`auction-ongoing-captain.tsx`}. 서로 다른 뷰 파일, 교집합 ∅. 각자 자기 뷰 파일만 소유. ✔
+- 006(spectator)/007(captain): 스테이지·탭바·팀사이드바·채팅은 전부 **import만**(편집 아님) → 워크트리 머지 충돌 없음. ✔
+- 001의 `current-player-card.tsx` 수정: 다른 병렬 태스크가 이 파일을 편집하지 않음(005는 훅 import만). ✔
+- 008(P1)이 003/006/007을 재수정하나 Group C 전부 머지 후 **단독·순차** → 병렬 충돌 아님. ✔
+- 무변경 확정: team-sidebar/chat-panel/player-status-grid/auction-audio-engine/card-rarity/globals.css/ui/*/lib/utils.ts/master-view — 전부 import·재사용만.
+
+### 5. 데스크톱 무변경 보장 — PASS
+- 001 = 순수 상태 추출(JSX 마크업/클래스/애니메 파라미터 불변, `stage.*` 치환만) → 데스크톱 카드 렌더 diff 0. ✔
+- 002 = 신규 prop 기본값(`variant='default'`, `showNumber=true`, `soundEnabled=true`) = 기존 동작 100% 동일. ✔
+- 006/007 = 뷰 루트에 `flex flex-col h-[calc(100dvh-7rem)] overflow-hidden` 추가하되 `lg:block lg:h-auto lg:overflow-visible` 리셋 → 데스크톱은 `block/h-auto/overflow-visible/space-y-4`로 원본과 등가. `hidden lg:grid` 블록·헤더 상태카드 무편집. ✔
+- 실측: 데스크톱 `hidden lg:grid` 블록에 BidTimer 없음 → 002 변경이 데스크톱 그리드에 영향 0. 헤더 BidTimer(신규 prop 미지정=기본값)만 존재. ✔
+
+### 6. 백엔드/패키지/이중마운트 방어 — PASS
+- 백엔드 무접근: 전 태스크 프론트 전용, 기존 `roomState`/`bidEvents`/`stageEvent`/`chatMessages`만 사용(소켓 타입 export 실측 확인: AuctionBidEvent/StageEvent/ChatMessage/EmitFns 존재). ✔
+- 신규 npm 금지: framer-motion/lucide-react 등 기존 의존성만, Radix `ui/tabs.tsx` 강제 아님. ✔
+- 이중 마운트 사운드 방어: AD-2 `isActiveViewport` 게이트. 실측상 **현재도** 데스크톱(93행)+모바일(138행) CurrentPlayerCard 2개 동시 마운트 → 현재 `playRevealLegendary`(161·174행) per-instance ref만 있어 **이중 발화 잠재 버그 존재**. 계획의 뷰포트 게이트가 이를 현재 뷰포트 인스턴스 1개로 축소 → 방어이자 기존 버그 해소. 뷰포트 기준(탭 가시성 아님)이라 현황 탭 체류 중에도 발화. ✔
+
+### 7. CSS hidden 토글 + 크래클 단일 소유자 상시 마운트 — PASS
+- 언마운트 금지: 006/007 §4 + R1에서 조건부 렌더 명시 금지, 양 패널 `cn(..., activeTab !== 'x' && 'hidden')` 토글만. ✔
+- 크래클 단일 소유자: 헤더 상태카드 BidTimer(`soundEnabled` 기본 true)가 **탭 콘텐츠 영역 밖 상위 `shrink-0`** → activeTab 무관 항상 마운트·항상 표시. 스테이지 바 타이머는 `soundEnabled={false}` 무음. 실측상 헤더 BidTimer는 lg:grid/lg:hidden 분기 이전(상태카드)에 위치해 뷰포트/탭 무관 단일 인스턴스 → 이중 크래클 없음. ✔
+
+---
+
+## NIT (비차단 · 참고)
+
+- **[NIT-1] 중간 머지 상태에서의 일시적 모바일 전설음 억제(사용자 비노출)**: task-001 머지 후~006/007 머지 전에는 모바일 `lg:hidden` 블록이 여전히 `CurrentPlayerCard`(ownerViewport='desktop')를 렌더하므로, 모바일 뷰포트에서 `isActiveViewport=('desktop'===='mobile')=false`가 되어 전설음이 임시로 안 울림. **최종 상태(006/007 머지 후 MobileAuctionStage ownerViewport='mobile')에서는 정상 1회 발화**. P0(001~007)는 세트로 배포되므로 사용자 비노출. Integrator는 **전 P0 머지 완료 후에만** 모바일 사운드 회귀 테스트 수행 권장.
+- **[NIT-2] 루트 `space-y-4` 잔존**: 006/007이 루트 className에 `space-y-4`를 유지한 채 `flex flex-col` 추가. 모바일 flex-col에서 `space-y-4`는 자식 간 margin으로 작동(상태카드/배너/탭콘텐츠/탭바 간격). 의도된 간격으로 보이나 고정높이 `overflow-hidden` 컨테이너에서 margin이 레이아웃 예산에 포함됨 — flex-1이 잔여 흡수하므로 스크롤 0은 유지되나, Implementor는 375px에서 실제 클리핑 없음을 확인할 것.
+- **[NIT-3] ASSIGNING 중 크래클 미발화**: 헤더 BidTimer가 `{!isAssigning && <BidTimer/>}`로 조건부 → 배정 중에는 크래클 없음. 배정 중엔 입찰/도화선이 없으므로 정상 동작. 참고만.
+
+## Integrator 실검증 체크(권장)
+1. 전 P0(001~007) 머지 후 375/390/430px에서 관전자·팀장·배너표시 각각 **문서 스크롤 0**.
+2. 탭 왕복 후 채팅 draft·스크롤 위치 유지.
+3. 현황 탭 체류 중 입찰/낙찰 사운드 1회, 마감 5초 크래클 발화 + 스테이지 바 무음(이중 크래클 0).
+4. 데스크톱·모바일 각각 전설 공개음 1회(이중 발화 0).
+5. `cd frontend && npm run lint && npm run build` 통과.

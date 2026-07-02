@@ -1,51 +1,55 @@
-# Task 004: bid-timer 불타는 도화선 + globals.css 키프레임
+# Task 004: mobile-bid-ticker — 최근 입찰 컴팩트 티커
 
 ## 메타데이터
-- 복잡도: M
-- 병렬그룹: B (Group A 머지 후 실행)
-- 의존: task-001 (오디오 엔진) — `startFuseCrackle`/`stopFuseCrackle` import **필수 선행**
-- 변경 파일 (충돌 방지용):
-  - 수정(배타 소유): `frontend/src/modules/auction/components/parts/bid-timer.tsx`
-  - 수정(배타 소유): `frontend/src/app/globals.css` (신규 키프레임 + reduced-motion 정지 항목 — **globals.css 단일 소유자**)
-  - 읽기전용: `frontend/src/modules/auction/hooks/auction-audio-engine.ts` (task-001, import만)
+- 복잡도: S
+- 병렬그룹: A (선행 없음)
+- 우선순위: P0
+- 의존: 없음
 
-## 목적
-마감 임박 타이머를 "불타는 도화선"으로 연출한다: 게이지 끝단 불꽃/스파크 + 옅은 연소 텍스처 + 지지직 크래클 사운드. 기존 `isUrgent`/`isEnded`/`aria-live` 접근성 동작은 회귀 없이 유지한다. **globals.css를 단독 소유**해 신규 키프레임과 그 감소모션 정지 항목을 여기서만 추가한다(다른 태스크는 globals.css 미수정).
+## 담당 파일
+- **신규**: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/auction/components/parts/fx/mobile-bid-ticker.tsx`
 
-## 배경 / 현재 구조 (검증 완료)
-- `bid-timer.tsx`(128줄, 단독 파일): `isUrgent = value<=5 && value>0`(32행), `isEnded = value<=0`(33행). 게이지 바(112-125행): `width: ${fraction*100}%` + `backgroundColor: hsl(hue ...)`. `role=timer`/`aria-live`(63-64행), `aria-label=srLabel`. `isEnded`면 "종료" 표시.
-- `globals.css`: 기존 키프레임들(`.flash-burst`, `.burst-particle`, `.ring-expand`, `.pulse-live` 등) + `@media (prefers-reduced-motion: reduce)` 블록(477-491행, `.float-slow`/`.ring-spin`/... `animation:none`).
+## 배타 소유 파일
+- `components/parts/fx/mobile-bid-ticker.tsx` (신규)
 
-## 구현 방식
+## import만 하는 파일 (편집 금지)
+- `../../../hooks/use-auction-socket` — `AuctionBidEvent` 타입
+- `lib/utils` — `cn`
+- `lucide-react` — `Gavel`/`Trophy` 등
+- `framer-motion` — (선택) `AnimatePresence`/`motion`, `useReducedMotion`
 
-### 1. `globals.css` — 신규 키프레임 (기존 파일 내 추가)
-- **불꽃 flicker**: `@keyframes timer-flame-kf` — 게이지 끝단 불꽃 스프라이트(scale/opacity/translateY 흔들림). `.timer-flame` 클래스.
-- **스파크**: `@keyframes timer-spark-kf` — 짧은 튐(작은 점 상승/소멸). `.timer-spark` 클래스(index 기반 결정적 각도로 여러 개, `--spark-x` 등 CSS 변수 방식 권장 — `.burst-particle` 패턴 참고).
-- **연소 텍스처**: `.timer-ember` — 게이지 배경 옅은 그라데이션 노이즈(오렌지/레드 저알파, 오버워치 토큰 `--ow-orange`/`--ow-red` 계열). 정적이어도 무방하나 미세 애니메이션 시 키프레임 추가.
-- **reduced-motion**: `@media (prefers-reduced-motion: reduce)` 블록(477행)에 `.timer-flame, .timer-spark { animation: none; }` 추가(정적 대체 — 불꽃은 정지 스프라이트 또는 숨김).
-- 색상/간격은 기존 오버워치 토큰/변수 사용(하드코딩 금지). 신규 CSS 파일 생성 금지(기존 globals.css 내 확장만).
+## 목표
+경매 탭 스테이지에 얹을 **컴팩트 최근 입찰 티커**(가로/흐름형, 최근 2~3건)를 작성한다. 세로 카드형 `BidLog`(최대 8건)와 달리 좁은 스테이지 오버레이용이다(P0-③). task-005가 스테이지 내부에 import해 렌더한다. `bid-log.tsx`는 무변경(별도 데스크톱 용도).
 
-### 2. `bid-timer.tsx` — 연소 연출 + 크래클 사운드
-- 게이지 바(112-125행) 확장: `isUrgent`일 때 게이지 **끝단**(채워진 폭의 오른쪽 끝)에 `.timer-flame` + `.timer-spark` 요소 오버레이, 게이지 트랙에 `.timer-ember` 배경.
-  - 끝단 위치 = 채워진 width의 끝 → 불꽃을 채운 바의 우측 끝에 절대배치(`left: ${fraction*100}%` 근처) 또는 채운 바 내부 우측 정렬.
-- 기존 `isUrgent`/`isEnded` 분기, hue 보간, `fraction` 계산, `role=timer`/`aria-live`/`aria-label` 구조 **그대로 유지**(연소 요소는 `aria-hidden`).
-- **크래클 사운드**: `isUrgent` 진입 시 `startFuseCrackle()` 1회, `isUrgent` 이탈(종료/낙찰/유찰/WAITING)·언마운트 시 `stopFuseCrackle()`. `useEffect`로 isUrgent 변화 구독, cleanup에서 stop. 중복 시작 방지는 엔진이 보장하나 컴포넌트도 진입/이탈 1회씩만 호출.
-- reduced-motion 시 불꽃/스파크는 CSS로 정지(위 미디어쿼리) — 사운드는 유지(모션 아님).
+## 구현 상세
 
-## 성공 기준
-- [ ] 마감 5초 전(`isUrgent`)부터 게이지 끝단 불꽃/스파크 + 연소 텍스처가 나타난다.
-- [ ] 지지직 크래클 사운드가 `isUrgent` 진입 시 재생되고 이탈/종료/언마운트 시 정지한다(잔류 루프 없음).
-- [ ] 기존 타이머 동작 무회귀: hue 보간 게이지, `isUrgent`/`isEnded` 분기, "종료" 표시, `role=timer`/`aria-live`/`aria-label`.
-- [ ] `prefers-reduced-motion`에서 불꽃/스파크 애니메이션 정지(정적/숨김), 상태 표시는 유지.
-- [ ] 3개 뷰(captain/master/spectator)에서 동일 `BidTimer` 재사용 → 자동 반영, 무회귀.
-- [ ] 신규 CSS 파일 없음(globals.css 내 확장). 하드코딩 색상/간격 없음(토큰 사용). `any` 미사용. `cd frontend && npm run lint && npm run build` 통과.
+### 1) Props
+```ts
+interface Props {
+  events: AuctionBidEvent[]   // 전체 목록 받고 내부에서 최근 N건 slice
+  limit?: number              // 기본 3 (2~3건)
+}
+```
+- 표시 대상: 최근 `kind==='bid'` 위주(낙찰 `kind==='sold'`도 표시 가능하나 스테이지 셀레브레이션과 중복될 수 있으니 입찰 위주 권장). `events.slice(-limit)` 최근순.
 
-## 테스트 요구사항
-- 단위 테스트: isUrgent 진입/이탈에 따른 크래클 start/stop 호출 여부(사운드 함수 목 주입 가능하면 mock, 아니면 로직 분리 후 검증). fraction/isUrgent/isEnded 경계는 기존 동작 유지 확인.
-- 수동 검증: 실경매에서 5초 진입 시 불꽃+크래클, 0초 종료 시 정지, WAITING 복귀 시 정지, reduced-motion 정지, 3뷰 확인.
+### 2) 시각 (컴팩트·오버워치 테마)
+- 한 줄 컴팩트: `[닉네임] +N,NNNP` 형태, 입찰=시안(`text-ow-blue`), 아이콘 소형(`Gavel` w-3).
+- 좁은 폭 대응: `truncate`, `tabular-nums`, 작은 폰트(`text-[10px]`~`text-xs`).
+- 신규 항목 등장 연출: 기존 `pop-in` 클래스 재사용 또는 framer-motion `AnimatePresence`(진입 슬라이드/페이드). 새 `key`는 `event.id`.
+- 배경: 반투명(`bg-black/40` 등 토큰 계열), 스테이지 위에 겹쳐도 가독.
 
-## 제약사항
-- `bid-timer.tsx`/`globals.css` 외 파일 수정 금지. 다른 태스크는 globals.css를 수정하지 않음(단일 소유 유지).
-- 신규 npm 패키지/신규 CSS 파일 금지. `any` 금지. 오버워치 테마/토큰 유지.
-- 기존 접근성 구조(`role=timer`/`aria-live`/`aria-label`) 훼손 금지.
-</content>
+### 3) 빈 상태 / reduced-motion
+- 이벤트 0건: 최소 플레이스홀더 또는 렌더 없음(스테이지 레이아웃 안정 우선).
+- `prefers-reduced-motion`: 등장 애니메이션 생략, 정적 목록 표시(`useReducedMotion()` 또는 globals.css `@media` 재사용, 신규 CSS 금지).
+
+## 완료 기준 체크리스트 + 검증
+- [ ] `events`/`limit` props, 최근 2~3건만 컴팩트 표시
+- [ ] 신규 입찰 시 새 항목 등장(pop-in/AnimatePresence), `reduced-motion` 시 정적
+- [ ] 좁은 폭(375px)에서 오버플로우/줄 깨짐 없음(`truncate`)
+- [ ] `bid-log.tsx` 무변경(이 컴포넌트는 독립 신규)
+- [ ] `any` 미사용, `cd frontend && npm run lint && npm run build` 통과
+
+## 제약 재확인
+- 오버워치 테마·디자인 토큰만·하드코딩 금지.
+- `any` 금지 · Tailwind만 · 신규 CSS 파일 금지(globals.css `pop-in` 재사용) · 신규 npm 금지.
+- `bid-log.tsx`/`ui/*`/`lib/utils.ts` 편집 금지 · `mobile-team-strip.tsx` 생성 금지.

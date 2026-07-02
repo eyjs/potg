@@ -1,72 +1,78 @@
-# Task 001: 오디오 엔진 재설계 + 신규 사운드 (사운드 SSOT)
+# Task 001: 공유 스테이지 상태 훅 추출 + current-player-card 리팩터
 
 ## 메타데이터
 - 복잡도: L
-- 병렬그룹: A (선행 없음, 즉시 실행)
+- 병렬그룹: A (선행 없음)
+- 우선순위: P0 (선행 기반 태스크 — 005가 이 훅에 의존)
 - 의존: 없음
-- 변경 파일 (충돌 방지용):
-  - 수정(배타 소유): `frontend/src/modules/auction/hooks/use-auction-sound.ts`
-  - 신규(배타 소유): `frontend/src/modules/auction/hooks/auction-audio-engine.ts`
-  - 읽기전용(수정 금지): `frontend/src/modules/auction/hooks/use-auction-socket.ts` (329행 `useAuctionSound(bidEvents, stageEvent)` 호출 시그니처를 **절대 변경하지 말 것**)
 
-## 목적
-2차 모든 연출이 공유하는 **사운드 단일 소유처(SSOT)**를 만든다. (1) 사용자 직접 피드백(feedback-001)에 따라 1차 오실레이터 단일 톤을 게임급으로 전면 재설계 (2) 신규 사운드 3종(전설 공개·콤보 피치 상승 입찰·도화선 크래클)을 추가한다. 리프 컴포넌트(카드·타이머)가 socket을 거치지 않고 직접 호출할 수 있도록 명령형 엔진 함수를 export한다.
+## 담당 파일
+- **신규**: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/auction/hooks/use-player-card-stage.ts`
+- **수정**: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/auction/components/parts/current-player-card.tsx`
 
-## 배경 / 현재 구조 (검증 완료)
-- `use-auction-sound.ts`는 Web Audio 오실레이터 합성(mp3/HTMLAudioElement 미사용). `TONE_CONFIGS`(bid/sold/pass), `playTone`, unlock 리스너(pointerdown/touchstart, 115-134행), bid 트리거(137-146행), sold/pass 트리거(149-155행).
-- `use-auction-socket.ts` 329행에서 `useAuctionSound(bidEvents, stageEvent)` 호출. **이 파일은 재수정 금지** → 훅 시그니처 유지 필수.
-- feedback-001.md 원문: "효과음 좀더 게임처럼 바꿔, 너무 소리가 별론데".
+## 배타 소유 파일 (병렬 충돌 방지)
+- `hooks/use-player-card-stage.ts` (신규)
+- `components/parts/current-player-card.tsx` (수정)
 
-## 구현 방식
+## import만 하는 파일 (편집 금지)
+- `hooks/auction-audio-engine.ts` — `playRevealLegendary`, `COMBO_WINDOW_MS`, `bidComboLevel` (기존 export)
+- `components/parts/card-rarity.ts` — `getCardRarity`, `RARITY_FRAME`, `CardRarity`
+- `../../types` — `RoomStatePlayer`, `RoomStateBid`
+- `../../hooks/use-auction-socket` — `AuctionStageEvent`
+- `framer-motion` — `useAnimation`, `useReducedMotion` (기존 의존성)
 
-### 1. 모듈 싱글턴 오디오 엔진 (`auction-audio-engine.ts` 신규)
-- 모듈 레벨 단일 공유 `AudioContext`(lazy 생성, `webkitAudioContext` 폴백 — 기존 `resolveAudioContextCtor` 패턴 이식). `any` 금지.
-- 공통 합성 헬퍼(신규 라이브러리 없이 Web Audio만):
-  - **ADSR 게인 엔벨로프** 유틸(attack/decay/sustain/release 명시).
-  - **오실레이터 2~3개 레이어링 + 디튠**(두께감).
-  - **BiquadFilter** lowpass/highpass 스윕(톤 정리).
-  - **노이즈 버스트**: `AudioBuffer`에 화이트노이즈 채워 짧게 재생(타격감).
-  - **ConvolverNode** + 프로그램 생성 임펄스 응답(짧은 리버브 테일, 공간감).
-  - **미세 랜덤 피치 변주**(반복 피로 방지).
-  - **마스터 게인** 정리(클리핑 방지) — 모든 노드는 마스터 게인 → destination.
-- export 함수(명령형):
-  - `unlockAudio(): void` — suspended AudioContext resume (엔진 내부에서도 사용).
-  - `playBidSound(comboLevel: number): void` — 묵직한 "탁/척" 타격음(필터드 노이즈 트랜지언트 + 사인 피치 드롭 200→80Hz). `comboLevel` 단계에 따라 피치/밝기 상승.
-  - `playSoldSound(): void` — 승리 팡파레(메이저 3음 아르페지오 + 상단 shimmer + 긴 리버브 테일). 낙찰 골든카드와 타이밍 동조되도록 총 길이 문서화.
-  - `playPassSound(): void` — 낙담(마이너 하강 2음 + lowpass 닫힘 + 짧은 리버브), 음량 절제.
-  - `playRevealLegendary(): void` — 전설 공개 전용(상승 shimmer + 임팩트 + 리버브). 카드가 직접 호출.
-  - `startFuseCrackle(): void` / `stopFuseCrackle(): void` — 도화선 지지직 크래클(노이즈 + highpass + 랜덤 게인 모듈레이션 루프). 타이머가 isUrgent 진입/이탈 시 호출. 중복 시작 방지(내부 running 플래그).
-- **콤보 상수(공유 규약)**: `export const COMBO_WINDOW_MS = 3000` 및 단계 임계값을 엔진(또는 인접 상수)에서 정의·export. 임계값 규약(task-003과 **동일**하게):
-  - L0: 콤보 1 (기본)
-  - L1: 콤보 2~3
-  - L2: 콤보 4~5
-  - L3: 콤보 6+
-  - `export function bidComboLevel(count: number): 0|1|2|3` 형태로 제공(카드가 동일 함수 import 가능하도록 순수 함수 권장).
+## 목표
+`current-player-card.tsx`(615줄)에 인라인된 매물 연출 상태 로직을 **순수 추출**해 신규 훅 `use-player-card-stage.ts`로 옮기고, 데스크톱 카드는 이 훅을 구독하도록 리팩터한다. 이후 task-005의 `MobileAuctionStage`가 **동일 훅**을 구독해 등급/콤보/타이밍/사운드를 데스크톱과 일치시킨다(P0-③/⑥ 기반, AD-1/AD-2). **데스크톱 카드의 렌더 결과·동작은 100% 불변**이어야 한다(순수 리팩터).
 
-### 2. `use-auction-sound.ts` 리팩터링 (시그니처 유지)
-- `useAuctionSound(bidEvents, stageEvent)` 시그니처 **그대로 유지**.
-- 내부 `playTone`/`TONE_CONFIGS` 제거 → 엔진 함수 호출로 교체.
-- unlock 리스너(pointerdown/touchstart, once)는 유지하되 엔진 `unlockAudio()` 호출.
-- bid 트리거: 새 `kind:'bid'` 이벤트 감지 시(기존 137-146행 로직 유지) `bidEvents`에서 **콤보 계산**(newest 기준 `COMBO_WINDOW_MS` 내 `kind==='bid'` 개수) → `playBidSound(bidComboLevel(count))`.
-- sold/pass 트리거: `stageEvent.seq` 증가 시(기존 149-155행) `playSoldSound()` / `playPassSound()`.
-- 과거 이벤트 소급 재생 방지 시드(`lastBidEventIdRef`, `lastStageSeqRef`) 유지.
+## 구현 상세
 
-## 성공 기준
-- [ ] "삐-" 계열 원시 단일 톤이 하나도 없다. bid/sold/pass 각각 타격감·공간감(리버브 테일)을 가진다 (feedback-001 충족).
-- [ ] `useAuctionSound(bidEvents, stageEvent)` 시그니처 무변경 → `use-auction-socket.ts` 수정 0줄.
-- [ ] 입찰 사운드가 콤보 단계(0~3)에 따라 피치/밝기 상승.
-- [ ] `playRevealLegendary`·`startFuseCrackle`/`stopFuseCrackle`가 export되어 리프 컴포넌트가 import 가능(엔진 함수 시그니처 확정).
-- [ ] 단일 공유 AudioContext — 훅 unlock과 엔진 재생이 동일 컨텍스트를 사용(중복 unlock/컨텍스트 없음).
-- [ ] 크래클은 `start` 중복 호출에도 하나만 루프, `stop`에서 완전 정지.
-- [ ] `any` 미사용. `cd frontend && npm run lint && npm run build` 통과.
+### 1) 훅 `usePlayerCardStage` 작성 (신규 파일)
+아래 로직을 `current-player-card.tsx`에서 **그대로 이전**한다(렌더-단계 상태 보정 패턴 유지 — effect로 바꾸지 말 것):
+- 매물 전환 감지: `lastPlayer` state + `if (player && player.id !== lastPlayer?.id) setLastPlayer(player)` (현재 114-115행)
+- 셀레브레이션: `seenSeq`/`celebrate` + `stageEvent.seq` 비교 + 1700ms 타이머 리셋 (현재 117-127행)
+- 뷰포트: `isDesktop` (matchMedia `(min-width:1024px)`) (현재 130-138행)
+- 등급: `rarity = useMemo(() => lastPlayer ? getCardRarity(lastPlayer.id) : 'common', [lastPlayer?.id])` (현재 141-146행)
+- 팩오프닝: `isFlipped`/`legendaryBurst`/`legendaryFiredRef` + 플립 타이밍 effect (현재 147-183행). **단, `playRevealLegendary()` 호출을 아래 `isActiveViewport` 게이트로 감싼다.**
+- 콤보: `comboTimestampsRef`/`prevBidAmountRef`/`comboCount`/`comboLevel`/`shakeControls` + 리셋/윈도우 effect (현재 190-236행)
+- 파생값: `frame = RARITY_FRAME[rarity]`, `comboStage = COMBO_STAGE[comboLevel]`, `legendaryParticles`, `displayPlayer = player ?? (celebrate ? lastPlayer : null)`, `flightLayoutId = celebrate==='sold' && lastPlayer ? \`flight-card-${lastPlayer.id}\` : undefined`
 
-## 테스트 요구사항
-- 단위 테스트: `bidComboLevel(count)` 경계값(1→0, 3→1, 5→2, 6→3) 순수 함수 테스트. (오디오 노드 자체는 jsdom에서 검증 어려우므로 순수 로직만 대상.)
-- 수동 검증: 데스크톱/모바일에서 최초 제스처 후 4종 재생 확인, 연속 입찰 시 피치 상승, 크래클 시작/정지.
+**상수 이전**: `COMBO_STAGE`(66-91), `BURST_PARTICLES`(42-50), `LEGENDARY_PARTICLES_DESKTOP`(53-61), `LEGENDARY_PARTICLES_MOBILE`(64)를 훅 파일로 **이전 후 `export`**. 값은 **글자 그대로 동일**(데스크톱 시각 불변). 카드와 스테이지는 훅 파일에서 import.
 
-## 제약사항
-- 신규 npm 패키지 금지(Web Audio API만). 신규 mp3 에셋 금지(합성 유지).
-- `use-auction-socket.ts` 재수정 금지. `any` 금지.
-- reduced-motion은 시각 개념 → 사운드는 정지 대상 아님(단, 볼륨 절제로 불쾌감 방지).
-- 트리거 배선(stageEvent.seq / bidEvents / 모바일 unlock)은 변경 없이 생성부만 교체.
-</content>
+### 2) `ownerViewport`/`isActiveViewport` 게이트 (AD-2, P0-⑥ 방어)
+- 훅 시그니처: `usePlayerCardStage(args: { player, currentBid, biddingPhase, stageEvent, ownerViewport: 'desktop' | 'mobile' })`
+- 내부: `const isActiveViewport = ownerViewport === (isDesktop ? 'desktop' : 'mobile')`
+- **`playRevealLegendary()` 호출을 `if (isActiveViewport) { ... }`로 게이트**(reduced-motion 분기·정상 분기 양쪽 모두). `legendaryFiredRef` per-instance 가드는 유지.
+- **전설 전체화면 플래시(`createPortal`)의 렌더 조건에도 `isActiveViewport`를 추가**(카드가 렌더). → 현재 뷰포트에 대응하는 인스턴스 1개만 사운드·portal 발화.
+- 게이트는 **뷰포트 폭 기준**(탭 가시성 아님). 현황 탭 체류 중에도 모바일 스테이지 인스턴스가 active로 유지되어 사운드 발화(P0-⑥).
+
+### 3) 훅 반환 계약(consumer가 소비)
+```
+{ lastPlayer, displayPlayer, rarity, frame,
+  isFlipped, legendaryBurst, legendaryParticles, isDesktop, isActiveViewport,
+  celebrate, seenSeq,
+  comboCount, comboLevel, comboStage, shakeControls,
+  reducedMotion }
+```
+(+ export 상수: `COMBO_STAGE`, `BURST_PARTICLES`, `LEGENDARY_PARTICLES_DESKTOP`, `LEGENDARY_PARTICLES_MOBILE`)
+
+### 4) `current-player-card.tsx` 리팩터
+- 위 상태/상수 정의를 삭제하고 `const stage = usePlayerCardStage({ player, currentBid, biddingPhase, stageEvent, ownerViewport: 'desktop' })`로 대체, JSX는 `stage.*`를 참조하도록만 치환.
+- **JSX 마크업/클래스/애니메이션 파라미터는 한 글자도 바꾸지 않는다**(순수 치환). `<motion.div animate={stage.shakeControls}>`, `MotionCard layoutId={stage.flightLayoutId}` 등.
+- `import` 정리: 상수·`playRevealLegendary`·`COMBO_WINDOW_MS`·`bidComboLevel` import를 훅 사용에 맞게 정돈(카드에서 직접 쓰던 것은 훅으로 이동, 카드에 남는 것만 유지).
+- 결과 파일 크기: ~430~460줄로 축소(신규 마크업 추가 없음).
+
+## 완료 기준 체크리스트 + 검증
+- [ ] `use-player-card-stage.ts` 신규 생성, 위 반환 계약·export 상수 제공
+- [ ] `current-player-card.tsx`가 훅 구독으로 전환, **데스크톱 렌더 diff = 마크업 0**(상태 정의만 제거·치환)
+- [ ] `playRevealLegendary()`·전설 portal이 `isActiveViewport` 게이트 안에서만 실행
+- [ ] `any` 미사용, 타입 명시(제네릭/유니온 정확)
+- [ ] `cd frontend && npm run lint` 통과, `npm run build` 통과
+- [ ] (수동 검증 가이드) 데스크톱 뷰포트에서 전설 매물 공개 시 공개음 **1회**, 플립/파티클/콤보/셀레브레이션 기존과 동일
+- [ ] (수동) 데스크톱 낙찰 flight-in(`layoutId`) 기존과 동일 동작
+
+## 제약 재확인
+- **데스크톱 무변경**: 카드 마크업/클래스/애니메이션 값 불변, 순수 상태 추출만.
+- `any` 금지 · Tailwind만 · `globals.css`/`ui/*`/`lib/utils.ts`/`auction-audio-engine.ts`/`card-rarity.ts` **편집 금지**(import만).
+- `reduced-motion` 분기(플립 생략/즉시 정면 + 정적 등급 프레임) 로직 그대로 이전.
+- 디자인 토큰·오버워치 테마 유지, 하드코딩 금지.
+- 신규 npm 금지. `mobile-team-strip.tsx` 생성 금지.

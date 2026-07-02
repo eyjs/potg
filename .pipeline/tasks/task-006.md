@@ -1,38 +1,74 @@
-# task-006 — 팀장(captain) 화면 모바일 대응 (feedback-002, P0)
+# Task 006: 관전자 뷰 모바일 탭 구조 재작성 (auction-ongoing-spectator)
 
-## 출처
-사용자 직접 피드백 `.pipeline/feedback-002.md` — "팀장 화면도 모바일 대응해줘". 금요일(2026-07-03, 오늘) 경매에서 팀장/감독이 폰으로 입찰 가능해야 함. **P0, 시급.**
+## 메타데이터
+- 복잡도: M
+- 병렬그룹: C (task-005 머지 후)
+- 우선순위: P0
+- 의존: **task-003**(mobile-tab-bar), **task-005**(mobile-auction-stage)
 
-## 배경
-1차는 관전자 뷰(`auction-ongoing-spectator.tsx`)만 모바일 대응. 팀장은 `auction-ongoing-captain.tsx`(데스크톱 전용 12칼럼 그리드)를 그대로 받아 모바일에서 사용 어려움(입찰 버튼이 그리드 리플로우로 작게 표시, 엄지 접근성 나쁨).
+## 담당 파일
+- **수정**: `/Users/eyjs/Desktop/WorkSpace/potg/potg/frontend/src/modules/auction/components/auction-ongoing-spectator.tsx`
 
-## 대상 파일 (단독 소유)
-- `frontend/src/modules/auction/components/auction-ongoing-captain.tsx`
+## 배타 소유 파일
+- `components/auction-ongoing-spectator.tsx` (수정) — **`lg:hidden` 모바일 블록(현재 128-158행)만 탭 구조로 재작성 + 뷰 루트 flex 전환. `hidden lg:grid` 데스크톱 블록(74-120행)·헤더 상태카드(44-64행)는 무변경.**
 
-## 파일 충돌 상태 (해소됨)
-2차 flight-in(task-002)이 이 파일에 `LayoutGroup` 래핑(171-254행)을 이미 추가·머지함. 이 태스크는 **flight-in 머지 후 순차 실행**이라 충돌 없음. 데스크톱 그리드/`LayoutGroup`은 그대로 두고 반응형 분기만 추가.
+## import만 하는 파일 (편집 금지)
+- `./parts/mobile-tab-bar` — `MobileTabBar` *(task-003)*
+- `./parts/mobile-auction-stage` — `MobileAuctionStage` *(task-005)*
+- `./parts/team-sidebar` — `TeamSidebar` (무변경 재사용)
+- `./parts/chat-panel` — `ChatPanel` (무변경 재사용, 언마운트 금지)
+- `lib/utils` — `cn` (신규 import 추가), `react` — `useState`
+- `lucide-react` — 탭 아이콘
 
-## 요구 (관전자 뷰와 동일 패턴)
-- `auction-ongoing-spectator.tsx`의 `hidden lg:grid` / `lg:hidden` 분기 패턴을 그대로 따른다. **데스크톱 JSX(현 그리드) 무변경** — 기존 그리드를 `hidden lg:grid`(또는 감싸는 래퍼에 `hidden lg:block`)로 데스크톱 전용화하고, 별도 모바일 블록(`lg:hidden`)을 추가.
-- 모바일 세로 스택(위→아래), 100dvh 기준:
-  1. 현재 매물 카드(`CurrentPlayerCard`) + 타이머(`BidTimer`)
-  2. **입찰 컨트롤** (현재가 표시 + `BidButtonsRow` 재사용) — 팀장 핵심 기능. 엄지 닿는 위치에 크게, **최소 터치 타겟 44px**. sticky 하단 고정 검토(채팅 스크롤 중에도 항상 접근).
-  3. 채팅(`ChatPanel`, `flex-1`로 남은 높이)
-- 팀 현황(`PlayerStatusGrid`)/입찰 로그(`BidLog`) 등 부가 정보는 모바일에서 숨기거나 접기(P1 — 최소 숨김).
-- 기존 상태(PAUSED/ASSIGNING 배너, teamFull/isHighestBidder 안내), `handleBid`/`bidDisabled` 로직을 모바일 블록에서도 동일하게 재사용(중복 로직 신설 금지, 기존 계산값 공유).
+## 목표
+관전자 모바일 뷰를 **하단 탭 네비게이션 구조**로 재작성한다: 탭 1 "경매"(스테이지 + 채팅), 탭 2 "현황"(`TeamSidebar`). `activeTab` state + CSS `hidden` 토글(언마운트 금지), 페이지 스크롤 0(P0-①②③④⑤⑥). **데스크톱·헤더 상태카드는 무변경.**
 
-## 제약
-- `any` 금지, 신규 npm 패키지 금지, shadcn `ui/*`·`lib/utils.ts` 수정 금지, 백엔드 무변경.
-- 오버워치 테마/디자인 토큰 유지(하드코딩 색/폰트/간격 금지). 4px 배수 간격.
-- 모바일 flight-in 미노출(사이드바 자체가 모바일 미표시) — 모바일 블록은 `LayoutGroup` 불필요.
-- 데스크톱 팀장 화면 **회귀 없음**(JSX 무변경 래핑).
-- 접근성: 입찰 버튼 최소 44px 터치 타겟, 명확한 대비.
+## 구현 상세
 
-## 완료 기준
-- 모바일(375~430px)에서 팀장 접속 시 세로 레이아웃 + 입찰 버튼 정상 동작.
-- 데스크톱(lg+) 회귀 없음.
-- `cd frontend && npm run lint && npm run build` 통과.
+### 1) 뷰 루트 flex 전환 (뷰포트 예산, plan.md §뷰포트 높이 예산)
+- 루트 `<div className="space-y-4">`(43행)를 모바일 고정 높이 flex로:
+  `space-y-4 flex flex-col h-[calc(100dvh-7rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible`
+  - `7rem` = App `Header`(h-16=4rem) + `main px-4 py-6`(3rem). 상태카드/배너/탭바는 flex가 흡수(계산식 제외).
+  - `lg:` 리셋 = 데스크톱 `block`+`h-auto`+`overflow-visible`+`space-y-4` = **현재와 동일**(무변경).
 
-## 참고
-- 관전자 모바일 구현: `frontend/src/modules/auction/components/auction-ongoing-spectator.tsx`
-- 관전자 모바일 스펙(1차 보존본): `.pipeline/docs/cycle1/` 또는 `.pipeline/design/screen-specs/`
+### 2) 루트 자식 순서/역할 (모바일)
+1. **상단 상태카드**(44-64행, 무변경) — `shrink-0` 부여만(데스크톱은 flex 아님 → no-op). 헤더 `BidTimer`(크래클 소유자·기본 `soundEnabled`) 그대로 → **항상 마운트**(탭 무관 사운드 보존).
+2. **PAUSED 배너**(66-72행) — `shrink-0` 부여만(권장안 1). 조건부 유지.
+3. **`hidden lg:grid` 데스크톱 블록**(74-120행, `LayoutGroup` 포함) — **무변경**(모바일 `display:none`).
+4. **모바일 탭 블록**(현재 128-158행 대체) — 아래 3)로 신설.
+
+### 3) 모바일 탭 블록 (현재 128-158행을 전면 대체)
+- 최상단: `const [activeTab, setActiveTab] = useState<'auction' | 'status'>('auction')`.
+- 컨테이너: `lg:hidden flex-1 min-h-0 flex flex-col`(루트 flex의 잔여 흡수). 내부:
+  - **탭 콘텐츠 영역** `flex-1 min-h-0 relative`:
+    - **경매 패널** `h-full flex flex-col`(+ `cn(activeTab !== 'auction' && 'hidden')`):
+      - `isAssigning`이면 배정 중 플레이스홀더(기존 131-136행 문구), 아니면:
+      - `<MobileAuctionStage player={roomState.currentPlayer} currentBid={roomState.currentBid} biddingPhase={phase} stageEvent={stageEvent} bidEvents={bidEvents} timerRemaining={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />` — `shrink-0`
+      - `<ChatPanel messages={chatMessages} onSend={onSendChat} participants={roomState.participants} myUserId={myUserId} />` — `flex-1 min-h-0`. **조건부 렌더 금지**: 기존처럼 `chatMessages && onSendChat` 가드가 필요하면 내부에서 처리하되, 탭 전환으로 언마운트되지 않도록 **패널 자체는 항상 마운트**(경매 패널은 `hidden` 토글만).
+    - **현황 패널** `h-full overflow-y-auto`(+ `cn(activeTab !== 'status' && 'hidden')`):
+      - `<TeamSidebar teams={roomState.teams} startingPoints={roomState.auction.startingPoints} rosterMode={roomState.auction.rosterMode} highlightCaptainId={roomState.currentBid?.bidderId ?? null} />` (관전자 props, `myCaptainId` 없음)
+  - **탭바** `<MobileTabBar tabs={...} activeTab={activeTab} onTabChange={setActiveTab} />` — `shrink-0`. `tabs = [{value:'auction',label:'경매',icon:Gavel|Radio},{value:'status',label:'현황',icon:Users}]`.
+
+### 4) 언마운트 금지 (P0-①⑤⑥ — 최중대)
+- 경매/현황 패널은 **항상 동시 마운트**, 비활성만 `cn(..., activeTab !== 'x' && 'hidden')`(display:none).
+- **금지 패턴**: `{activeTab === 'auction' && <경매패널/>}` 같은 조건부 렌더(언마운트 → 채팅 draft/스크롤·사운드 유실). 반드시 CSS 토글.
+
+### 5) 기존 주석 갱신
+- 122-127행 뷰포트 근거 주석을 새 계산(`100dvh-7rem` + flex 흡수)으로 갱신.
+
+## 완료 기준 체크리스트 + 검증
+- [ ] 하단 탭바로 경매↔현황 전환(라우트 이동 없음, 즉시), `role=tab`/`aria-selected` 동작
+- [ ] 경매 탭: 스테이지(현재가 펀치/타이머/티커) + 채팅(`flex-1` 내부 스크롤)
+- [ ] 현황 탭: `TeamSidebar` 세로 스크롤 전체 확인(무변경)
+- [ ] **탭 왕복 후 채팅 draft·스크롤 위치 유지**(언마운트 0 — 조건부 렌더 미사용)
+- [ ] **현황 탭 체류 중 입찰/낙찰 사운드 정상 재생**(헤더 타이머·훅 마운트 유지)
+- [ ] 375/390/430px 폭에서 **페이지 자체 스크롤 0**(배너 표시 상태 포함)
+- [ ] 데스크톱(`hidden lg:grid`)·헤더 상태카드 렌더 무변경(diff 0)
+- [ ] `reduced-motion` 무회귀 · `any` 미사용 · `cd frontend && npm run lint && npm run build` 통과
+
+## 제약 재확인
+- **`hidden lg:grid` 데스크톱 블록·헤더 상태카드 무변경**, 루트/배너 className은 `lg:` 리셋으로 데스크톱 동일 보장.
+- **탭 콘텐츠 언마운트 절대 금지(CSS `hidden` 토글만)** · Next.js 라우트 이동 금지(소켓 유지).
+- `team-sidebar.tsx`/`chat-panel.tsx` 편집 금지(import만) · `ui/*`/`lib/utils.ts` 편집 금지.
+- 페이지 스크롤 0(루트 `overflow-hidden` + 탭 콘텐츠 `flex-1 min-h-0` + 탭바 `shrink-0`).
+- `any` 금지 · Tailwind만 · 디자인 토큰·오버워치 테마 유지 · 신규 CSS 금지 · 신규 npm 금지 · `mobile-team-strip.tsx` 생성 금지.
