@@ -198,7 +198,7 @@ export function AuctionOngoingMaster({
           </aside>
 
           {/* 중앙 — 매물 + 경매조작 패널 */}
-          <section className="col-span-12 lg:col-span-6 space-y-3">
+          <section className="col-span-12 lg:col-span-5 space-y-3">
             <CurrentPlayerCard
               player={roomState.currentPlayer}
               currentBid={roomState.currentBid}
@@ -217,7 +217,7 @@ export function AuctionOngoingMaster({
                     <Select
                       value={selectedPlayerId}
                       onValueChange={setSelectedPlayerId}
-                      disabled={phase !== 'WAITING' || selectablePool.length === 0}
+                      disabled={phase === 'BIDDING' || selectablePool.length === 0}
                     >
                       <SelectTrigger className="bg-background">
                         <SelectValue placeholder="대기 풀에서 선택..." />
@@ -233,7 +233,7 @@ export function AuctionOngoingMaster({
                   </div>
                   <Button
                     onClick={handleSelectStart}
-                    disabled={!selectedPlayerId || phase !== 'WAITING'}
+                    disabled={!selectedPlayerId || phase === 'BIDDING'}
                     className={cn(
                       'skew-x-[-10deg] bg-primary px-4 text-sm font-bold text-black',
                       'hover:bg-primary/90 disabled:opacity-40',
@@ -276,7 +276,7 @@ export function AuctionOngoingMaster({
                 </div>
 
                 {/* 사이클 완료 안내 → 배정 진입 */}
-                {cycleComplete && unsoldOnly.length > 0 && phase === 'WAITING' && (
+                {cycleComplete && unsoldOnly.length > 0 && phase !== 'BIDDING' && (
                   <div className="rounded-sm border-2 border-primary bg-primary/10 p-3 space-y-2 ring-2 ring-primary/30 animate-pulse-slow">
                     <p className="text-xs font-bold uppercase tracking-widest text-primary">
                       ⚠ 한 사이클 완료
@@ -355,9 +355,13 @@ export function AuctionOngoingMaster({
             </Card>
           </section>
 
-          {/* 우측 — 매물 그리드 + 채팅 */}
-          <aside className="col-span-12 lg:col-span-3 space-y-3">
+          {/* 우측 — 매물 현황 */}
+          <aside className="col-span-6 lg:col-span-2 space-y-3">
             <PlayerStatusGrid roomState={roomState} />
+          </aside>
+
+          {/* 최우측 — 채팅 전용 컬럼 */}
+          <aside className="col-span-6 lg:col-span-2">
             {chatMessages && (
               <ChatPanel
                 messages={chatMessages}

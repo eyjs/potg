@@ -12,6 +12,10 @@ import {
 } from '../entities/auction-participant.entity';
 import { AuctionBid } from '../entities/auction-bid.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
+import {
+  MAX_PLAYERS_PER_CAPTAIN,
+  TEAM_SIZE_INCLUDING_CAPTAIN,
+} from '../auction.constants';
 
 /**
  * 경매 입찰 도메인.
@@ -127,6 +131,20 @@ export class AuctionsBiddingService {
 
       if (!participant || participant.role !== AuctionRole.CAPTAIN) {
         throw new BadRequestException('캡틴만 입찰할 수 있습니다.');
+      }
+
+      // 오버워치 5:5 — 팀장 포함 5명. 이미 4명을 확보한 팀은 더 입찰할 수 없다.
+      const assignedCount = await manager.count(AuctionParticipant, {
+        where: {
+          auctionId,
+          role: AuctionRole.PLAYER,
+          assignedTeamCaptainId: bidderId,
+        },
+      });
+      if (assignedCount >= MAX_PLAYERS_PER_CAPTAIN) {
+        throw new BadRequestException(
+          `팀 정원(${TEAM_SIZE_INCLUDING_CAPTAIN}명)이 가득 찼습니다.`,
+        );
       }
 
       const currentHighestBid = await manager.findOne(AuctionBid, {
@@ -380,6 +398,8 @@ export class AuctionsBiddingService {
       );
 
       const playerId = auction.currentBiddingPlayerId;
+      // 타이머 자동 낙찰 후 대기 상태로 복귀 — BIDDING 에 고착되면 다음 매물 선택 불가
+      auction.biddingPhase = BiddingPhase.WAITING;
       auction.currentBiddingPlayerId = null;
       auction.currentBiddingEndTime = null;
       await manager.save(auction);

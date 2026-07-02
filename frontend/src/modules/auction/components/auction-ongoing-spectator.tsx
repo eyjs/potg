@@ -62,7 +62,7 @@ export function AuctionOngoingSpectator({
             startingPoints={roomState.auction.startingPoints}
           />
         </aside>
-        <section className="col-span-12 lg:col-span-6">
+        <section className="col-span-12 lg:col-span-5">
           {isAssigning ? (
             <Card className="bg-card border-border">
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -77,8 +77,12 @@ export function AuctionOngoingSpectator({
             />
           )}
         </section>
-        <aside className="col-span-12 lg:col-span-3 space-y-3">
+        <aside className="col-span-6 lg:col-span-2 space-y-3">
           <PlayerStatusGrid roomState={roomState} />
+        </aside>
+
+        {/* 최우측 — 채팅 전용 컬럼 */}
+        <aside className="col-span-6 lg:col-span-2">
           {chatMessages && onSendChat && (
             <ChatPanel
               messages={chatMessages}

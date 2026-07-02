@@ -17,6 +17,9 @@ import { ChatPanel } from './parts/chat-panel'
 /** 증액 단위 버튼 — 현재 최고가 + 증액이 새 입찰가가 된다. */
 const BID_INCREMENTS = [100, 200, 500, 1000] as const
 
+/** 오버워치 5:5 — 팀장 포함 5명. 팀장이 확보 가능한 선수는 최대 4명. */
+const MAX_PLAYERS_PER_CAPTAIN = 4
+
 function BidButtonsRow({
   disabled,
   currentBid,
@@ -84,11 +87,16 @@ export function AuctionOngoingCaptain({
     roomState.currentBid?.bidderId === userId && phase === 'BIDDING'
   const targetPlayerId = roomState.auction.currentBiddingPlayerId
 
+  const myTeam = roomState.teams.find((t) => t.captainId === userId)
+  // members = 확보한 선수(팀장 제외). 4명이면 팀장 포함 5명으로 정원 마감.
+  const teamFull = (myTeam?.members.length ?? 0) >= MAX_PLAYERS_PER_CAPTAIN
+
   const bidDisabled =
     phase !== 'BIDDING' ||
     targetPlayerId === null ||
     !userId ||
-    isHighestBidder
+    isHighestBidder ||
+    teamFull
 
   const handleBid = (amount: number) => {
     if (bidDisabled || !userId || !targetPlayerId) return
@@ -149,7 +157,7 @@ export function AuctionOngoingCaptain({
         </aside>
 
         {/* 중앙 — 매물 + 입찰 패널 */}
-        <section className="col-span-12 lg:col-span-6 space-y-3">
+        <section className="col-span-12 lg:col-span-5 space-y-3">
           <CurrentPlayerCard
             player={roomState.currentPlayer}
             currentBid={roomState.currentBid}
@@ -188,13 +196,22 @@ export function AuctionOngoingCaptain({
                   ⭐ 현재 최고 입찰자입니다.
                 </p>
               )}
+              {teamFull && (
+                <p className="text-sm text-ow-red text-center font-bold">
+                  🔒 팀 정원(5명) 마감 — 더 이상 입찰할 수 없습니다.
+                </p>
+              )}
             </CardContent>
           </Card>
         </section>
 
-        {/* 우측 — 매물 그리드 + 채팅 */}
-        <aside className="col-span-12 lg:col-span-3 space-y-3">
+        {/* 우측 — 매물 현황 */}
+        <aside className="col-span-6 lg:col-span-2 space-y-3">
           <PlayerStatusGrid roomState={roomState} />
+        </aside>
+
+        {/* 최우측 — 채팅 전용 컬럼 */}
+        <aside className="col-span-6 lg:col-span-2">
           {chatMessages && (
             <ChatPanel
               messages={chatMessages}

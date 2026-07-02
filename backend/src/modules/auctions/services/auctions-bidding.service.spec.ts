@@ -23,7 +23,7 @@ import { AuctionBid } from '../entities/auction-bid.entity';
 describe('AuctionsBiddingService', () => {
   let service: AuctionsBiddingService;
   let manager: jest.Mocked<
-    Pick<EntityManager, 'findOne' | 'find' | 'save' | 'update'>
+    Pick<EntityManager, 'findOne' | 'find' | 'save' | 'update' | 'count'>
   >;
   let auctionsRepo: { findOne: jest.Mock };
 
@@ -45,6 +45,7 @@ describe('AuctionsBiddingService', () => {
       find: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     } as unknown as jest.Mocked<typeof manager>;
 
     const dataSource = {
@@ -139,6 +140,31 @@ describe('AuctionsBiddingService', () => {
     });
   });
 
+  // ==================== placeBidWithValidation (로스터 상한) ====================
+
+  describe('placeBidWithValidation — 팀 정원', () => {
+    it('이미 4명(팀장 포함 5명) 확보한 팀은 입찰 거부', async () => {
+      (manager.findOne as jest.Mock)
+        .mockResolvedValueOnce(baseAuction()) // 잠금 경매
+        .mockResolvedValueOnce({
+          userId: 'captain-1',
+          role: AuctionRole.CAPTAIN,
+          currentPoints: 1000,
+          user: { nickname: '캡틴' },
+        }); // 입찰자(캡틴)
+      (manager.count as jest.Mock).mockResolvedValueOnce(4); // 이미 4명 확보
+
+      await expect(
+        service.placeBidWithValidation(
+          'auction-1',
+          'captain-1',
+          'player-1',
+          100,
+        ),
+      ).rejects.toThrow('팀 정원');
+    });
+  });
+
   // ==================== autoConfirmOnTimeout ====================
 
   describe('autoConfirmOnTimeout', () => {
@@ -175,6 +201,8 @@ describe('AuctionsBiddingService', () => {
       expect(player.soldPrice).toBe(300);
       expect(captain.currentPoints).toBe(700);
       expect(auction.currentBiddingPlayerId).toBeNull();
+      // 자동 낙찰 후 WAITING 복귀 — 다음 매물 선택 가능해야 함 (BIDDING 고착 회귀 방지)
+      expect(auction.biddingPhase).toBe(BiddingPhase.WAITING);
       expect(result).toEqual({
         confirmed: true,
         playerId: 'player-1',

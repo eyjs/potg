@@ -4,6 +4,9 @@ import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RoomStateTeam } from '../../types'
 
+/** 오버워치 5:5 — 팀장 포함 5명이 정원. */
+const TEAM_SIZE = 5
+
 interface Props {
   teams: RoomStateTeam[]
   myCaptainId?: string | null
@@ -37,6 +40,9 @@ export function TeamSidebar({ teams, myCaptainId, startingPoints }: Props) {
     <div className="space-y-2">
       {teams.map((team) => {
         const isMine = myCaptainId && team.captainId === myCaptainId
+        // 팀장 포함 로스터 인원 (members = 확보 선수, +1 팀장)
+        const rosterCount = team.members.length + 1
+        const rosterFull = rosterCount >= TEAM_SIZE
         return (
           <Card
             key={team.captainId}
@@ -58,9 +64,19 @@ export function TeamSidebar({ teams, myCaptainId, startingPoints }: Props) {
                     </p>
                   </div>
                 </div>
-                <span className="text-sm font-bold tabular-nums text-primary">
-                  {team.points.toLocaleString()}P
-                </span>
+                <div className="flex flex-col items-end shrink-0">
+                  <span className="text-sm font-bold tabular-nums text-primary leading-tight">
+                    {team.points.toLocaleString()}P
+                  </span>
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold tabular-nums leading-tight',
+                      rosterFull ? 'text-ow-red' : 'text-muted-foreground',
+                    )}
+                  >
+                    {rosterCount}/{TEAM_SIZE}
+                  </span>
+                </div>
               </div>
               {startingPoints !== undefined && startingPoints > 0 && (
                 <div

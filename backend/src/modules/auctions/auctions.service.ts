@@ -12,6 +12,10 @@ import {
 } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
 import { CreateAuctionDto } from './dto/create-auction.dto';
+import {
+  MAX_PLAYERS_PER_CAPTAIN,
+  TEAM_SIZE_INCLUDING_CAPTAIN,
+} from './auction.constants';
 import { AuctionsBiddingService } from './services/auctions-bidding.service';
 import {
   AuctionsRoomStateService,
@@ -901,6 +905,20 @@ export class AuctionsService {
       });
 
       if (!captain) throw new BadRequestException('캡틴을 찾을 수 없습니다.');
+
+      // 오버워치 5:5 — 팀장 포함 5명. 정원이 찬 팀에는 배정 불가.
+      const assignedCount = await manager.count(AuctionParticipant, {
+        where: {
+          auctionId,
+          role: AuctionRole.PLAYER,
+          assignedTeamCaptainId: captainId,
+        },
+      });
+      if (assignedCount >= MAX_PLAYERS_PER_CAPTAIN) {
+        throw new BadRequestException(
+          `팀 정원(${TEAM_SIZE_INCLUDING_CAPTAIN}명)이 가득 찼습니다.`,
+        );
+      }
 
       // Assign with 0P price and mark as unsold
       player.assignedTeamCaptainId = captainId;
