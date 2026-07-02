@@ -23,25 +23,20 @@ import {
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
 /**
- * 이미지 프록시 허용 호스트 (SSRF 방지). OverFast 초상화(CloudFront)·Discord 아바타·
- * Blizzard 미디어 출처만 허용. CDN 배포 ID 변경에 견디도록 신뢰 공개 CDN 도메인 접미사로 판정
- * (모두 공개 CDN이라 내부 호스트로 해석되지 않음 + 응답 content-type 이미지 검증 병행).
+ * 이미지 프록시 허용 호스트 (SSRF 방지) — **정확 일치**만 허용.
+ * 멀티테넌트 CDN 접미사(*.cloudfront.net 등)는 공격자가 배포를 등록해 오픈 프록시로
+ * 악용할 수 있어 사용하지 않는다. OverFast 초상화(전용 CloudFront 배포)·Discord 아바타·
+ * OverFast API 호스트만 명시한다. OverFast 가 CDN 배포를 교체하면 이 목록을 갱신한다.
  */
-const IMAGE_PROXY_ALLOWED_EXACT = new Set<string>(['overfast-api.tekrop.fr']);
-const IMAGE_PROXY_ALLOWED_SUFFIXES = [
-  '.cloudfront.net',
-  '.discordapp.com',
-  '.discordapp.net',
-  '.akamaihd.net',
-  '.blizzard.com',
-];
+const IMAGE_PROXY_ALLOWED_EXACT = new Set<string>([
+  'overfast-api.tekrop.fr',
+  'd15f34w2p8l1cc.cloudfront.net', // OverFast 영웅 초상화 배포
+  'cdn.discordapp.com', // Discord 아바타
+  'media.discordapp.net',
+]);
 
 function isAllowedImageHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return (
-    IMAGE_PROXY_ALLOWED_EXACT.has(host) ||
-    IMAGE_PROXY_ALLOWED_SUFFIXES.some((s) => host.endsWith(s))
-  );
+  return IMAGE_PROXY_ALLOWED_EXACT.has(hostname.toLowerCase());
 }
 
 @Controller('auctions')
@@ -102,7 +97,15 @@ export class AuctionsController {
       throw new BadRequestException('허용되지 않은 이미지 도메인입니다.');
     }
 
-    const upstream = await fetch(parsed.toString());
+    // redirect 자동 추종 금지 — 화이트리스트 호스트가 내부/메타데이터 주소로
+    // 리디렉트되어 SSRF 로 우회되는 것을 차단한다.
+    const upstream = await fetch(parsed.toString(), {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (upstream.status >= 300 && upstream.status < 400) {
+      throw new BadRequestException('리디렉션은 허용되지 않습니다.');
+    }
     if (!upstream.ok) {
       throw new BadRequestException('이미지를 불러오지 못했습니다.');
     }
