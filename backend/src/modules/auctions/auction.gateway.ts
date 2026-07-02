@@ -164,23 +164,28 @@ export class AuctionGateway
       const roomState = await this.auctionsService.getRoomState(auctionId);
       client.emit('roomState', { roomState });
 
-      // 입장 클라이언트에만 최근 채팅 히스토리 전송 (늦게 입장/재접속해도 이전 대화 복원)
-      const history = await this.chatRepo.find({
-        where: { auctionId },
-        order: { createdAt: 'DESC' },
-        take: AuctionGateway.CHAT_HISTORY_LIMIT,
-      });
-      client.emit(
-        'chatHistory',
-        history.reverse().map((m) => ({
-          id: m.id,
-          userId: m.userId,
-          userName: m.userName,
-          message: m.message,
-          timestamp: m.createdAt.toISOString(),
-          type: 'chat' as const,
-        })),
-      );
+      // 입장 클라이언트에만 최근 채팅 히스토리 전송 (늦게 입장/재접속해도 이전 대화 복원).
+      // 채팅 히스토리 실패가 방 입장을 막지 않도록 독립적으로 처리한다.
+      try {
+        const history = await this.chatRepo.find({
+          where: { auctionId },
+          order: { createdAt: 'DESC' },
+          take: AuctionGateway.CHAT_HISTORY_LIMIT,
+        });
+        client.emit(
+          'chatHistory',
+          history.reverse().map((m) => ({
+            id: m.id,
+            userId: m.userId,
+            userName: m.userName,
+            message: m.message,
+            timestamp: m.createdAt.toISOString(),
+            type: 'chat' as const,
+          })),
+        );
+      } catch (chatErr) {
+        this.logger.warn(`채팅 히스토리 조회 실패 (auction ${auctionId}): ${errMsg(chatErr)}`);
+      }
 
       // Notify others
       client.to(auctionId).emit('userJoined', { userId });
@@ -276,8 +281,17 @@ export class AuctionGateway
           }
         }
       } else {
-        // Reset timer only if not auto-confirmed
-        this.resetBiddingTimer(auctionId, roomState.auction.turnTimeLimit);
+        // 안티-스나이프: 입찰이 무조건 타이머를 리셋하지 않는다. 서비스가 갱신한
+        // currentBiddingEndTime(긴급 구간 입찰만 +5s)을 단일 소스로 라이브 타이머를
+        // 재동기화한다 → 비긴급 입찰은 남은 시간 그대로, 긴급 입찰은 +5s 반영.
+        const endTimeIso = roomState.auction.currentBiddingEndTime;
+        const remaining = endTimeIso
+          ? Math.max(
+              1,
+              Math.round((new Date(endTimeIso).getTime() - Date.now()) / 1000),
+            )
+          : roomState.auction.turnTimeLimit;
+        this.startBiddingTimerWithRemaining(auctionId, remaining);
       }
     } catch (error) {
       client.emit('bidError', { message: errMsg(error) });
@@ -630,14 +644,6 @@ export class AuctionGateway
     auctionId: string,
     seconds: number = DEFAULT_TURN_SECONDS,
   ) {
-    this.startBiddingTimerWithRemaining(auctionId, seconds);
-  }
-
-  private resetBiddingTimer(
-    auctionId: string,
-    seconds: number = DEFAULT_TURN_SECONDS,
-  ) {
-    // Reset timer when new bid placed
     this.startBiddingTimerWithRemaining(auctionId, seconds);
   }
 

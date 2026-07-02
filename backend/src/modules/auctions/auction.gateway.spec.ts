@@ -75,10 +75,19 @@ describe('AuctionGateway', () => {
       get: jest.fn().mockReturnValue('test-secret'),
     } as unknown as ConfigService;
 
+    const chatRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((x) => x),
+      save: jest.fn((x) => Promise.resolve({ ...x, id: 'msg-1', createdAt: new Date() })),
+    };
+
     gateway = new AuctionGateway(
       auctionsService as unknown as AuctionsService,
       jwt,
       config,
+      chatRepo as unknown as import('typeorm').Repository<
+        import('./entities/auction-chat-message.entity').AuctionChatMessage
+      >,
     );
 
     serverEmit = jest.fn();

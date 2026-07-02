@@ -166,7 +166,7 @@ export function AuctionOngoingMaster({
               </span>
               /<span className="tabular-nums">{players.length}</span>
             </span>
-            {!isAssigning && <BidTimer remainingTime={timerRemaining} />}
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
           </div>
         </CardContent>
       </Card>

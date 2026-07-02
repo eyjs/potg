@@ -123,7 +123,7 @@ export function AuctionOngoingCaptain({
                 {myPoints.toLocaleString()}P
               </p>
             </div>
-            {!isAssigning && <BidTimer remainingTime={timerRemaining} />}
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
           </div>
         </CardContent>
       </Card>

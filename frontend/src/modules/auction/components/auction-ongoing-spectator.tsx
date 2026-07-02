@@ -43,7 +43,7 @@ export function AuctionOngoingSpectator({
               </p>
             </div>
           </div>
-          {!isAssigning && <BidTimer remainingTime={timerRemaining} />}
+          {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
         </CardContent>
       </Card>
 

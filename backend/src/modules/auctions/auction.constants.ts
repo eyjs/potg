@@ -18,3 +18,11 @@ export function maxPlayersPerTeam(mode: RosterMode): number {
     ? MAX_PLAYERS_COACH_MODE
     : MAX_PLAYERS_CAPTAIN_MODE;
 }
+
+/**
+ * 입찰 타이머 안티-스나이프 설정.
+ * 마감 {@link BID_URGENT_WINDOW_MS} 이내(긴급 구간)에서 들어온 입찰만
+ * {@link BID_EXTEND_MS} 만큼 연장한다. 그 외 구간의 입찰은 타이머를 리셋하지 않는다.
+ */
+export const BID_URGENT_WINDOW_MS = 5000;
+export const BID_EXTEND_MS = 5000;

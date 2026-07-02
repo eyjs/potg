@@ -12,7 +12,11 @@ import {
 } from '../entities/auction-participant.entity';
 import { AuctionBid } from '../entities/auction-bid.entity';
 import { User, UserRole } from '../../users/entities/user.entity';
-import { maxPlayersPerTeam } from '../auction.constants';
+import {
+  maxPlayersPerTeam,
+  BID_URGENT_WINDOW_MS,
+  BID_EXTEND_MS,
+} from '../auction.constants';
 
 /**
  * 경매 입찰 도메인.
@@ -188,10 +192,18 @@ export class AuctionsBiddingService {
 
       await manager.save(bid);
 
-      auction.currentBiddingEndTime = new Date(
-        Date.now() + auction.turnTimeLimit * 1000,
-      );
-      await manager.save(auction);
+      // 안티-스나이프 타이머: 입찰이 무조건 타이머를 리셋하지 않는다.
+      // 마감 5초 이내(긴급 구간)에서 들어온 입찰만 +5초 연장 → 팀장들이 막판에
+      // 빠르게 경쟁 입찰하도록 유도. 그 외 구간의 입찰은 타이머를 그대로 둔다.
+      const now = Date.now();
+      const currentEndMs = auction.currentBiddingEndTime?.getTime() ?? now;
+      const remainingMs = currentEndMs - now;
+      if (remainingMs <= BID_URGENT_WINDOW_MS) {
+        auction.currentBiddingEndTime = new Date(
+          now + Math.max(remainingMs, 0) + BID_EXTEND_MS,
+        );
+        await manager.save(auction);
+      }
 
       return {
         bid,
