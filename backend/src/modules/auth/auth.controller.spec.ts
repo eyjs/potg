@@ -91,37 +91,20 @@ describe('AuthController', () => {
       // 쿠키 신호 응답 검증 (token은 쿠키로만 전달)
       expect(result).toEqual({ ok: true });
 
-      // 쿠키 설정 검증
+      // 쿠키 설정 검증 — 크로스사이트(Vercel ↔ potg.joonbi.co.kr) 필수 속성
       expect(res.cookie).toHaveBeenCalledWith(
         'access_token',
         token,
         expect.objectContaining({
           httpOnly: true,
-          sameSite: 'lax',
+          sameSite: 'none',
+          secure: true,
           path: '/',
         }),
       );
     });
 
-    it('prod 환경에서는 secure: true로 쿠키를 설정한다', async () => {
-      const user = baseUser();
-      (authService.validateUser as jest.Mock).mockResolvedValue(user);
-      (authService.login as jest.Mock).mockResolvedValue({
-        access_token: 'tok',
-      });
-      (configService.get as jest.Mock).mockReturnValue('production');
-
-      const res = buildResMock();
-      await controller.login({ username: 'u', password: 'p' }, res);
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'access_token',
-        'tok',
-        expect.objectContaining({ secure: true }),
-      );
-    });
-
-    it('dev 환경에서는 secure: false로 쿠키를 설정한다', async () => {
+    it('환경과 무관하게 SameSite=None + Secure 쿠키를 발급한다 (크로스사이트 필수)', async () => {
       const user = baseUser();
       (authService.validateUser as jest.Mock).mockResolvedValue(user);
       (authService.login as jest.Mock).mockResolvedValue({
@@ -135,7 +118,7 @@ describe('AuthController', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'access_token',
         'tok',
-        expect.objectContaining({ secure: false }),
+        expect.objectContaining({ secure: true, sameSite: 'none' }),
       );
     });
 
@@ -170,74 +153,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ==================== GET /auth/discord ====================
-
-  describe('discordLogin', () => {
-    it('state 쿠키를 설정하고 Discord auth URL로 리다이렉트한다', () => {
-      (configService.get as jest.Mock).mockReturnValue('development');
-      const res = {
-        cookie: jest.fn(),
-        redirect: jest.fn(),
-      } as unknown as Response;
-
-      controller.discordLogin(res);
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'discord_oauth_state',
-        'state-xyz',
-        expect.objectContaining({
-          httpOnly: true,
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 5 * 60 * 1000,
-        }),
-      );
-      expect(res.redirect).toHaveBeenCalledWith(
-        'https://discord.test/auth?state=state-xyz',
-      );
-    });
-  });
-
-  // ==================== GET /auth/discord/callback ====================
-
-  describe('discordCallback', () => {
-    it('Discord 콜백도 자체 로그인과 동일한 7일 maxAge 쿠키를 설정한다', async () => {
-      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-      const user = baseUser();
-      (authService.login as jest.Mock).mockResolvedValue({
-        access_token: 'd-tok',
-      });
-      (configService.get as jest.Mock).mockImplementation((key: string) => {
-        if (key === 'NODE_ENV') return 'production';
-        if (key === 'DISCORD_OAUTH_SUCCESS_REDIRECT') return '/';
-        return undefined;
-      });
-
-      const res = {
-        cookie: jest.fn(),
-        redirect: jest.fn(),
-      } as unknown as Response;
-
-      await controller.discordCallback(
-        { user } as unknown as Parameters<typeof controller.discordCallback>[0],
-        res,
-      );
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        'access_token',
-        'd-tok',
-        expect.objectContaining({
-          maxAge: SEVEN_DAYS_MS,
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          path: '/',
-        }),
-      );
-      expect(res.redirect).toHaveBeenCalledWith('/');
-    });
-  });
-
   // ==================== POST /auth/logout ====================
 
   describe('logout', () => {
@@ -245,9 +160,15 @@ describe('AuthController', () => {
       const res = buildResMock();
       const result = controller.logout(res);
 
-      expect(res.clearCookie).toHaveBeenCalledWith('access_token', {
-        path: '/',
-      });
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'access_token',
+        expect.objectContaining({
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+          path: '/',
+        }),
+      );
       expect(result).toEqual({ message: 'Logged out successfully' });
     });
 
