@@ -11,9 +11,8 @@ import {
   getAuctionRole,
 } from '@/modules/auction/hooks/use-auction-role'
 import { AuctionNoActive } from '@/modules/auction/components/auction-no-active'
-import { AuctionPendingMaster } from '@/modules/auction/components/auction-pending-master'
+import { AuctionMasterView } from '@/modules/auction/components/auction-master-view'
 import { AuctionPendingWaiting } from '@/modules/auction/components/auction-pending-waiting'
-import { AuctionOngoingMaster } from '@/modules/auction/components/auction-ongoing-master'
 import { AuctionOngoingCaptain } from '@/modules/auction/components/auction-ongoing-captain'
 import { AuctionOngoingSpectator } from '@/modules/auction/components/auction-ongoing-spectator'
 import { AuctionCompleted } from '@/modules/auction/components/auction-completed'
@@ -60,6 +59,19 @@ function AuctionBody() {
   const role = getAuctionRole(roomState, listAuction.creatorId, user)
   const status = roomState?.auction.status ?? listAuction.status
 
+  // 마스터 — 경매 관리 ↔ 경매장 ↔ 결과 3화면을 탭으로 자유 이동
+  if (role === 'master') {
+    return (
+      <AuctionMasterView
+        auctionId={listAuction.id}
+        fallbackStatus={status}
+        roomState={roomState}
+        timerRemaining={timerRemaining}
+        emit={emit}
+      />
+    )
+  }
+
   if (status === 'COMPLETED' || status === 'CANCELLED') {
     if (!roomState) {
       return (
@@ -72,15 +84,6 @@ function AuctionBody() {
   }
 
   if (status === 'PENDING') {
-    if (role === 'master') {
-      return (
-        <AuctionPendingMaster
-          auctionId={listAuction.id}
-          roomState={roomState}
-          emit={emit}
-        />
-      )
-    }
     return <AuctionPendingWaiting roomState={roomState} userId={user?.id ?? null} />
   }
 
@@ -91,16 +94,6 @@ function AuctionBody() {
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
-    )
-  }
-
-  if (role === 'master') {
-    return (
-      <AuctionOngoingMaster
-        roomState={roomState}
-        timerRemaining={timerRemaining}
-        emit={emit}
-      />
     )
   }
   if (role === 'captain') {

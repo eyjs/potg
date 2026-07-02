@@ -22,9 +22,16 @@ interface Props {
   auctionId: string
   roomState: RoomState | null
   emit: AuctionEmitFns
+  /** 경매 시작 후 구성 열람용 — 추가/제거/시작/취소 비활성 */
+  readOnly?: boolean
 }
 
-export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
+export function AuctionPendingMaster({
+  auctionId,
+  roomState,
+  emit,
+  readOnly = false,
+}: Props) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const [captainPickerOpen, setCaptainPickerOpen] = useState(false)
@@ -48,7 +55,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
   const turnTimeLimit = roomState?.auction.turnTimeLimit ?? 0
   const title = roomState?.auction.title ?? '경매방 준비 중'
 
-  const canStart = captains.length === teamCount && players.length > 0
+  const canStart = !readOnly && captains.length === teamCount && players.length > 0
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ['auction', 'current'] })
@@ -167,6 +174,15 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
         </CardContent>
       </Card>
 
+      {readOnly && (
+        <Card className="bg-card border-dashed border-border">
+          <CardContent className="py-3 text-xs text-muted-foreground">
+            경매가 이미 시작되어 구성(팀장·매물)을 변경할 수 없습니다. 진행
+            상황은 경매장 탭에서 확인하세요.
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 팀장 */}
         <Card className="bg-card border-border">
@@ -189,7 +205,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
               size="sm"
               variant="outline"
               onClick={() => setCaptainPickerOpen(true)}
-              disabled={captains.length >= teamCount}
+              disabled={readOnly || captains.length >= teamCount}
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
               추가
@@ -198,7 +214,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
           <CardContent>
             <ParticipantList
               participants={captains}
-              canRemove
+              canRemove={!readOnly}
               onRemove={handleRemoveCaptain}
               emptyMessage="팀장을 추가하세요"
             />
@@ -219,6 +235,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
               size="sm"
               variant="outline"
               onClick={() => setPlayerPickerOpen(true)}
+              disabled={readOnly}
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
               추가
@@ -227,7 +244,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
           <CardContent>
             <ParticipantList
               participants={players}
-              canRemove
+              canRemove={!readOnly}
               onRemove={handleRemovePlayer}
               emptyMessage="경매 매물을 추가하세요"
             />
@@ -235,7 +252,8 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
         </Card>
       </div>
 
-      {/* 하단 액션 */}
+      {/* 하단 액션 — 시작 후에는 조작 불가이므로 숨김 */}
+      {!readOnly && (
       <Card className="bg-card border-border">
         <CardContent className="py-4 flex items-center justify-between">
           <Button
@@ -261,6 +279,7 @@ export function AuctionPendingMaster({ auctionId, roomState, emit }: Props) {
           </Button>
         </CardContent>
       </Card>
+      )}
 
       <UserPickerDialog
         open={captainPickerOpen}
