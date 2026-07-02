@@ -22,7 +22,7 @@ export default function AuctionPage() {
     <AuthGuard>
       <div className="min-h-screen auction-stage-bg">
         <Header />
-        <main className="container px-4 py-6 max-w-7xl mx-auto">
+        <main className="w-full px-4 py-6 max-w-[1800px] mx-auto">
           <AuctionBody />
         </main>
       </div>

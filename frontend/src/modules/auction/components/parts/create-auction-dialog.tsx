@@ -1,6 +1,7 @@
 'use client'
 
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
+import { Crown, ClipboardList } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -77,6 +78,64 @@ export function CreateAuctionDialog({ open, onOpenChange }: Props) {
             {errors.title && (
               <p className="text-destructive text-xs">{errors.title.message}</p>
             )}
+          </div>
+
+          {/* 로스터 모드 — 시스템 정원(팀당 확보 선수 수)을 결정 */}
+          <div className="space-y-2">
+            <Label>로스터 모드</Label>
+            <Controller
+              control={form.control}
+              name="rosterMode"
+              render={({ field }) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      {
+                        value: 'CAPTAIN' as const,
+                        icon: Crown,
+                        title: '팀장 모드',
+                        desc: '팀장 포함 5명 · 선수 4명',
+                      },
+                      {
+                        value: 'COACH' as const,
+                        icon: ClipboardList,
+                        title: '감독 모드',
+                        desc: '감독 별도 · 선수 5명',
+                      },
+                    ]
+                  ).map(({ value, icon: Icon, title, desc }) => {
+                    const active = field.value === value
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => field.onChange(value)}
+                        aria-pressed={active}
+                        className={cn(
+                          'flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors',
+                          active
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
+                            : 'border-border bg-background hover:bg-primary/5',
+                        )}
+                      >
+                        <span className="flex items-center gap-1.5 text-sm font-bold">
+                          <Icon
+                            className={cn(
+                              'w-4 h-4',
+                              active ? 'text-primary' : 'text-muted-foreground',
+                            )}
+                          />
+                          {title}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {desc}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-4">

@@ -10,15 +10,12 @@ import { CurrentPlayerCard } from './parts/current-player-card'
 import { BidTimer } from './parts/bid-timer'
 import { TeamSidebar } from './parts/team-sidebar'
 import { PlayerStatusGrid } from './parts/player-status-grid'
-import type { RoomState } from '../types'
+import { maxPlayersPerTeam, type RoomState } from '../types'
 import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
 
 /** 증액 단위 버튼 — 현재 최고가 + 증액이 새 입찰가가 된다. */
 const BID_INCREMENTS = [100, 200, 500, 1000] as const
-
-/** 오버워치 5:5 — 팀장 포함 5명. 팀장이 확보 가능한 선수는 최대 4명. */
-const MAX_PLAYERS_PER_CAPTAIN = 4
 
 function BidButtonsRow({
   disabled,
@@ -88,8 +85,9 @@ export function AuctionOngoingCaptain({
   const targetPlayerId = roomState.auction.currentBiddingPlayerId
 
   const myTeam = roomState.teams.find((t) => t.captainId === userId)
-  // members = 확보한 선수(팀장 제외). 4명이면 팀장 포함 5명으로 정원 마감.
-  const teamFull = (myTeam?.members.length ?? 0) >= MAX_PLAYERS_PER_CAPTAIN
+  // members = 확보한 선수(팀장/감독 제외). 정원은 로스터 모드로 결정.
+  const maxPlayers = maxPlayersPerTeam(roomState.auction.rosterMode)
+  const teamFull = (myTeam?.members.length ?? 0) >= maxPlayers
 
   const bidDisabled =
     phase !== 'BIDDING' ||
@@ -148,11 +146,12 @@ export function AuctionOngoingCaptain({
 
       <div className="grid grid-cols-12 gap-4">
         {/* 좌측 — 팀 카드 (본인 팀 강조) */}
-        <aside className="col-span-12 lg:col-span-3 space-y-2">
+        <aside className="col-span-12 lg:col-span-2 space-y-2">
           <TeamSidebar
             teams={roomState.teams}
             myCaptainId={userId}
             startingPoints={roomState.auction.startingPoints}
+            rosterMode={roomState.auction.rosterMode}
           />
         </aside>
 
@@ -198,7 +197,7 @@ export function AuctionOngoingCaptain({
               )}
               {teamFull && (
                 <p className="text-sm text-ow-red text-center font-bold">
-                  🔒 팀 정원(5명) 마감 — 더 이상 입찰할 수 없습니다.
+                  🔒 팀 정원(선수 {maxPlayers}명) 마감 — 더 이상 입찰할 수 없습니다.
                 </p>
               )}
             </CardContent>
@@ -206,7 +205,7 @@ export function AuctionOngoingCaptain({
         </section>
 
         {/* 우측 — 매물 현황 */}
-        <aside className="col-span-6 lg:col-span-2 space-y-3">
+        <aside className="col-span-6 lg:col-span-3 space-y-3">
           <PlayerStatusGrid roomState={roomState} />
         </aside>
 

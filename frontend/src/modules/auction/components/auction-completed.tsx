@@ -6,12 +6,10 @@ import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
-import { Trophy, Plus, Download, Trash2, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Plus, Download, Trash2, X } from 'lucide-react'
 import { useConfirm } from '@/common/components/confirm-dialog'
 import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
-import { TeamRosters } from './parts/team-rosters'
 import { useHeroes } from '../hooks/use-heroes'
 import { AuctionResultPoster } from './parts/auction-result-poster'
 import { CreateAuctionDialog } from './parts/create-auction-dialog'
@@ -90,67 +88,43 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
   }
 
   const unsold = roomState.unsoldPlayers
-  const totalRecruited = roomState.teams.reduce(
-    (sum, t) => sum + t.members.length,
-    0,
-  )
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-card border-primary/30">
-        <CardContent className="py-6 flex flex-wrap items-center gap-4">
-          <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center">
-            <Trophy className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-black italic uppercase tracking-tighter truncate">
-              경매 완료 — <span className="text-primary">{roomState.auction.title}</span>
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              팀 {roomState.teams.length}개 · 영입 {totalRecruited}명 · 미낙찰{' '}
-              {unsold.length}명
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
+    <div className="space-y-4">
+      {/* 상단 액션 바 — 결과 화면(=이미지) 위 컴팩트 컨트롤. 이미지 저장은 부수 기능. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          onClick={handleDownload}
+          disabled={isDownloading}
+          variant="outline"
+          className="border-ow-blue text-ow-blue hover:bg-ow-blue/10 disabled:opacity-40"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          {isDownloading ? '생성 중...' : '이미지로 저장'}
+        </Button>
+        {canRestart && (
+          <>
             <Button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className={cn(
-                'skew-x-[-10deg] bg-ow-blue px-4 py-2 text-sm font-bold text-black',
-                'hover:bg-ow-blue/90 transition-colors',
-              )}
+              onClick={() => setCreateOpen(true)}
+              disabled={isDiscarding}
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary/10 disabled:opacity-40"
             >
-              <span className="skew-x-[10deg] flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                {isDownloading ? '생성 중...' : '결과 이미지'}
-              </span>
+              <Plus className="w-4 h-4 mr-2" />
+              새 경매 (이력 저장)
             </Button>
-            {canRestart && (
-              <>
-                <Button
-                  onClick={() => setCreateOpen(true)}
-                  disabled={isDiscarding}
-                  variant="outline"
-                  className="border-primary text-primary hover:bg-primary/10 disabled:opacity-40"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  새 경매 (이력 저장)
-                </Button>
-                <Button
-                  onClick={handleDiscard}
-                  disabled={isDiscarding}
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  결과 버리기
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            <Button
+              onClick={handleDiscard}
+              disabled={isDiscarding}
+              variant="ghost"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              결과 버리기
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* 안내 — 마스터에게 보존/버리기 의미 명시. 한 번 닫으면 localStorage 에 기억. */}
       {canRestart && !helpDismissed && (
@@ -179,54 +153,19 @@ export function AuctionCompleted({ roomState, canRestart }: Props) {
         </Card>
       )}
 
-      <TeamRosters teams={roomState.teams} showPrice />
-
-      {unsold.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardContent className="p-4 space-y-2">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase">
-              미낙찰 선수 ({unsold.length})
-            </h3>
-            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
-              {unsold.map((p) => (
-                <li
-                  key={p.id}
-                  className="bg-muted/20 rounded px-2 py-1 flex items-center justify-between gap-2"
-                >
-                  <span className="truncate">{p.name}</span>
-                  <span className="text-muted-foreground uppercase text-[10px]">
-                    {p.role}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 캡처 대상 — 사용자에게는 보이지 않지만 모바일에서도 1080px 폭이 잘리지 않도록
-          width/min-width 명시 + overflow hidden 으로 viewport 영향 차단. */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: 1080,
-          minWidth: 1080,
-          transform: 'translate(-200%, -200%)',
-          pointerEvents: 'none',
-          overflow: 'hidden',
-        }}
-        aria-hidden
-      >
-        <AuctionResultPoster
-          ref={posterRef}
-          title={roomState.auction.title}
-          teams={roomState.teams}
-          unsoldPlayers={unsold}
-          startingPoints={roomState.auction.startingPoints}
-          heroPortraits={portraitByKey}
-        />
+      {/* 결과 화면 = 공유 이미지 그 자체. 이 노드가 곧 다운로드 대상(posterRef).
+          작은 화면에서는 가로 스크롤로 1080px 포스터를 그대로 보여준다. */}
+      <div className="overflow-x-auto rounded-lg border border-primary/20 shadow-[0_0_40px_rgba(249,158,26,0.08)]">
+        <div className="mx-auto w-fit">
+          <AuctionResultPoster
+            ref={posterRef}
+            title={roomState.auction.title}
+            teams={roomState.teams}
+            unsoldPlayers={unsold}
+            startingPoints={roomState.auction.startingPoints}
+            heroPortraits={portraitByKey}
+          />
+        </div>
       </div>
 
       <CreateAuctionDialog open={createOpen} onOpenChange={setCreateOpen} />

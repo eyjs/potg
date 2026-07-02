@@ -2,9 +2,9 @@ import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { RoomStateTeam } from '../../types'
+import { maxPlayersPerTeam, type RoomStateTeam, type RosterMode } from '../../types'
 
-/** 오버워치 5:5 — 팀장 포함 5명이 정원. */
+/** 한 팀은 5명 — 감독 모드는 선수 5명, 팀장 모드는 팀장 포함 5명. */
 const TEAM_SIZE = 5
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   myCaptainId?: string | null
   /** 팀장 시작 포인트 — 잔여 포인트 게이지 계산용 */
   startingPoints?: number
+  /** 로스터 모드 — 정원 표시(팀장 포함/제외) 결정. 기본 CAPTAIN. */
+  rosterMode?: RosterMode
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -25,7 +27,13 @@ const ROLE_COLORS: Record<string, string> = {
  * Vertical 팀 카드 사이드바 — 마스터/캡틴 ongoing 화면 좌측에 배치.
  * 한 화면에 모든 팀의 잔여 P + 영입 멤버 + 낙찰가를 노출.
  */
-export function TeamSidebar({ teams, myCaptainId, startingPoints }: Props) {
+export function TeamSidebar({
+  teams,
+  myCaptainId,
+  startingPoints,
+  rosterMode = 'CAPTAIN',
+}: Props) {
+  const maxPlayers = maxPlayersPerTeam(rosterMode)
   if (teams.length === 0) {
     return (
       <Card className="bg-card border-border border-dashed">
@@ -40,9 +48,10 @@ export function TeamSidebar({ teams, myCaptainId, startingPoints }: Props) {
     <div className="space-y-2">
       {teams.map((team) => {
         const isMine = myCaptainId && team.captainId === myCaptainId
-        // 팀장 포함 로스터 인원 (members = 확보 선수, +1 팀장)
-        const rosterCount = team.members.length + 1
-        const rosterFull = rosterCount >= TEAM_SIZE
+        // members = 확보 선수. 팀장 모드는 팀장(+1) 포함해 표시, 감독 모드는 선수만.
+        const rosterCount =
+          rosterMode === 'COACH' ? team.members.length : team.members.length + 1
+        const rosterFull = team.members.length >= maxPlayers
         return (
           <Card
             key={team.captainId}

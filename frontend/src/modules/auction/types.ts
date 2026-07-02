@@ -17,6 +17,13 @@ export type BiddingPhase = 'WAITING' | 'BIDDING' | 'SOLD'
 
 export type AuctionRole = 'CAPTAIN' | 'PLAYER' | 'SPECTATOR'
 
+/**
+ * 로스터 구성 모드.
+ * - CAPTAIN: 팀장이 로스터 일원 → 팀당 확보 선수 4명.
+ * - COACH: 팀장이 감독(코치) → 팀당 확보 선수 5명.
+ */
+export type RosterMode = 'CAPTAIN' | 'COACH'
+
 export interface RoomStateAuction {
   id: string
   title: string
@@ -25,6 +32,7 @@ export interface RoomStateAuction {
   startingPoints: number
   turnTimeLimit: number
   teamCount: number
+  rosterMode: RosterMode
   currentBiddingPlayerId: string | null
   currentBiddingEndTime: string | null // serialized
   timerPaused: boolean
@@ -124,7 +132,12 @@ export interface CreateAuctionDto {
   startingPoints: number
   teamCount: number
   turnTimeLimit: number
+  rosterMode: RosterMode
 }
+
+/** 로스터 모드별 팀당 최대 확보 선수 수 (감독 제외). */
+export const maxPlayersPerTeam = (mode: RosterMode): number =>
+  mode === 'COACH' ? 5 : 4
 
 /**
  * useAuctionRole 반환 — 페이지 view 분기에 사용.

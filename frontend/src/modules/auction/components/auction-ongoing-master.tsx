@@ -76,6 +76,19 @@ export function AuctionOngoingMaster({
     setSelectedPlayerId('')
   }
 
+  // 다음 매물 자동 진행 — 수동 선택이 있으면 그것을, 없으면 대기 풀 첫 매물을
+  // 곧바로 입찰에 올린다. selectPlayer 는 WAITING/SOLD 어느 단계에서도 동작하므로
+  // 낙찰/유찰 직후에도 버튼 한 번으로 순차 진행된다.
+  const handleAdvanceNext = () => {
+    if (phase === 'BIDDING') return
+    const nextId = selectedPlayerId || selectablePool[0]?.id
+    if (!nextId) return
+    emit.selectPlayer(nextId)
+    setSelectedPlayerId('')
+  }
+
+  const canAdvance = phase !== 'BIDDING' && selectablePool.length > 0
+
   const handleEnterAssignment = async () => {
     const ok = await confirm({
       title: '유찰자 배정 단계로 진입하시겠습니까?',
@@ -190,10 +203,11 @@ export function AuctionOngoingMaster({
       ) : (
         <div className="grid grid-cols-12 gap-4">
           {/* 좌측 — 팀 카드 */}
-          <aside className="col-span-12 lg:col-span-3 space-y-2">
+          <aside className="col-span-12 lg:col-span-2 space-y-2">
             <TeamSidebar
               teams={roomState.teams}
               startingPoints={roomState.auction.startingPoints}
+              rosterMode={roomState.auction.rosterMode}
             />
           </aside>
 
@@ -212,7 +226,7 @@ export function AuctionOngoingMaster({
                 <div className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
                     <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
-                      다음 매물
+                      매물 지정 (선택 안 하면 순서대로)
                     </p>
                     <Select
                       value={selectedPlayerId}
@@ -266,12 +280,12 @@ export function AuctionOngoingMaster({
                     유찰
                   </Button>
                   <Button
-                    onClick={() => emit.nextPlayer()}
-                    disabled={phase !== 'SOLD'}
+                    onClick={handleAdvanceNext}
+                    disabled={!canAdvance}
                     className="bg-ow-blue text-black font-bold hover:bg-ow-blue/90 disabled:opacity-40"
                   >
                     <ChevronRight className="w-4 h-4 mr-1" />
-                    다음
+                    다음 매물
                   </Button>
                 </div>
 
@@ -356,7 +370,7 @@ export function AuctionOngoingMaster({
           </section>
 
           {/* 우측 — 매물 현황 */}
-          <aside className="col-span-6 lg:col-span-2 space-y-3">
+          <aside className="col-span-6 lg:col-span-3 space-y-3">
             <PlayerStatusGrid roomState={roomState} />
           </aside>
 

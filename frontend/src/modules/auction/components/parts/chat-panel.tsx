@@ -17,9 +17,30 @@ interface Props {
   myUserId?: string | null
 }
 
+/** 닉네임 색 — 생방송 채팅처럼 유저별로 구분되는 고대비 팔레트. */
+const NAME_COLORS = [
+  'text-ow-blue',
+  'text-ow-gold',
+  'text-emerald-400',
+  'text-pink-400',
+  'text-violet-400',
+  'text-orange-400',
+  'text-cyan-300',
+  'text-lime-400',
+]
+
+function colorFor(userId: string): string {
+  let hash = 0
+  for (let i = 0; i < userId.length; i += 1) {
+    hash = (hash * 31 + userId.charCodeAt(i)) | 0
+  }
+  return NAME_COLORS[Math.abs(hash) % NAME_COLORS.length]
+}
+
 /**
- * 경매방 실시간 채팅.
- * 메시지 수신 시 목록 하단으로 자동 스크롤 (사용자가 위로 스크롤해 읽는 중이면 유지).
+ * 경매방 실시간 채팅 (치지직 스타일 상시 사이드 채팅).
+ * 컬럼 높이를 가득 채우고, 새 메시지 수신 시 하단으로 자동 스크롤한다
+ * (사용자가 위로 스크롤해 읽는 중이면 유지).
  */
 export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
   const [draft, setDraft] = useState('')
@@ -53,30 +74,37 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
   }
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-3 space-y-2">
+    <Card className="bg-card border-border h-full flex flex-col min-h-[20rem]">
+      <CardContent className="p-3 flex flex-col flex-1 min-h-0 gap-2">
         <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2">
           <MessageSquare className="w-3.5 h-3.5" />
-          채팅
+          실시간 채팅
+          <span className="ml-auto flex items-center gap-1 text-[10px] normal-case tracking-normal text-ow-red">
+            <span className="w-1.5 h-1.5 rounded-full bg-ow-red animate-pulse" />
+            LIVE
+          </span>
         </h3>
 
         <div
           ref={listRef}
           onScroll={handleScroll}
-          className="h-48 overflow-y-auto space-y-1.5 pr-1 text-xs"
+          className="flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1 text-xs"
           aria-live="polite"
         >
           {messages.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              아직 메시지가 없습니다.
+              첫 메시지를 남겨보세요.
             </p>
           ) : (
             messages.map((m) => (
-              <div key={m.id} className="leading-snug break-words">
+              <div
+                key={m.id}
+                className="leading-snug break-words rounded px-1.5 py-0.5 hover:bg-muted/20"
+              >
                 <span
                   className={cn(
                     'font-bold mr-1.5',
-                    m.userId === myUserId ? 'text-primary' : 'text-ow-blue',
+                    m.userId === myUserId ? 'text-primary' : colorFor(m.userId),
                   )}
                 >
                   {nameOf(m)}

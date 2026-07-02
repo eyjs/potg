@@ -14,11 +14,16 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Crown, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { RoomState, RoomStateParticipant } from '../../types'
+import {
+  maxPlayersPerTeam,
+  type RoomState,
+  type RoomStateParticipant,
+} from '../../types'
 
 interface AuctionEmitFns {
   manualAssignPlayer: (playerId: string, captainId: string) => void
@@ -93,20 +98,27 @@ function TeamDropZone({
   captainName,
   members,
   remainingPoints,
+  maxPlayers,
 }: {
   captainId: string
   captainName: string
   members: RoomState['teams'][number]['members']
   remainingPoints: number
+  maxPlayers: number
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: captainId })
+  const full = members.length >= maxPlayers
+  const { setNodeRef, isOver } = useDroppable({ id: captainId, disabled: full })
 
   return (
     <Card
       ref={setNodeRef}
       className={cn(
         'bg-card border-2 transition-colors',
-        isOver ? 'border-primary bg-primary/5' : 'border-border',
+        full
+          ? 'border-ow-red/40 opacity-70'
+          : isOver
+            ? 'border-primary bg-primary/5'
+            : 'border-border',
       )}
     >
       <CardContent className="p-3 space-y-2">
@@ -115,9 +127,20 @@ function TeamDropZone({
             <Crown className="w-4 h-4 text-primary shrink-0" />
             <span className="font-bold text-sm truncate">{captainName}</span>
           </div>
-          <span className="text-xs font-mono text-primary tabular-nums">
-            {remainingPoints.toLocaleString()}P
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={cn(
+                'text-[10px] font-bold tabular-nums',
+                full ? 'text-ow-red' : 'text-muted-foreground',
+              )}
+            >
+              {members.length}/{maxPlayers}
+              {full && ' 마감'}
+            </span>
+            <span className="text-xs font-mono text-primary tabular-nums">
+              {remainingPoints.toLocaleString()}P
+            </span>
+          </div>
         </div>
         {members.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-3">
@@ -149,6 +172,8 @@ function TeamDropZone({
 }
 
 export function AssignmentPanel({ roomState, emit }: Props) {
+  const maxPlayers = maxPlayersPerTeam(roomState.auction.rosterMode)
+
   // PointerSensor: 드래그앤드롭 / KeyboardSensor: 키보드만으로 배정 (a11y)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -205,6 +230,12 @@ export function AssignmentPanel({ roomState, emit }: Props) {
     const playerId = String(event.active.id)
     const captainId = event.over ? String(event.over.id) : null
     if (!captainId) return
+    // 정원 마감 팀에는 배정 차단 (백엔드도 동일 검증 — 방어적 이중 확인).
+    const team = roomState.teams.find((t) => t.captainId === captainId)
+    if (team && team.members.length >= maxPlayers) {
+      toast.error(`팀 정원(선수 ${maxPlayers}명)이 가득 찼습니다.`)
+      return
+    }
     emit.manualAssignPlayer(playerId, captainId)
   }
 
@@ -254,6 +285,7 @@ export function AssignmentPanel({ roomState, emit }: Props) {
               captainName={team.captainName}
               members={team.members}
               remainingPoints={team.points}
+              maxPlayers={maxPlayers}
             />
           ))}
         </div>

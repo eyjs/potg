@@ -56,10 +56,11 @@ export function AuctionOngoingSpectator({
       )}
 
       <div className="grid grid-cols-12 gap-4">
-        <aside className="col-span-12 lg:col-span-3 space-y-2">
+        <aside className="col-span-12 lg:col-span-2 space-y-2">
           <TeamSidebar
             teams={roomState.teams}
             startingPoints={roomState.auction.startingPoints}
+            rosterMode={roomState.auction.rosterMode}
           />
         </aside>
         <section className="col-span-12 lg:col-span-5">
@@ -77,7 +78,7 @@ export function AuctionOngoingSpectator({
             />
           )}
         </section>
-        <aside className="col-span-6 lg:col-span-2 space-y-3">
+        <aside className="col-span-6 lg:col-span-3 space-y-3">
           <PlayerStatusGrid roomState={roomState} />
         </aside>
 

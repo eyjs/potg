@@ -23,6 +23,8 @@ export const auctionCreateSchema = z.object({
     .int()
     .min(30, '최소 30초')
     .max(60, '최대 60초'),
+  // 로스터 모드 — CAPTAIN: 팀장 포함 5명(선수 4명), COACH: 감독 별도 + 선수 5명
+  rosterMode: z.enum(['CAPTAIN', 'COACH']),
 })
 
 export type AuctionCreateFormValues = z.infer<typeof auctionCreateSchema>
@@ -32,4 +34,5 @@ export const AUCTION_CREATE_DEFAULTS: AuctionCreateFormValues = {
   teamCount: 4,
   startingPoints: 10000,
   turnTimeLimit: 30,
+  rosterMode: 'CAPTAIN',
 }
