@@ -46,6 +46,17 @@ export const auctionsApi = {
       .post(`/auctions/${id}/participants/${userId}/remove`)
       .then(() => undefined),
 
+  /** 경매 설정 변경 (PENDING 한정) — startingPoints 변경 시 팀장 포인트도 동기화됨. */
+  updateSettings: (
+    id: string,
+    settings: {
+      teamCount?: number
+      startingPoints?: number
+      turnTimeLimit?: number
+    },
+  ): Promise<void> =>
+    api.patch(`/auctions/${id}/settings`, settings).then(() => undefined),
+
   start: (id: string): Promise<void> =>
     api.patch(`/auctions/${id}/start`).then(() => undefined),
 

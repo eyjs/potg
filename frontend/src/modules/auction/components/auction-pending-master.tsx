@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
+import { Input } from '@/common/components/ui/input'
 import { Button } from '@/common/components/ui/button'
-import { Plus, Play, Trash2, Crown, Users } from 'lucide-react'
+import { Plus, Play, Trash2, Crown, Users, Settings2, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { handleApiError } from '@/lib/api-error'
 import { auctionsApi } from '../api/auctions'
@@ -59,6 +60,71 @@ export function AuctionPendingMaster({
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ['auction', 'current'] })
+
+  // 경매 설정 편집 (팀 수 / 시작 포인트 / 턴 타이머) — PENDING 에서만 저장 가능
+  const [settingsDraft, setSettingsDraft] = useState({
+    teamCount: '',
+    startingPoints: '',
+    turnTimeLimit: '',
+  })
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  useEffect(() => {
+    if (!roomState) return
+    setSettingsDraft({
+      teamCount: String(roomState.auction.teamCount),
+      startingPoints: String(roomState.auction.startingPoints),
+      turnTimeLimit: String(roomState.auction.turnTimeLimit),
+    })
+  }, [roomState])
+
+  const settingsChanged =
+    roomState !== null &&
+    (settingsDraft.teamCount !== String(teamCount) ||
+      settingsDraft.startingPoints !== String(startingPoints) ||
+      settingsDraft.turnTimeLimit !== String(turnTimeLimit))
+
+  const handleSaveSettings = async () => {
+    const nextTeamCount = Number(settingsDraft.teamCount)
+    const nextPoints = Number(settingsDraft.startingPoints)
+    const nextTimer = Number(settingsDraft.turnTimeLimit)
+    if (
+      !Number.isInteger(nextTeamCount) ||
+      nextTeamCount < 2 ||
+      nextTeamCount > 8
+    ) {
+      toast.error('팀 수는 2~8 사이의 정수여야 합니다.')
+      return
+    }
+    if (!Number.isInteger(nextPoints) || nextPoints < 1) {
+      toast.error('시작 포인트는 1 이상의 정수여야 합니다.')
+      return
+    }
+    if (!Number.isInteger(nextTimer) || nextTimer < 10) {
+      toast.error('턴 타이머는 10초 이상이어야 합니다.')
+      return
+    }
+    if (nextTeamCount < captains.length) {
+      toast.error(
+        `이미 팀장이 ${captains.length}명 등록되어 있어 팀 수를 그보다 줄일 수 없습니다.`,
+      )
+      return
+    }
+    setSavingSettings(true)
+    try {
+      await auctionsApi.updateSettings(auctionId, {
+        teamCount: nextTeamCount,
+        startingPoints: nextPoints,
+        turnTimeLimit: nextTimer,
+      })
+      toast.success('경매 설정이 저장되었습니다. (팀장 포인트 동기화됨)')
+      await refresh()
+    } catch (error) {
+      handleApiError(error, '설정 저장 실패')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   const handleAddCaptains = async (userIds: string[]) => {
     try {
@@ -173,6 +239,82 @@ export function AuctionPendingMaster({
           </div>
         </CardContent>
       </Card>
+
+      {/* 경매 설정 — 팀 수 / 시작 포인트 / 턴 타이머 (PENDING 에서만 수정 가능) */}
+      {!readOnly && (
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-primary" />
+            경매 설정
+          </CardTitle>
+          <Button
+            size="sm"
+            onClick={handleSaveSettings}
+            disabled={!settingsChanged || savingSettings}
+            className="bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-40"
+          >
+            <Save className="w-3.5 h-3.5 mr-1" />
+            {savingSettings ? '저장 중...' : '저장'}
+          </Button>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="space-y-1 text-xs">
+            <span className="uppercase tracking-widest text-muted-foreground font-bold">
+              팀 수 (2~8)
+            </span>
+            <Input
+              type="number"
+              min={2}
+              max={8}
+              value={settingsDraft.teamCount}
+              onChange={(e) =>
+                setSettingsDraft((d) => ({ ...d, teamCount: e.target.value }))
+              }
+              className="bg-background"
+            />
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="uppercase tracking-widest text-muted-foreground font-bold">
+              팀장 시작 포인트
+            </span>
+            <Input
+              type="number"
+              min={1}
+              value={settingsDraft.startingPoints}
+              onChange={(e) =>
+                setSettingsDraft((d) => ({
+                  ...d,
+                  startingPoints: e.target.value,
+                }))
+              }
+              className="bg-background"
+            />
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="uppercase tracking-widest text-muted-foreground font-bold">
+              턴 타이머 (초, 10+)
+            </span>
+            <Input
+              type="number"
+              min={10}
+              value={settingsDraft.turnTimeLimit}
+              onChange={(e) =>
+                setSettingsDraft((d) => ({
+                  ...d,
+                  turnTimeLimit: e.target.value,
+                }))
+              }
+              className="bg-background"
+            />
+          </label>
+          <p className="sm:col-span-3 text-[11px] text-muted-foreground">
+            시작 포인트를 바꾸면 이미 등록된 모든 팀장의 보유 포인트가 새 값으로
+            동기화됩니다. 설정은 경매 시작 전에만 변경할 수 있습니다.
+          </p>
+        </CardContent>
+      </Card>
+      )}
 
       {readOnly && (
         <Card className="bg-card border-dashed border-border">
