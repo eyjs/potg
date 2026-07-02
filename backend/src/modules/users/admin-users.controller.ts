@@ -28,7 +28,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { LedgerService } from '../ledger/ledger.service';
 import { POINT_TX_REASON } from '../ledger/ledger.constants';
-import { UserRole } from './entities/user.entity';
+import { MainRole, UserRole } from './entities/user.entity';
 import { UsersService } from './users.service';
 import type { AuthenticatedRequest } from '../../common/interfaces/authenticated-request.interface';
 
@@ -91,6 +91,10 @@ class UpdateMemberDto {
   @IsOptional()
   @IsString()
   representativeHero?: string;
+
+  @IsOptional()
+  @IsEnum(MainRole)
+  mainRole?: MainRole;
 }
 
 class UpdateUsernameDto {

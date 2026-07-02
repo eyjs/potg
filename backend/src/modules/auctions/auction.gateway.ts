@@ -16,6 +16,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuctionsService } from './auctions.service';
 import { AuctionChatMessage } from './entities/auction-chat-message.entity';
+import { AuctionStatus, BiddingPhase } from './entities/auction.entity';
+import type { RoomState } from './services/auctions-room-state.service';
 import {
   authenticateSocket,
   WsJwtGuard,
@@ -163,6 +165,10 @@ export class AuctionGateway
       // Get full room state
       const roomState = await this.auctionsService.getRoomState(auctionId);
       client.emit('roomState', { roomState });
+
+      // 서버 재시작 등으로 메모리 타이머가 유실됐으면 복원 — BIDDING 인데
+      // 인터벌이 없으면 endTime 기준으로 재가동한다 (타이머 멈춤 자가 치유).
+      this.ensureBiddingTimer(auctionId, roomState);
 
       // 입장 클라이언트에만 최근 채팅 히스토리 전송 (늦게 입장/재접속해도 이전 대화 복원).
       // 채팅 히스토리 실패가 방 입장을 막지 않도록 독립적으로 처리한다.
@@ -679,6 +685,38 @@ export class AuctionGateway
       clearInterval(timer);
       this.auctionTimers.delete(auctionId);
     }
+  }
+
+  /**
+   * 라이브 타이머 자가 치유 — 서버 재시작으로 in-memory 인터벌이 유실된 경우
+   * (BIDDING + endTime 존재 + 인터벌 없음) DB endTime 기준으로 재가동한다.
+   * endTime 이 이미 지났으면 만료 처리 경로로 넘긴다.
+   */
+  private ensureBiddingTimer(auctionId: string, roomState: RoomState) {
+    const a = roomState.auction;
+    if (
+      a.status !== AuctionStatus.ONGOING ||
+      a.biddingPhase !== BiddingPhase.BIDDING ||
+      a.timerPaused ||
+      !a.currentBiddingEndTime ||
+      this.auctionTimers.has(auctionId)
+    ) {
+      return;
+    }
+    const remaining = Math.round(
+      (new Date(a.currentBiddingEndTime).getTime() - Date.now()) / 1000,
+    );
+    if (remaining <= 0) {
+      this.logger.warn(
+        `Auction ${auctionId}: 만료된 타이머 발견(재시작 유실) — 만료 처리`,
+      );
+      void this.handleTimerExpired(auctionId);
+      return;
+    }
+    this.logger.log(
+      `Auction ${auctionId}: 라이브 타이머 복원 (${remaining}s 남음)`,
+    );
+    this.startBiddingTimerWithRemaining(auctionId, remaining);
   }
 
   private async handleTimerExpired(auctionId: string) {

@@ -10,6 +10,7 @@ import type { RoomState } from '../types'
 import type {
   AuctionBidEvent,
   AuctionChatMessage,
+  AuctionStageEvent,
 } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
 import { BidLog } from './parts/bid-log'
@@ -20,6 +21,7 @@ interface Props {
   timerRemaining: number | null
   chatMessages?: AuctionChatMessage[]
   bidEvents?: AuctionBidEvent[]
+  stageEvent?: AuctionStageEvent | null
   onSendChat?: (message: string) => void
   myUserId?: string | null
 }
@@ -29,6 +31,7 @@ export function AuctionOngoingSpectator({
   timerRemaining,
   chatMessages,
   bidEvents,
+  stageEvent,
   onSendChat,
   myUserId,
 }: Props) {
@@ -53,7 +56,7 @@ export function AuctionOngoingSpectator({
             </div>
           </div>
           <div className="flex items-center gap-5">
-            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} phase={phase} />}
             <LiveChip paused={roomState.auction.status === 'PAUSED'} />
           </div>
         </CardContent>
@@ -89,6 +92,7 @@ export function AuctionOngoingSpectator({
                 player={roomState.currentPlayer}
                 currentBid={roomState.currentBid}
                 biddingPhase={phase}
+              stageEvent={stageEvent}
               />
               {/* 입찰 로그 — 게임 킬로그 피드 */}
               <BidLog events={bidEvents ?? []} />
@@ -107,7 +111,6 @@ export function AuctionOngoingSpectator({
               onSend={onSendChat}
               participants={roomState.participants}
               myUserId={myUserId}
-              bidEvents={bidEvents}
             />
           )}
         </aside>

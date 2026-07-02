@@ -14,6 +14,7 @@ import { maxPlayersPerTeam, type RoomState } from '../types'
 import type {
   AuctionBidEvent,
   AuctionChatMessage,
+  AuctionStageEvent,
   AuctionEmitFns,
 } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
@@ -47,17 +48,17 @@ function BidButtonsRow({
             onClick={() => canBid && onSubmit(amount)}
             disabled={!canBid}
             className={cn(
-              'game-btn h-16 flex-col gap-0.5 font-bold',
+              'game-btn h-20 flex-col gap-0.5 font-bold',
               isPrimaryCta
                 ? 'game-btn-gold neon-frame-gold bg-ow-gold/15 text-ow-gold hover:bg-ow-gold/25'
                 : 'neon-frame bg-ow-blue/10 text-ow-blue hover:bg-ow-blue/20 hover:text-ow-gold',
               'disabled:opacity-40',
             )}
           >
-            <span className="flex items-center gap-1 text-base font-black">
-              <Gavel className="w-3.5 h-3.5" />+{inc}
+            <span className="flex items-center gap-1 text-2xl font-black tracking-tight">
+              <Gavel className="w-4 h-4" />+{inc}
             </span>
-            <span className="text-[10px] tabular-nums opacity-80">
+            <span className="text-[11px] tabular-nums opacity-75">
               {amount.toLocaleString()}P
             </span>
           </Button>
@@ -74,6 +75,7 @@ interface Props {
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
   bidEvents?: AuctionBidEvent[]
+  stageEvent?: AuctionStageEvent | null
 }
 
 export function AuctionOngoingCaptain({
@@ -83,6 +85,7 @@ export function AuctionOngoingCaptain({
   emit,
   chatMessages,
   bidEvents,
+  stageEvent,
 }: Props) {
   const me = useMemo(
     () => roomState.participants.find((p) => p.userId === userId),
@@ -142,7 +145,7 @@ export function AuctionOngoingCaptain({
                 {myPoints.toLocaleString()}P
               </p>
             </div>
-            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} phase={phase} />}
             <LiveChip paused={roomState.auction.status === 'PAUSED'} />
           </div>
         </CardContent>
@@ -182,10 +185,11 @@ export function AuctionOngoingCaptain({
             player={roomState.currentPlayer}
             currentBid={roomState.currentBid}
             biddingPhase={phase}
+              stageEvent={stageEvent}
           />
 
           {/* 입찰 패널 */}
-          <Card className="bg-card border-border">
+          <Card className="game-panel">
             <CardContent className="p-4 space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
@@ -241,7 +245,6 @@ export function AuctionOngoingCaptain({
               onSend={emit.sendChat}
               participants={roomState.participants}
               myUserId={userId}
-              bidEvents={bidEvents}
             />
           )}
         </aside>

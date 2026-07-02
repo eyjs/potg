@@ -55,6 +55,26 @@ const columns: ColumnDef<AdminMember>[] = [
     render: (r) => <HeroCell heroKey={r.representativeHero} />,
   },
   {
+    key: 'mainRole',
+    header: '포지션',
+    render: (r) =>
+      r.mainRole ? (
+        <span
+          className={cn(
+            'text-xs font-bold',
+            r.mainRole === 'TANK' && 'text-blue-400',
+            r.mainRole === 'DPS' && 'text-red-400',
+            r.mainRole === 'SUPPORT' && 'text-green-400',
+            r.mainRole === 'FLEX' && 'text-purple-400',
+          )}
+        >
+          {r.mainRole}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">-</span>
+      ),
+  },
+  {
     key: 'role',
     header: '권한',
     render: (r) => (

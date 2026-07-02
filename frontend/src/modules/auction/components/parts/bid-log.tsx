@@ -26,7 +26,7 @@ export function BidLog({ events, limit = 8 }: Props) {
   }, [events.length])
 
   return (
-    <Card className="bg-card/70 border-ow-blue/15 backdrop-blur-sm">
+    <Card className="game-panel">
       <CardContent className="p-3">
         <h4 className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           입찰 로그

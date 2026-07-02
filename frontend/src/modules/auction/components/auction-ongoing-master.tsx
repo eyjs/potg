@@ -33,6 +33,7 @@ import type { RoomState } from '../types'
 import type {
   AuctionBidEvent,
   AuctionChatMessage,
+  AuctionStageEvent,
   AuctionEmitFns,
 } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
@@ -44,6 +45,7 @@ interface Props {
   emit: AuctionEmitFns
   chatMessages?: AuctionChatMessage[]
   bidEvents?: AuctionBidEvent[]
+  stageEvent?: AuctionStageEvent | null
   myUserId?: string | null
 }
 
@@ -53,6 +55,7 @@ export function AuctionOngoingMaster({
   emit,
   chatMessages,
   bidEvents,
+  stageEvent,
   myUserId,
 }: Props) {
   const confirm = useConfirm()
@@ -176,7 +179,7 @@ export function AuctionOngoingMaster({
               </span>
               /<span className="tabular-nums">{players.length}</span>
             </span>
-            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} />}
+            {!isAssigning && <BidTimer remainingTime={timerRemaining} totalTime={roomState.auction.turnTimeLimit} phase={phase} />}
             <LiveChip paused={isPaused} />
           </div>
         </CardContent>
@@ -234,6 +237,7 @@ export function AuctionOngoingMaster({
               player={roomState.currentPlayer}
               currentBid={roomState.currentBid}
               biddingPhase={phase}
+              stageEvent={stageEvent}
             />
 
             {/* 경매조작 패널 (마스터) */}
@@ -402,7 +406,6 @@ export function AuctionOngoingMaster({
                 onSend={emit.sendChat}
                 participants={roomState.participants}
                 myUserId={myUserId}
-                bidEvents={bidEvents}
               />
             )}
           </aside>

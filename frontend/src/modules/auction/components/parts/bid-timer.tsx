@@ -5,6 +5,8 @@ interface Props {
   remainingTime: number | null
   /** 총 턴 시간(초) — 게이지 비율/색 계산용. 없으면 30 기준 폴백. */
   totalTime?: number
+  /** 입찰 단계 — SOLD 면 0(종료)으로 고정, WAITING 이면 대기(--) 표시. */
+  phase?: 'WAITING' | 'BIDDING' | 'SOLD'
   size?: 'sm' | 'lg'
 }
 
@@ -15,7 +17,15 @@ interface Props {
  * - 0초: "종료" + 강조 (자동 낙찰 순간).
  * - role=timer + aria-live 로 스크린리더에 남은 시간/종료 안내.
  */
-export function BidTimer({ remainingTime, totalTime, size = 'lg' }: Props) {
+export function BidTimer({
+  remainingTime: remainingTimeRaw,
+  totalTime,
+  phase,
+  size = 'lg',
+}: Props) {
+  // 단계 기반 보정 — 낙찰 직후 마지막 숫자에 얼어붙지 않도록 SOLD=0, WAITING=대기.
+  const remainingTime =
+    phase === 'SOLD' ? 0 : phase === 'WAITING' ? null : remainingTimeRaw
   const value = remainingTime ?? 0
   const total = totalTime && totalTime > 0 ? totalTime : 30
   const fraction = Math.max(0, Math.min(1, value / total))

@@ -6,7 +6,11 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
-import { membersApi, type AdminMember } from '@/modules/admin/api/members'
+import {
+  membersApi,
+  type AdminMember,
+  type MemberMainRole,
+} from '@/modules/admin/api/members'
 import { memberAdjustSchema, type MemberAdjustFormValues } from '@/modules/admin/schemas/member-adjust.schema'
 import { makeMemberFormSchema, type MemberFormValues } from '@/modules/admin/schemas/member-form.schema'
 import { useAuth } from '@/context/auth-context'
@@ -74,6 +78,10 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
   const [heroKey, setHeroKey] = useState<string | null>(
     member?.representativeHero ?? null,
   )
+  // 주 포지션 (TANK/DPS/SUPPORT/FLEX) — 경매 역할 배지에 사용
+  const [mainRole, setMainRole] = useState<MemberMainRole | null>(
+    member?.mainRole ?? null,
+  )
   const [heroPickerOpen, setHeroPickerOpen] = useState(false)
   const heroName = heroKey
     ? (heroes.find((h) => h.key === heroKey)?.name ?? heroKey)
@@ -118,6 +126,7 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
           role?: 'USER' | 'CAPTAIN' | 'ADMIN'
           password?: string
           representativeHero?: string
+          mainRole?: MemberMainRole
         } = {}
         if (values.username !== member!.username) dto.username = values.username
         const oldNickname = member!.nickname ?? ''
@@ -131,6 +140,9 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
         // 대표 영웅 변경 시 반영 (해제는 빈 문자열 → 백엔드에서 null 처리)
         const oldHero = member!.representativeHero ?? null
         if (heroKey !== oldHero) dto.representativeHero = heroKey ?? ''
+        // 주 포지션 변경 시 반영
+        if (mainRole && mainRole !== (member!.mainRole ?? null))
+          dto.mainRole = mainRole
         await membersApi.update(member!.id, dto)
         toast.success('회원 정보가 수정되었습니다.')
       } else {
@@ -264,6 +276,40 @@ function MemberFormInner({ member, isEdit, onClose }: MemberFormInnerProps) {
                   해제
                 </Button>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 주 포지션 (수정 모드 전용) — 경매 매물 카드의 역할 배지에 사용 */}
+        {isEdit && (
+          <div className="space-y-2">
+            <Label>주 포지션</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {(
+                [
+                  { value: 'TANK' as const, label: '탱커', cls: 'text-blue-400 border-blue-500/40 data-[on=true]:bg-blue-500/20' },
+                  { value: 'DPS' as const, label: '딜러', cls: 'text-red-400 border-red-500/40 data-[on=true]:bg-red-500/20' },
+                  { value: 'SUPPORT' as const, label: '힐러', cls: 'text-green-400 border-green-500/40 data-[on=true]:bg-green-500/20' },
+                  { value: 'FLEX' as const, label: '플렉스', cls: 'text-purple-400 border-purple-500/40 data-[on=true]:bg-purple-500/20' },
+                ]
+              ).map(({ value, label, cls }) => (
+                <button
+                  key={value}
+                  type="button"
+                  data-on={mainRole === value}
+                  onClick={() => setMainRole(value)}
+                  className={cn(
+                    'rounded-md border bg-background px-2 py-2 text-xs font-bold transition-colors',
+                    'hover:bg-primary/5 data-[on=true]:ring-1 data-[on=true]:ring-current',
+                    cls,
+                  )}
+                >
+                  {value}
+                  <span className="block text-[10px] font-normal opacity-70">
+                    {label}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         )}

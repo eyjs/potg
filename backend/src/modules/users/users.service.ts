@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole } from './entities/user.entity';
+import { MainRole, User, UserRole } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -141,7 +141,11 @@ export class UsersService {
         'id',
         'username',
         'nickname',
+        'battleTag',
         'role',
+        'mainRole',
+        'avatarUrl',
+        'representativeHero',
         'discordId',
         'pointsBalance',
         'marketGatePassed',
@@ -212,6 +216,7 @@ export class UsersService {
       role?: UserRole;
       password?: string;
       representativeHero?: string;
+      mainRole?: MainRole;
     },
   ): Promise<User> {
     const user = await this.adminFindOrFail(id);
@@ -236,6 +241,10 @@ export class UsersService {
 
     if (data.representativeHero !== undefined) {
       user.representativeHero = data.representativeHero.trim() || null;
+    }
+
+    if (data.mainRole !== undefined) {
+      user.mainRole = data.mainRole;
     }
 
     if (data.password) {

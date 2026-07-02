@@ -30,6 +30,12 @@ export interface AuctionBidEvent {
   timestamp: string
 }
 
+/** 무대 연출 트리거 — 낙찰(sold)/유찰(pass) 순간을 seq 증가로 알린다. */
+export interface AuctionStageEvent {
+  kind: 'sold' | 'pass'
+  seq: number
+}
+
 export interface AuctionEmitFns {
   placeBid: (targetPlayerId: string, amount: number) => void
   selectPlayer: (playerId: string) => void
@@ -54,6 +60,7 @@ interface UseAuctionSocketReturn {
   timerRemaining: number | null
   chatMessages: AuctionChatMessage[]
   bidEvents: AuctionBidEvent[]
+  stageEvent: AuctionStageEvent | null
   emit: AuctionEmitFns
 }
 
@@ -74,6 +81,7 @@ export function useAuctionSocket(
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null)
   const [chatMessages, setChatMessages] = useState<AuctionChatMessage[]>([])
   const [bidEvents, setBidEvents] = useState<AuctionBidEvent[]>([])
+  const [stageEvent, setStageEvent] = useState<AuctionStageEvent | null>(null)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -135,6 +143,8 @@ export function useAuctionSocket(
     socket.on(
       'bidConfirmed',
       (p: { captainId?: string; amount?: number; roomState?: RoomState }) => {
+        // 낙찰 연출 트리거 (수동/자동 낙찰 공통)
+        setStageEvent((prev) => ({ kind: 'sold', seq: (prev?.seq ?? 0) + 1 }))
         if (typeof p?.amount !== 'number') return
         const team = p.roomState?.teams.find(
           (t) => t.captainId === p.captainId,
@@ -146,6 +156,10 @@ export function useAuctionSocket(
         })
       },
     )
+    // 유찰 연출 트리거 (수동/타이머 자동 유찰 공통)
+    socket.on('playerPassed', () => {
+      setStageEvent((prev) => ({ kind: 'pass', seq: (prev?.seq ?? 0) + 1 }))
+    })
     socket.on('playerSelected', handleRoomState)
     socket.on('playerPassed', handleRoomState)
     socket.on('readyForNextPlayer', handleRoomState)
@@ -198,6 +212,7 @@ export function useAuctionSocket(
       setTimerRemaining(null)
       setChatMessages([])
       setBidEvents([])
+      setStageEvent(null)
     }
   }, [auctionId, userId])
 
@@ -316,6 +331,7 @@ export function useAuctionSocket(
     timerRemaining,
     chatMessages,
     bidEvents,
+    stageEvent,
     emit,
   }
 }

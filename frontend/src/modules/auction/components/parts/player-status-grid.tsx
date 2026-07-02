@@ -85,7 +85,7 @@ export function PlayerStatusGrid({ roomState }: Props) {
   const waitingCount = players.filter((p) => p.status === 'waiting').length
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="game-panel">
       <CardContent className="p-3 space-y-3">
         <div className="flex items-center justify-between border-b border-border/40 pb-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">

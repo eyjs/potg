@@ -1,5 +1,8 @@
 import api from '@/lib/api'
 
+/** 주 포지션 — 경매 매물 카드/그리드의 역할 배지에 사용. */
+export type MemberMainRole = 'TANK' | 'DPS' | 'SUPPORT' | 'FLEX'
+
 export interface AdminMember {
   id: string
   username: string
@@ -12,6 +15,8 @@ export interface AdminMember {
   nickname?: string | null
   /** 대표 영웅 key (OverFast 영웅 key). 미설정 시 null. */
   representativeHero?: string | null
+  /** 주 포지션. 미설정 시 null. */
+  mainRole?: MemberMainRole | null
   createdAt: string
 }
 
@@ -81,6 +86,7 @@ export const membersApi = {
       role?: 'USER' | 'CAPTAIN' | 'ADMIN'
       password?: string
       representativeHero?: string | null
+      mainRole?: MemberMainRole
     },
   ): Promise<AdminMember> =>
     api.patch<AdminMember>(`/admin/members/${id}`, dto).then((r) => r.data),

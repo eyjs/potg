@@ -41,7 +41,7 @@ function AuctionBody() {
     auction: listAuction,
     isLoading: listLoading,
   } = useCurrentAuction()
-  const { roomState, timerRemaining, chatMessages, bidEvents, emit } =
+  const { roomState, timerRemaining, chatMessages, bidEvents, stageEvent, emit } =
     useAuctionSocket(listAuction?.id ?? null, user?.id ?? null)
 
   if (listLoading) {
@@ -73,6 +73,7 @@ function AuctionBody() {
         emit={emit}
         chatMessages={chatMessages}
         bidEvents={bidEvents}
+        stageEvent={stageEvent}
         myUserId={user?.id ?? null}
       />
     )
@@ -111,6 +112,7 @@ function AuctionBody() {
         emit={emit}
         chatMessages={chatMessages}
         bidEvents={bidEvents}
+        stageEvent={stageEvent}
       />
     )
   }
@@ -120,6 +122,7 @@ function AuctionBody() {
       timerRemaining={timerRemaining}
       chatMessages={chatMessages}
       bidEvents={bidEvents}
+      stageEvent={stageEvent}
       onSendChat={emit.sendChat}
       myUserId={user?.id ?? null}
     />
