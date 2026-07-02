@@ -178,6 +178,11 @@ export class AuctionsService {
    * 회원 가입 없이 15명 등 대규모 명단을 매물로 올릴 수 있다.
    */
   async addGuestPlayers(auctionId: string, adminId: string, names: string[]) {
+    if (!Array.isArray(names) || names.length === 0)
+      throw new BadRequestException('등록할 이름 목록이 비어 있습니다.');
+    if (names.some((n) => typeof n !== 'string'))
+      throw new BadRequestException('이름은 문자열이어야 합니다.');
+
     const auction = await this.loadAsCreator(
       auctionId,
       adminId,
@@ -249,6 +254,17 @@ export class AuctionsService {
     if (auction.status !== AuctionStatus.PENDING)
       throw new BadRequestException(
         '대기 중인 경매에서만 팀장을 추가할 수 있습니다.',
+      );
+
+    // 팀장은 로그인 가능한 실회원만 — 게스트(로그인 불가)는 입찰할 수 없으므로 차단
+    const captainUser = await this.usersRepository.findOne({
+      where: { id: captainUserId },
+    });
+    if (!captainUser)
+      throw new BadRequestException('존재하지 않는 회원입니다.');
+    if (captainUser.isGuest)
+      throw new BadRequestException(
+        '게스트는 팀장으로 지정할 수 없습니다. 회원만 팀장이 될 수 있습니다.',
       );
 
     // Check team count limit
@@ -404,6 +420,22 @@ export class AuctionsService {
       );
       if (auction.status !== AuctionStatus.PENDING)
         throw new BadRequestException('Auction already started or finished');
+
+      // 빈 경매 시작 방지 — 시작 후엔 매물/팀장을 추가할 수 없으므로 사전 검증
+      const captainCount = await manager.count(AuctionParticipant, {
+        where: { auctionId, role: AuctionRole.CAPTAIN },
+      });
+      const playerCount = await manager.count(AuctionParticipant, {
+        where: { auctionId, role: AuctionRole.PLAYER },
+      });
+      if (captainCount < 2)
+        throw new BadRequestException(
+          '팀장을 2명 이상 등록해야 경매를 시작할 수 있습니다.',
+        );
+      if (playerCount < 1)
+        throw new BadRequestException(
+          '매물을 1명 이상 등록해야 경매를 시작할 수 있습니다.',
+        );
 
       auction.status = AuctionStatus.ONGOING;
       await manager.save(auction);

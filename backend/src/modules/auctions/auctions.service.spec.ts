@@ -15,6 +15,7 @@ import {
   AuctionRole,
 } from './entities/auction-participant.entity';
 import { AuctionBid } from './entities/auction-bid.entity';
+import { User } from '../users/entities/user.entity';
 
 /**
  * AuctionsService 핵심 비즈니스 로직 단위 테스트.
@@ -36,8 +37,11 @@ describe('AuctionsService', () => {
     >
   >;
   let bidsRepo: jest.Mocked<Pick<Repository<AuctionBid>, 'create' | 'save'>>;
+  let usersRepo: jest.Mocked<
+    Pick<Repository<User>, 'create' | 'save' | 'findOne'>
+  >;
   let manager: jest.Mocked<
-    Pick<EntityManager, 'findOne' | 'find' | 'save' | 'create' | 'update'>
+    Pick<EntityManager, 'findOne' | 'find' | 'save' | 'create' | 'update' | 'count'>
   >;
   let dataSource: { transaction: jest.Mock };
 
@@ -48,6 +52,7 @@ describe('AuctionsService', () => {
       save: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     } as unknown as jest.Mocked<typeof manager>;
 
     dataSource = {
@@ -71,6 +76,7 @@ describe('AuctionsService', () => {
       update: jest.fn(),
     };
     const mockBidsRepo = { create: jest.fn(), save: jest.fn() };
+    const mockUsersRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -83,6 +89,7 @@ describe('AuctionsService', () => {
           useValue: mockParticipantsRepo,
         },
         { provide: getRepositoryToken(AuctionBid), useValue: mockBidsRepo },
+        { provide: getRepositoryToken(User), useValue: mockUsersRepo },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -91,6 +98,7 @@ describe('AuctionsService', () => {
     auctionsRepo = module.get(getRepositoryToken(Auction));
     participantsRepo = module.get(getRepositoryToken(AuctionParticipant));
     bidsRepo = module.get(getRepositoryToken(AuctionBid));
+    usersRepo = module.get(getRepositoryToken(User));
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -235,6 +243,95 @@ describe('AuctionsService', () => {
     });
   });
 
+  // ==================== addGuestPlayers / addCaptain (게스트) ====================
+
+  describe('addGuestPlayers', () => {
+    it('빈 이름 목록이면 거부', async () => {
+      await expect(
+        service.addGuestPlayers('auction-1', 'admin-1', []),
+      ).rejects.toThrow('등록할 이름 목록이 비어 있습니다');
+    });
+
+    it('배열이 아니면 거부', async () => {
+      await expect(
+        service.addGuestPlayers(
+          'auction-1',
+          'admin-1',
+          '홍길동' as unknown as string[],
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('이름마다 게스트 User 생성 후 PLAYER로 등록 (빈 줄 무시)', async () => {
+      (auctionsRepo.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (usersRepo.create as jest.Mock).mockImplementation((u) => u);
+      (usersRepo.save as jest.Mock).mockImplementation((u) =>
+        Promise.resolve({ ...u, id: `guest-id-${u.nickname}` }),
+      );
+      (participantsRepo.create as jest.Mock).mockImplementation((p) => p);
+      (participantsRepo.save as jest.Mock).mockImplementation((p) =>
+        Promise.resolve(p),
+      );
+
+      const result = (await service.addGuestPlayers('auction-1', 'admin-1', [
+        '홍길동',
+        '  ',
+        '임꺽정',
+      ])) as unknown as AuctionParticipant[];
+
+      expect(result).toHaveLength(2);
+      expect(usersRepo.save).toHaveBeenCalledTimes(2);
+      expect(result[0].role).toBe(AuctionRole.PLAYER);
+      expect(result[0].currentPoints).toBe(0);
+    });
+  });
+
+  describe('addCaptain', () => {
+    it('게스트 유저는 팀장 지정 거부', async () => {
+      (auctionsRepo.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (usersRepo.findOne as jest.Mock).mockResolvedValue({
+        id: 'guest-1',
+        isGuest: true,
+      });
+
+      await expect(
+        service.addCaptain('auction-1', 'admin-1', 'guest-1'),
+      ).rejects.toThrow('게스트는 팀장으로 지정할 수 없습니다');
+    });
+
+    it('존재하지 않는 회원은 팀장 지정 거부', async () => {
+      (auctionsRepo.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (usersRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.addCaptain('auction-1', 'admin-1', 'no-such-user'),
+      ).rejects.toThrow('존재하지 않는 회원입니다');
+    });
+
+    it('실회원은 CAPTAIN + startingPoints로 등록', async () => {
+      (auctionsRepo.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (usersRepo.findOne as jest.Mock).mockResolvedValue({
+        id: 'member-1',
+        isGuest: false,
+      });
+      (participantsRepo.count as jest.Mock).mockResolvedValue(0);
+      (participantsRepo.findOne as jest.Mock).mockResolvedValue(null);
+      (participantsRepo.create as jest.Mock).mockImplementation((p) => p);
+      (participantsRepo.save as jest.Mock).mockImplementation((p) =>
+        Promise.resolve(p),
+      );
+
+      const result = (await service.addCaptain(
+        'auction-1',
+        'admin-1',
+        'member-1',
+      )) as unknown as AuctionParticipant;
+
+      expect(result.role).toBe(AuctionRole.CAPTAIN);
+      expect(result.currentPoints).toBe(1000);
+    });
+  });
+
   // ==================== start (상태 전이) ====================
 
   describe('start', () => {
@@ -242,6 +339,10 @@ describe('AuctionsService', () => {
       const auction = baseAuction();
       (manager.findOne as jest.Mock).mockResolvedValue(auction);
       (manager.save as jest.Mock).mockImplementation((a) => Promise.resolve(a));
+      // 시작 사전 검증: 팀장 2명, 매물 1명 이상
+      (manager.count as jest.Mock)
+        .mockResolvedValueOnce(2) // CAPTAIN count
+        .mockResolvedValueOnce(5); // PLAYER count
 
       const result = (await service.start(
         'auction-1',
@@ -250,6 +351,28 @@ describe('AuctionsService', () => {
 
       expect(result.status).toBe(AuctionStatus.ONGOING);
       expect(manager.save).toHaveBeenCalled();
+    });
+
+    it('팀장이 2명 미만이면 시작 거부', async () => {
+      (manager.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (manager.count as jest.Mock)
+        .mockResolvedValueOnce(1) // CAPTAIN count
+        .mockResolvedValueOnce(5); // PLAYER count
+
+      await expect(service.start('auction-1', 'admin-1')).rejects.toThrow(
+        '팀장을 2명 이상 등록해야',
+      );
+    });
+
+    it('매물이 없으면 시작 거부', async () => {
+      (manager.findOne as jest.Mock).mockResolvedValue(baseAuction());
+      (manager.count as jest.Mock)
+        .mockResolvedValueOnce(2) // CAPTAIN count
+        .mockResolvedValueOnce(0); // PLAYER count
+
+      await expect(service.start('auction-1', 'admin-1')).rejects.toThrow(
+        '매물을 1명 이상 등록해야',
+      );
     });
 
     it('creatorId 불일치 시 거부', async () => {
