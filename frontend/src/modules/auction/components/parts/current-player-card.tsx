@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useAnimation, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/common/components/ui/avatar'
@@ -11,8 +10,7 @@ import { cn } from '@/lib/utils'
 import { useHeroes } from '../../hooks/use-heroes'
 import type { AuctionStageEvent } from '../../hooks/use-auction-socket'
 import type { RoomStateBid, RoomStatePlayer } from '../../types'
-import { getCardRarity, RARITY_FRAME } from './card-rarity'
-import { COMBO_WINDOW_MS, bidComboLevel, playRevealLegendary } from '../../hooks/auction-audio-engine'
+import { BURST_PARTICLES, usePlayerCardStage } from '../../hooks/use-player-card-stage'
 
 /** flight-in layoutId 공유를 위한 motion 승격 Card (React 19: ref는 일반 prop으로 전달됨). */
 const MotionCard = motion(Card)
@@ -38,58 +36,6 @@ const PHASE_LABEL: Record<Props['biddingPhase'], string> = {
   SOLD: '낙찰',
 }
 
-/** 낙찰 에너지 버스트 파티클 — index 기반 각도 (렌더 결정적) */
-const BURST_PARTICLES = Array.from({ length: 12 }, (_, i) => {
-  const angle = (i / 12) * Math.PI * 2
-  const dist = 90 + (i % 3) * 34
-  return {
-    x: Math.round(Math.cos(angle) * dist),
-    y: Math.round(Math.sin(angle) * dist),
-    delay: (i % 4) * 0.04,
-  }
-})
-
-/** 전설 공개 파티클(데스크톱) — 24개, 더 크고 멀리 (motion-spec §1.4) */
-const LEGENDARY_PARTICLES_DESKTOP = Array.from({ length: 24 }, (_, i) => {
-  const angle = (i / 24) * Math.PI * 2
-  const dist = 140 + (i % 4) * 46
-  return {
-    x: Math.round(Math.cos(angle) * dist),
-    y: Math.round(Math.sin(angle) * dist),
-    delay: (i % 6) * 0.03,
-  }
-})
-
-/** 전설 공개 파티클(모바일) — 원래 12개 개수/반경 유지 (motion-spec §1.4 모바일 축소) */
-const LEGENDARY_PARTICLES_MOBILE = BURST_PARTICLES
-
-/** 콤보 단계별 연출 강도 테이블 (motion-spec §2.2, task-001 bidComboLevel과 동일 임계값) */
-const COMBO_STAGE = {
-  0: { amp: 4, durationMs: 80, overshoot: 1.15, badgeScale: 1, badgeClass: '' },
-  1: {
-    amp: 4.5,
-    durationMs: 90,
-    overshoot: 1.2,
-    badgeScale: 1,
-    badgeClass: 'text-ow-blue border-ow-blue/60',
-  },
-  2: {
-    amp: 5.5,
-    durationMs: 105,
-    overshoot: 1.28,
-    badgeScale: 1.08,
-    badgeClass: 'text-ow-orange border-ow-orange/70',
-  },
-  3: {
-    amp: 6,
-    durationMs: 120,
-    overshoot: 1.38,
-    badgeScale: 1.18,
-    badgeClass:
-      'text-ow-gold border-ow-gold/80 drop-shadow-[0_0_10px_rgba(255,184,0,0.6)]',
-  },
-} as const
-
 /**
  * 중앙 무대 — 매물이 홀로그램 플랫폼 위에 떠 있는 게임 오브젝트처럼 보인다.
  * - 플랫폼: 시안 에너지 코어 + 서로 다른 속도로 회전하는 링 2개 + 위로 뻗는 광선
@@ -106,137 +52,24 @@ export function CurrentPlayerCard({
   stageEvent,
 }: Props) {
   const { portraitByKey } = useHeroes()
-  const reducedMotion = useReducedMotion()
-
-  // 낙찰/유찰 이벤트(seq 증가) 감지 → 셀레브레이션 재생 (렌더 중 상태 보정 패턴).
-  // 유찰 시 roomState 가 즉시 player=null 로 바뀌므로 마지막 매물을 스냅샷해
-  // 연출 동안 계속 보여준다 — "그냥 사라지는" 문제 방지.
-  const [lastPlayer, setLastPlayer] = useState<RoomStatePlayer | null>(null)
-  if (player && player.id !== lastPlayer?.id) setLastPlayer(player)
-
-  const [seenSeq, setSeenSeq] = useState(stageEvent?.seq ?? 0)
-  const [celebrate, setCelebrate] = useState<'sold' | 'pass' | null>(null)
-  if (stageEvent && stageEvent.seq !== seenSeq) {
-    setSeenSeq(stageEvent.seq)
-    setCelebrate(stageEvent.kind)
-  }
-  useEffect(() => {
-    if (!celebrate) return
-    const t = setTimeout(() => setCelebrate(null), 1700)
-    return () => clearTimeout(t)
-  }, [celebrate])
-
-  // ── 데스크톱 판정 (motion-spec: matchMedia('(min-width:1024px)')) ──────
-  const [isDesktop, setIsDesktop] = useState(true)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const mq = window.matchMedia('(min-width: 1024px)')
-    const update = () => setIsDesktop(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-
-  // ── 팩 오프닝(P0-1): 뒷면→플립→정면 + 등급 프레임 + 전설 시퀀스 ─────────
-  const rarity = useMemo(
-    () => (lastPlayer ? getCardRarity(lastPlayer.id) : 'common'),
-    // 등급은 매물 id의 순수 함수이므로 id만 추적한다(전체 lastPlayer 객체를 넣으면 매 렌더 재계산돼 아바타 렌더와 어긋남)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lastPlayer?.id],
-  )
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [legendaryBurst, setLegendaryBurst] = useState(false)
-  const legendaryFiredRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!lastPlayer) return
-    const currentRarity = getCardRarity(lastPlayer.id)
-    const timers: ReturnType<typeof setTimeout>[] = []
-
-    if (reducedMotion) {
-      // reduced-motion: 플립 생략, 즉시 정면 상태 + 정적 등급 프레임. 사운드는 그대로.
-      setIsFlipped(true)
-      if (currentRarity === 'legendary' && legendaryFiredRef.current !== lastPlayer.id) {
-        legendaryFiredRef.current = lastPlayer.id
-        playRevealLegendary()
-      }
-      return
-    }
-
-    setIsFlipped(false)
-    timers.push(setTimeout(() => setIsFlipped(true), 120))
-
-    if (currentRarity === 'legendary') {
-      timers.push(
-        setTimeout(() => {
-          if (legendaryFiredRef.current === lastPlayer.id) return
-          legendaryFiredRef.current = lastPlayer.id
-          playRevealLegendary()
-          setLegendaryBurst(true)
-          timers.push(setTimeout(() => setLegendaryBurst(false), 900))
-        }, 560),
-      )
-    }
-
-    return () => timers.forEach(clearTimeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastPlayer?.id, reducedMotion])
-
-  const legendaryParticles = isDesktop
-    ? LEGENDARY_PARTICLES_DESKTOP
-    : LEGENDARY_PARTICLES_MOBILE
-
-  // ── 입찰 임팩트 + 콤보(P0-2, AD-3 로컬 계산) ────────────────────────
-  const comboTimestampsRef = useRef<number[]>([])
-  const prevBidAmountRef = useRef<number | null>(null)
-  const [comboCount, setComboCount] = useState(0)
-  const comboLevel = bidComboLevel(comboCount)
-  const shakeControls = useAnimation()
-
-  // 매물 전환 시 콤보 버퍼 리셋
-  useEffect(() => {
-    comboTimestampsRef.current = []
-    prevBidAmountRef.current = null
-    setComboCount(0)
-  }, [lastPlayer?.id])
-
-  useEffect(() => {
-    if (!currentBid) return
-    if (prevBidAmountRef.current === currentBid.amount) return
-    prevBidAmountRef.current = currentBid.amount
-
-    const now = Date.now()
-    const active = comboTimestampsRef.current.filter((t) => now - t < COMBO_WINDOW_MS)
-    active.push(now)
-    comboTimestampsRef.current = active
-    setComboCount(active.length)
-
-    const level = bidComboLevel(active.length)
-    const stage = COMBO_STAGE[level]
-
-    if (!reducedMotion) {
-      const amp = isDesktop ? stage.amp : stage.amp * 0.5
-      shakeControls.start({
-        x: [0, -amp, amp, -amp * 0.6, 0],
-        transition: { duration: stage.durationMs / 1000, ease: 'easeOut' },
-      })
-    }
-
-    // 콤보 윈도우 자연 만료 시 카운트 리셋
-    const expireTimer = setTimeout(() => {
-      const remain = comboTimestampsRef.current.filter(
-        (ts) => Date.now() - ts < COMBO_WINDOW_MS,
-      )
-      comboTimestampsRef.current = remain
-      setComboCount(remain.length)
-    }, COMBO_WINDOW_MS + 50)
-
-    return () => clearTimeout(expireTimer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBid, isDesktop, reducedMotion])
-
-  // 연출 중에는 방금 처리된 매물을 유지해서 보여준다
-  const displayPlayer = player ?? (celebrate ? lastPlayer : null)
+  const stage = usePlayerCardStage({ player, currentBid, biddingPhase, stageEvent, ownerViewport: 'desktop' })
+  const {
+    displayPlayer,
+    rarity,
+    frame,
+    isFlipped,
+    legendaryBurst,
+    legendaryParticles,
+    isDesktop,
+    celebrate,
+    seenSeq,
+    comboCount,
+    comboLevel,
+    comboStage,
+    shakeControls,
+    reducedMotion,
+    flightLayoutId,
+  } = stage
 
   if (!displayPlayer) {
     return (
@@ -262,9 +95,6 @@ export function CurrentPlayerCard({
   const isBidding = biddingPhase === 'BIDDING'
   const isSold = biddingPhase === 'SOLD'
   const isWaiting = biddingPhase === 'WAITING'
-  const frame = RARITY_FRAME[rarity]
-  const comboStage = COMBO_STAGE[comboLevel]
-  const flightLayoutId = celebrate === 'sold' && lastPlayer ? `flight-card-${lastPlayer.id}` : undefined
 
   return (
     <motion.div animate={shakeControls}>
