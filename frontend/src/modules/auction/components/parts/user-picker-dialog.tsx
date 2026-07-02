@@ -68,7 +68,8 @@ export function UserPickerDialog({
         if (!q) return true
         return (
           u.username.toLowerCase().includes(q) ||
-          (u.battleTag?.toLowerCase().includes(q) ?? false)
+          (u.battleTag?.toLowerCase().includes(q) ?? false) ||
+          (u.nickname?.toLowerCase().includes(q) ?? false)
         )
       })
   }, [users, excludeIds, search])
@@ -207,12 +208,12 @@ export function UserPickerDialog({
                           <Avatar className="w-8 h-8">
                             <AvatarImage src={user.avatarUrl ?? undefined} />
                             <AvatarFallback className="bg-muted text-xs">
-                              {user.battleTag?.[0] || user.username[0]}
+                              {(user.nickname ?? user.battleTag)?.[0] || user.username[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm truncate">
-                              {user.battleTag || user.username}
+                              {user.nickname || user.battleTag || user.username}
                             </p>
                             {user.mainRole && (
                               <p className="text-xs text-muted-foreground uppercase">

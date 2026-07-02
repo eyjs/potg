@@ -106,6 +106,7 @@ export interface AuctionListItem {
 export interface UserSummary {
   id: string
   username: string
+  nickname: string | null
   battleTag: string | null
   avatarUrl: string | null
   mainRole: string | null

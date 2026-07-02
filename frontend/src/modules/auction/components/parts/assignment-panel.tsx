@@ -47,7 +47,10 @@ function PlayerCard({
     id: participant.userId,
   })
 
-  const name = participant.user?.battleTag?.split('#')[0] ?? '선수'
+  const name =
+    participant.user?.nickname ??
+    participant.user?.battleTag?.split('#')[0] ??
+    '선수'
   const role = (participant.user?.mainRole ?? 'flex').toLowerCase()
 
   return (
@@ -167,7 +170,12 @@ export function AssignmentPanel({ roomState, emit }: Props) {
     if (id == null) return ''
     const key = String(id)
     const player = roomState.participants.find((p) => p.userId === key)
-    if (player) return player.user?.battleTag?.split('#')[0] ?? '선수'
+    if (player)
+      return (
+        player.user?.nickname ??
+        player.user?.battleTag?.split('#')[0] ??
+        '선수'
+      )
     const team = roomState.teams.find((t) => t.captainId === key)
     return team ? `${team.captainName} 팀` : key
   }

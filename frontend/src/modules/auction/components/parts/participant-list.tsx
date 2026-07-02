@@ -52,12 +52,12 @@ export function ParticipantList({
           >
             <Avatar className="w-7 h-7">
               <AvatarFallback className="bg-muted text-xs">
-                {p.user?.battleTag?.[0] ?? '?'}
+                {(p.user?.nickname ?? p.user?.battleTag)?.[0] ?? '?'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">
-                {p.user?.battleTag ?? '익명'}
+                {p.user?.nickname ?? p.user?.battleTag ?? '이름 없음'}
                 {isMe && (
                   <span className="text-primary text-xs ml-2">(나)</span>
                 )}

@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
-import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
 import { Gavel } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -15,60 +14,44 @@ import type { RoomState } from '../types'
 import type { AuctionChatMessage, AuctionEmitFns } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
 
-/**
- * 입찰 input + 버튼.
- * 매물 변경 시 부모가 key={targetPlayerId} 로 재마운트 → 직전 매물에 입력했던
- * 잔여 값이 자동 초기화된다 (setState-in-effect 없이).
- */
-function BidInputRow({
+/** 증액 단위 버튼 — 현재 최고가 + 증액이 새 입찰가가 된다. */
+const BID_INCREMENTS = [100, 200, 500, 1000] as const
+
+function BidButtonsRow({
   disabled,
-  minBid,
+  currentBid,
   maxBid,
   onSubmit,
 }: {
   disabled: boolean
-  minBid: number
+  currentBid: number
   maxBid: number
   onSubmit: (amount: number) => void
 }) {
-  const [value, setValue] = useState('')
-  const parsed = parseInt(value, 10)
-  const isValid =
-    !isNaN(parsed) && parsed >= minBid && parsed <= maxBid && !disabled
-
-  const handleSubmit = () => {
-    if (!isValid) return
-    onSubmit(parsed)
-    setValue('')
-  }
-
   return (
-    <div className="flex gap-2">
-      <Input
-        type="number"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && isValid) handleSubmit()
-        }}
-        disabled={disabled}
-        placeholder={String(minBid)}
-        min={minBid}
-        className="bg-background text-2xl font-bold tabular-nums h-14 flex-1"
-      />
-      <Button
-        onClick={handleSubmit}
-        disabled={!isValid}
-        className={cn(
-          'h-14 px-6 skew-x-[-10deg] bg-primary font-bold text-black',
-          'hover:bg-primary/90 disabled:opacity-40',
-        )}
-      >
-        <span className="skew-x-[10deg] flex items-center gap-2">
-          <Gavel className="w-5 h-5" />
-          입찰
-        </span>
-      </Button>
+    <div className="grid grid-cols-4 gap-2">
+      {BID_INCREMENTS.map((inc) => {
+        const amount = currentBid + inc
+        const canBid = !disabled && amount <= maxBid
+        return (
+          <Button
+            key={inc}
+            onClick={() => canBid && onSubmit(amount)}
+            disabled={!canBid}
+            className={cn(
+              'h-16 flex-col gap-0.5 skew-x-[-6deg] bg-primary font-bold text-black',
+              'hover:bg-primary/90 disabled:opacity-40',
+            )}
+          >
+            <span className="skew-x-[6deg] flex items-center gap-1 text-base font-black">
+              <Gavel className="w-3.5 h-3.5" />+{inc}
+            </span>
+            <span className="skew-x-[6deg] text-[10px] tabular-nums opacity-80">
+              {amount.toLocaleString()}P
+            </span>
+          </Button>
+        )
+      })}
     </div>
   )
 }
@@ -101,7 +84,6 @@ export function AuctionOngoingCaptain({
     roomState.currentBid?.bidderId === userId && phase === 'BIDDING'
   const targetPlayerId = roomState.auction.currentBiddingPlayerId
 
-  const minBid = currentBidAmount + 1
   const bidDisabled =
     phase !== 'BIDDING' ||
     targetPlayerId === null ||
@@ -123,7 +105,7 @@ export function AuctionOngoingCaptain({
               {roomState.auction.title}
             </h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest">
-              팀장 — {me?.user?.battleTag ?? '대기'}
+              팀장 — {me?.user?.nickname ?? me?.user?.battleTag ?? '대기'}
             </p>
           </div>
           <div className="flex items-center gap-6">
@@ -167,12 +149,13 @@ export function AuctionOngoingCaptain({
             <CardContent className="p-4 space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
-                  입찰 금액 (최소 {minBid.toLocaleString()}P · 최대 {myPoints.toLocaleString()}P)
+                  입찰 — 현재가 {currentBidAmount.toLocaleString()}P · 내 잔여{' '}
+                  {myPoints.toLocaleString()}P
                 </Label>
-                <BidInputRow
+                <BidButtonsRow
                   key={targetPlayerId ?? 'none'}
                   disabled={bidDisabled}
-                  minBid={minBid}
+                  currentBid={currentBidAmount}
                   maxBid={myPoints}
                   onSubmit={handleBid}
                 />
