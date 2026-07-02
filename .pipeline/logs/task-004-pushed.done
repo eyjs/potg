@@ -1,0 +1,14 @@
+task-004 (로그인 크로스도메인 쿠키 차단 대응) pushed to origin/master.
+
+- pushed_commit: e95b060 (fix(auth): 크로스도메인 쿠키 차단 대응 — Authorization 헤더 병행 인증)
+- origin/master: 9f25f99 -> e95b060 (fast-forward)
+- pushed_files (task-004 ONLY, 001~003 제외):
+    backend/src/modules/auth/{jwt.strategy,auth.controller,auth.service}.ts (+ 2 spec)
+    frontend/src/lib/api.ts, frontend/src/context/auth-context.tsx, frontend/src/app/login/page.tsx
+- verified before push: backend auth 18/18 PASS, frontend lint 0 errors, frontend build OK (/login 생성)
+- Vercel: 프론트 배포 트리거됨 (api.ts/auth-context/login 변경 반영)
+- ACTION REQUIRED (사용자/메인 세션): 백엔드 재시작 필요.
+    jwt.strategy(쿠키+Bearer 이중 추출) + auth.controller(응답 바디 토큰) 변경은
+    운영 백엔드(로컬 Docker)에 push만으로 반영되지 않음. docker 재시작 필요.
+    (오케스트레이터는 재시작을 수행하지 않음 — 운영 서비스이므로 사용자 수행.)
+- 남은 태스크(001~003)는 로컬 master에만 존재, push 금지 유지.

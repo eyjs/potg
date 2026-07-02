@@ -1,10 +1,33 @@
 {
   "version": "v2",
   "pipeline_type": "feature",
-  "current_phase": "report",
+  "current_phase": "post-report-hotfix-push",
   "status": "success",
   "started_at": "2026-07-02T22:56:00+09:00",
-  "updated_at": "2026-07-03T00:15:00+09:00",
+  "updated_at": "2026-07-03T00:45:00+09:00",
+  "task_004_fast_track": {
+    "reason": "team-lead 긴급 지시 (사용자 로그인 장애 대기) — task-004 단독 fast-track push 승인",
+    "pushed": true,
+    "pushed_commit": "e95b060",
+    "pushed_to": "origin/master (9f25f99 -> e95b060, fast-forward)",
+    "isolation": "task-004 8개 파일만 격리 커밋 (001~003 미포함) — origin/master 기준 신규 커밋으로 구성",
+    "pushed_files": [
+      "backend/src/modules/auth/jwt.strategy.ts",
+      "backend/src/modules/auth/auth.controller.ts",
+      "backend/src/modules/auth/auth.service.ts",
+      "backend/src/modules/auth/jwt.strategy.spec.ts",
+      "backend/src/modules/auth/auth.controller.spec.ts",
+      "frontend/src/lib/api.ts",
+      "frontend/src/context/auth-context.tsx",
+      "frontend/src/app/login/page.tsx"
+    ],
+    "pre_push_verification": "backend auth 18/18 PASS, frontend lint 0 errors, frontend build OK (/login 생성)",
+    "vercel": "프론트 배포 트리거됨",
+    "backend_restart_required": "jwt.strategy + auth.controller 변경은 push만으로 운영 백엔드(로컬 Docker)에 반영 안됨 — docker 재시작 필요. 오케스트레이터는 재시작 미수행(운영 서비스, 사용자/메인 세션 담당).",
+    "marker": ".pipeline/logs/task-004-pushed.done",
+    "local_master_reconciled": "origin/master(e95b060)를 로컬 master에 머지 완료 — 001~003 후속 push는 clean fast-forward",
+    "tasks_001_003_push": "금지 유지 (로컬 master에만 존재, 사용자 확인 후 push)"
+  },
   "requirement": ".pipeline/requirement.md",
   "scope": "경매 고도화: 효과음 + 최종 이미지 생성 수정 + 모바일 관전자 뷰 + 로그인 무한 새로고침 수정",
   "phases": {
