@@ -20,7 +20,7 @@ import { AuctionCompleted } from '@/modules/auction/components/auction-completed
 export default function AuctionPage() {
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen auction-stage-bg">
         <Header />
         <main className="container px-4 py-6 max-w-7xl mx-auto">
           <AuctionBody />

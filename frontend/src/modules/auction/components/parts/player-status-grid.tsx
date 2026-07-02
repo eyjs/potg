@@ -110,7 +110,7 @@ export function PlayerStatusGrid({ roomState }: Props) {
                 className={cn(
                   'flex flex-col items-center gap-1 rounded-sm p-2 text-center',
                   p.status === 'current'
-                    ? 'bg-primary/10 border border-primary/50 ring-1 ring-primary/30'
+                    ? 'bg-primary/10 border border-primary/60 pulse-live'
                     : 'bg-muted/20',
                   p.status === 'unsold' && 'opacity-75',
                 )}

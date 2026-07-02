@@ -173,6 +173,30 @@
     background-position: 200% 0;
   }
 }
+/* 입찰가 갱신 순간 팝 — key 교체로 재생 */
+@keyframes bid-pop {
+  0% {
+    transform: scale(1.35);
+    filter: brightness(1.6);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+.bid-pop {
+  display: inline-block;
+  animation: bid-pop 0.35s ease-out;
+}
+
+/* 경매장 무대 배경 — 남보라 radial glow + 딥 그라데이션 */
+.auction-stage-bg {
+  background:
+    radial-gradient(900px 420px at 50% -8%, rgba(88, 60, 160, 0.35) 0%, transparent 62%),
+    radial-gradient(600px 320px at 85% 8%, rgba(0, 195, 255, 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, #12101f 0%, #0d0c14 45%, var(--ow-deep) 100%);
+}
+
 .progress-animated {
   background: linear-gradient(90deg, var(--ow-gold) 0%, #ffcc00 50%, var(--ow-gold) 100%);
   background-size: 200% 100%;

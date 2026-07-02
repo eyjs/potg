@@ -141,7 +141,11 @@ export function AuctionOngoingCaptain({
       <div className="grid grid-cols-12 gap-4">
         {/* 좌측 — 팀 카드 (본인 팀 강조) */}
         <aside className="col-span-12 lg:col-span-3 space-y-2">
-          <TeamSidebar teams={roomState.teams} myCaptainId={userId} />
+          <TeamSidebar
+            teams={roomState.teams}
+            myCaptainId={userId}
+            startingPoints={roomState.auction.startingPoints}
+          />
         </aside>
 
         {/* 중앙 — 매물 + 입찰 패널 */}

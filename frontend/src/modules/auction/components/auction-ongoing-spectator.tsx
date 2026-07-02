@@ -57,7 +57,10 @@ export function AuctionOngoingSpectator({
 
       <div className="grid grid-cols-12 gap-4">
         <aside className="col-span-12 lg:col-span-3 space-y-2">
-          <TeamSidebar teams={roomState.teams} />
+          <TeamSidebar
+            teams={roomState.teams}
+            startingPoints={roomState.auction.startingPoints}
+          />
         </aside>
         <section className="col-span-12 lg:col-span-6">
           {isAssigning ? (

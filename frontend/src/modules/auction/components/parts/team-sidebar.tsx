@@ -7,6 +7,8 @@ import type { RoomStateTeam } from '../../types'
 interface Props {
   teams: RoomStateTeam[]
   myCaptainId?: string | null
+  /** 팀장 시작 포인트 — 잔여 포인트 게이지 계산용 */
+  startingPoints?: number
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -20,7 +22,7 @@ const ROLE_COLORS: Record<string, string> = {
  * Vertical 팀 카드 사이드바 — 마스터/캡틴 ongoing 화면 좌측에 배치.
  * 한 화면에 모든 팀의 잔여 P + 영입 멤버 + 낙찰가를 노출.
  */
-export function TeamSidebar({ teams, myCaptainId }: Props) {
+export function TeamSidebar({ teams, myCaptainId, startingPoints }: Props) {
   if (teams.length === 0) {
     return (
       <Card className="bg-card border-border border-dashed">
@@ -60,6 +62,30 @@ export function TeamSidebar({ teams, myCaptainId }: Props) {
                   {team.points.toLocaleString()}P
                 </span>
               </div>
+              {startingPoints !== undefined && startingPoints > 0 && (
+                <div
+                  className="h-1 rounded-full bg-muted/40 overflow-hidden"
+                  role="progressbar"
+                  aria-label={`잔여 포인트 ${team.points}/${startingPoints}`}
+                  aria-valuenow={team.points}
+                  aria-valuemin={0}
+                  aria-valuemax={startingPoints}
+                >
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all duration-500',
+                      team.points / startingPoints > 0.5
+                        ? 'bg-primary'
+                        : team.points / startingPoints > 0.2
+                          ? 'bg-yellow-400'
+                          : 'bg-ow-red',
+                    )}
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (team.points / startingPoints) * 100))}%`,
+                    }}
+                  />
+                </div>
+              )}
               {team.members.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-1">
                   영입 없음

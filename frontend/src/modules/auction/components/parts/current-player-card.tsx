@@ -47,14 +47,19 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
   return (
     <Card
       className={cn(
-        'bg-card border-2',
-        biddingPhase === 'BIDDING' && 'border-primary',
-        biddingPhase === 'SOLD' && 'border-green-500',
+        'border-2 bg-gradient-to-b from-card via-card to-[#141126]',
+        biddingPhase === 'BIDDING' && 'border-primary shadow-[0_0_40px_rgba(249,158,26,0.15)]',
+        biddingPhase === 'SOLD' && 'border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.15)]',
         biddingPhase === 'WAITING' && 'border-border',
       )}
     >
       <CardContent className="p-8 flex flex-col items-center text-center gap-4">
-        <Avatar className="w-48 h-48 border-4 border-primary/40">
+        <Avatar
+          className={cn(
+            'w-48 h-48 border-4 border-primary/40',
+            biddingPhase === 'BIDDING' && 'pulse-live',
+          )}
+        >
           <AvatarImage
             src={
               (player.hero ? portraitByKey.get(player.hero) : undefined) ??
@@ -88,9 +93,12 @@ export function CurrentPlayerCard({ player, currentBid, biddingPhase }: Props) {
           <span className="text-xs uppercase tracking-widest text-muted-foreground">
             현재가
           </span>
-          <span className="text-5xl font-black tabular-nums text-primary">
+          <span
+            key={currentBid?.amount ?? 0}
+            className="bid-pop text-6xl font-black tabular-nums text-primary drop-shadow-[0_0_12px_rgba(249,158,26,0.45)]"
+          >
             {currentBid ? currentBid.amount.toLocaleString() : '0'}
-            <span className="text-2xl ml-1">P</span>
+            <span className="text-3xl ml-1">P</span>
           </span>
         </div>
         {currentBid && (
