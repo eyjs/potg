@@ -61,6 +61,7 @@ export function CurrentPlayerCard({
     legendaryBurst,
     legendaryParticles,
     isDesktop,
+    isActiveViewport,
     celebrate,
     seenSeq,
     comboCount,
@@ -409,6 +410,7 @@ export function CurrentPlayerCard({
 
       {/* ── 전설급 공개 — 전체화면 플래시 + 파티클 (카드 clip 밖, portal) ── */}
       {legendaryBurst &&
+        isActiveViewport &&
         !reducedMotion &&
         typeof document !== 'undefined' &&
         createPortal(
