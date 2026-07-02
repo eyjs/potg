@@ -40,7 +40,10 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
         ref={ref}
         className="w-[1080px] p-10 space-y-6"
         style={{
-          backgroundColor: '#0b0b0b',
+          // 무대풍 배경 — 어두운 남보라 그라데이션 + 오버워치 오렌지 액센트
+          background:
+            'radial-gradient(1200px 500px at 50% -10%, #2a1e4d 0%, #17123000 60%), ' +
+            'linear-gradient(180deg, #100c1f 0%, #0b0b12 55%, #0b0b0b 100%)',
           color: '#fafafa',
           fontFamily: 'var(--font-exo2), sans-serif',
         }}
@@ -114,10 +117,11 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
               <div
                 key={team.captainId}
                 style={{
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #2a2a2a',
-                  borderRadius: '4px',
+                  backgroundColor: 'rgba(20, 18, 32, 0.85)',
+                  border: '1px solid #35304f',
+                  borderRadius: '6px',
                   padding: '16px',
+                  boxShadow: '0 0 24px rgba(249, 158, 26, 0.06)',
                 }}
               >
                 <div
@@ -125,9 +129,25 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
                   style={{ borderBottom: '1px solid #2a2a2a' }}
                 >
                   <div className="flex items-center gap-2">
-                    <Crown style={{ color: '#f99e1a', width: 20, height: 20 }} />
+                    <PosterAvatar
+                      name={team.captainName}
+                      avatarUrl={team.captainAvatarUrl}
+                      size={36}
+                      ring="#f99e1a"
+                    />
                     <div>
-                      <p style={{ fontSize: '10px', color: '#a3a3a3' }}>
+                      <p
+                        style={{
+                          fontSize: '10px',
+                          color: '#a3a3a3',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Crown
+                          style={{ color: '#f99e1a', width: 12, height: 12 }}
+                        />
                         TEAM {idx + 1}
                       </p>
                       <p style={{ fontWeight: 900, fontSize: '18px' }}>
@@ -172,6 +192,11 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
                           style={{ fontSize: '13px' }}
                         >
                           <div className="flex items-center gap-2 min-w-0">
+                            <PosterAvatar
+                              name={m.name}
+                              avatarUrl={m.avatarUrl}
+                              size={22}
+                            />
                             <span
                               style={{
                                 display: 'inline-block',
@@ -271,3 +296,51 @@ export const AuctionResultPoster = forwardRef<HTMLDivElement, Props>(
     )
   },
 )
+
+/** 캡처용 아바타 — 이미지 없으면 이니셜 원형. 인라인 스타일 (CSS 변수 미사용). */
+function PosterAvatar({
+  name,
+  avatarUrl,
+  size,
+  ring,
+}: {
+  name: string
+  avatarUrl: string | null
+  size: number
+  ring?: string
+}) {
+  const common: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: '9999px',
+    flexShrink: 0,
+    border: ring ? `2px solid ${ring}` : '1px solid #3a3a3a',
+  }
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- html-to-image 캡처 대상은 원본 img 필요
+      <img
+        src={avatarUrl}
+        alt=""
+        crossOrigin="anonymous"
+        style={{ ...common, objectFit: 'cover' }}
+      />
+    )
+  }
+  return (
+    <span
+      style={{
+        ...common,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#262233',
+        color: '#d4d4d4',
+        fontWeight: 700,
+        fontSize: Math.max(10, Math.floor(size * 0.45)),
+      }}
+    >
+      {name ? name[0] : '?'}
+    </span>
+  )
+}
