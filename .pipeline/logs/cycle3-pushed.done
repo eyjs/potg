@@ -1,0 +1,7 @@
+3차 사이클 자동 배포 완료
+- pushed: 2026-07-03 (금, 경매 당일)
+- origin/master: dbcc083 (355999a..dbcc083)
+- 검증: tsc 0 / lint 0 error / build 성공(16 라우트)
+- 안전 체크: backend/docker/.github diff EMPTY (프론트+파이프라인 전용)
+- 스코프: 모바일 경매 뷰 하단 탭 네비게이션 재설계 (P0 001~007 + portal 게이트 fix)
+- Vercel 배포는 push로 자동 트리거됨

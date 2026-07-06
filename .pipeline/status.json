@@ -3,11 +3,13 @@
   "pipeline_type": "feature",
   "cycle": 3,
   "current_phase": "report",
-  "status": "in_progress",
+  "status": "complete",
   "started_at": "2026-07-03T00:00:00+09:00",
-  "updated_at": "2026-07-03T04:30:00+09:00",
-  "head_commit": "12a8ad7",
-  "deploy_status": "push_pending",
+  "updated_at": "2026-07-03T04:35:00+09:00",
+  "head_commit": "dbcc083",
+  "pushed_commit": "dbcc083",
+  "deploy_status": "pushed",
+  "pushed_marker": ".pipeline/logs/cycle3-pushed.done",
   "requirement": ".pipeline/requirement.md",
   "scope": "3차: 모바일 경매 뷰 하단 탭 네비게이션 재설계 — 탭1 경매(스테이지 HUD+팀장 베팅버튼+채팅) / 탭2 현황(TeamSidebar 무변경 재사용). 탭 전환은 CSS hidden 토글(언마운트 금지), 페이지 스크롤 제거(100dvh). 관전자/팀장 모바일 뷰만, 마스터 제외. 데스크톱 무변경.",
   "user_emphasis": "requirement 최종본 = 하단 탭 네비게이션(v1 팀 가로 스트립 설계는 폐기). 팀 정보는 메인(경매 탭)에 노출 금지, 현황 탭으로 분리. 오늘(금) 경매 당일 — 속도 우선, P0 얇게.",
@@ -34,7 +36,7 @@
     "code_review": { "status": "done", "retries": 1, "verdict": "PASS_after_fix", "blocker_fixed": "전설 portal isActiveViewport 게이트 (12a8ad7)", "nits_deferred": ["space-y-4 데드스페이스", "sr-only 타이머 이중낭독", "40vh 단위혼용(스펙내)"] },
     "integration": { "status": "done", "verdict": "PASS", "checks": { "tsc": "0 errors", "lint": "0 errors (2 무관 경고)", "build": "success 16 routes" }, "safety_check": "backend/docker/.github diff EMPTY (프론트+파이프라인 전용)" },
     "documentation": { "status": "done", "docs": ["release-note-cycle3.md", "changelog-entry-cycle3.md", "insights-cycle3.md"] },
-    "report": { "status": "in_progress" }
+    "report": { "status": "done", "note": "REPORT는 하네스 정책상 파일 미작성 — orchestrator 최종 메시지로 전달. SSOT는 이 status.json" }
   },
   "discarded_artifacts": ".pipeline/docs/cycle3-discarded-v1strip/ (v1 가로 스트립 설계 기반 plan.md + task-001~007 + plan-review-FAIL.md)",
   "history": "2차: 경매 인터랙션 고도화(팩오프닝/입찰임팩트/도화선타이머/낙찰골든카드+flight-in) 완료 (.pipeline/docs/requirement-v2-interaction.md, .pipeline/docs/status-cycle2-closed.json, origin e6c7b30). 1차: 경매 고도화 4종 완료·배포 (docs/requirement-20260702-cycle1-auction-enhancement.md, docs/status-cycle1-closed.json, origin 0d5b3ad). 이전: 게스트 매물 업로드 (docs/requirement-20260701-guest-upload.md). cycle1 파이프라인 산출물 보존: .pipeline/docs/cycle1/. cycle2 워킹 산출물: .pipeline/docs/cycle2/"
