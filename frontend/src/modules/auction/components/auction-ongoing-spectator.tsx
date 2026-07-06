@@ -60,8 +60,8 @@ export function AuctionOngoingSpectator({
         <CardContent className="py-3 flex items-center justify-between gap-4">
           <div className="min-w-0 flex items-center gap-3">
             <Eye className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <h2 className="pr-2 text-xl font-black italic uppercase tracking-tighter break-keep leading-tight drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
+            <div className="min-w-0">
+              <h2 className="pr-2 text-xl font-black italic uppercase tracking-tighter break-keep [overflow-wrap:anywhere] leading-tight drop-shadow-[0_0_10px_rgba(0,195,255,0.3)]">
                 {roomState.auction.title}
               </h2>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">
