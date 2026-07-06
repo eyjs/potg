@@ -21,6 +21,8 @@ import {
   Users,
   Play,
   Pause,
+  Gavel,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CurrentPlayerCard } from './parts/current-player-card'
@@ -39,6 +41,17 @@ import type {
 } from '../hooks/use-auction-socket'
 import { ChatPanel } from './parts/chat-panel'
 import { BidLog } from './parts/bid-log'
+import { MobileTabBar, type MobileTabItem } from './parts/mobile-tab-bar'
+import { MobileAuctionStage } from './parts/mobile-auction-stage'
+
+/** 마스터 모바일 하단 탭 id — 경매(스테이지+조작) / 채팅 / 현황(팀+매물). */
+type MasterMobileTab = 'auction' | 'chat' | 'status'
+
+const MASTER_MOBILE_TABS: readonly MobileTabItem<MasterMobileTab>[] = [
+  { value: 'auction', label: '경매', icon: Gavel },
+  { value: 'chat', label: '채팅', icon: MessageSquare },
+  { value: 'status', label: '현황', icon: Users },
+]
 
 interface Props {
   roomState: RoomState
@@ -62,6 +75,7 @@ export function AuctionOngoingMaster({
   const confirm = useConfirm()
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('')
   const [detailCaptainId, setDetailCaptainId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<MasterMobileTab>('auction')
   const detailTeam =
     roomState.teams.find((t) => t.captainId === detailCaptainId) ?? null
 
@@ -157,10 +171,161 @@ export function AuctionOngoingMaster({
     emit.completeAuction()
   }
 
+  // 경매조작 패널 — 데스크톱 중앙 컬럼과 모바일 경매 탭에서 공유(같은 상태를 양쪽에 렌더).
+  const controlPanel = (
+    <Card className="bg-card border-border">
+      <CardContent className="p-4 space-y-3">
+        {/* 매물 선택 — WAITING */}
+        <div className="flex items-end gap-2">
+          <div className="flex-1 space-y-1">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
+              매물 지정 (선택 안 하면 순서대로)
+            </p>
+            <Select
+              value={selectedPlayerId}
+              onValueChange={setSelectedPlayerId}
+              disabled={phase === 'BIDDING' || selectablePool.length === 0}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="대기 풀에서 선택..." />
+              </SelectTrigger>
+              <SelectContent>
+                {selectablePool.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.role.toUpperCase()})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={handleSelectStart}
+            disabled={!selectedPlayerId || phase === 'BIDDING'}
+            className={cn(
+              'skew-x-[-10deg] bg-primary px-4 text-sm font-bold text-black',
+              'hover:bg-primary/90 disabled:opacity-40',
+            )}
+          >
+            <span className="skew-x-[10deg] flex items-center gap-1">
+              <Play className="w-3.5 h-3.5" />
+              시작
+            </span>
+          </Button>
+        </div>
+
+        {/* 입찰 처리 + 다음 — 한 행 */}
+        <div className="grid grid-cols-3 gap-2 border-t border-border/40 pt-3">
+          <Button
+            onClick={() => emit.confirmBid()}
+            disabled={phase !== 'BIDDING' || !roomState.currentBid}
+            className="game-btn game-btn-gold bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-40"
+          >
+            <Hammer className="w-4 h-4 mr-1" />
+            낙찰
+          </Button>
+          <Button
+            onClick={() => emit.passPlayer()}
+            disabled={phase !== 'BIDDING'}
+            variant="outline"
+            className="game-btn border-ow-red text-ow-red hover:bg-ow-red/10 disabled:opacity-40"
+          >
+            <SkipForward className="w-4 h-4 mr-1" />
+            유찰
+          </Button>
+          <Button
+            onClick={handleAdvanceNext}
+            disabled={!canAdvance}
+            className="game-btn bg-ow-blue text-black font-bold hover:bg-ow-blue/90 disabled:opacity-40"
+          >
+            <ChevronRight className="w-4 h-4 mr-1" />
+            다음 매물
+          </Button>
+        </div>
+
+        {/* 사이클 완료 안내 → 배정 진입 */}
+        {cycleComplete && unsoldOnly.length > 0 && phase !== 'BIDDING' && (
+          <div className="rounded-sm border-2 border-primary bg-primary/10 p-3 space-y-2 ring-2 ring-primary/30 animate-pulse-slow">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">
+              ⚠ 한 사이클 완료
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              유찰 {unsoldOnly.length}명을 각 팀에 수동 배정하면 경매 종료가 가능합니다.
+            </p>
+            <Button
+              onClick={handleEnterAssignment}
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              유찰자 배정 단계로 ({unsoldOnly.length}명)
+            </Button>
+          </div>
+        )}
+
+        {/* 일시정지/리셋 + 종료(유찰→배정) */}
+        <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3">
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={handleTogglePause}
+              variant="outline"
+              size="sm"
+              className={cn(
+                isPaused
+                  ? 'border-primary text-primary bg-primary/10'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-3.5 h-3.5 mr-1" />
+                  재개
+                </>
+              ) : (
+                <>
+                  <Pause className="w-3.5 h-3.5 mr-1" />
+                  일시정지
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleReset}
+              variant="ghost"
+              size="sm"
+              className="text-ow-red hover:text-ow-red hover:bg-ow-red/10"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              리셋
+            </Button>
+          </div>
+          {allAssigned ? (
+            <Button
+              onClick={handleComplete}
+              variant="outline"
+              size="sm"
+              className="border-primary bg-primary text-black hover:bg-primary/90"
+            >
+              <Square className="w-3.5 h-3.5 mr-1" />
+              경매 종료
+            </Button>
+          ) : (
+            <Button
+              onClick={handleEndToAssignment}
+              variant="outline"
+              size="sm"
+              className="border-ow-red text-ow-red hover:bg-ow-red/10"
+            >
+              <Square className="w-3.5 h-3.5 mr-1" />
+              종료 — 남은 {unassigned.length}명 유찰 → 배정
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 flex flex-col h-[calc(100dvh-7rem)] overflow-hidden lg:block lg:h-auto lg:overflow-visible">
       {/* 헤더 */}
-      <Card className="relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
+      <Card className="shrink-0 relative overflow-hidden bg-card/85 border-ow-blue/25 backdrop-blur-sm">
         {/* 상단 에너지 스윕 라인 */}
         <div aria-hidden className="light-sweep absolute inset-x-0 top-0 h-0.5" />
         <CardContent className="py-3 flex items-center justify-between gap-4">
@@ -187,7 +352,7 @@ export function AuctionOngoingMaster({
       </Card>
 
       {isPaused && (
-        <Card className="bg-card border-primary/50">
+        <Card className="shrink-0 bg-card border-primary/50">
           <CardContent className="py-3 text-center text-sm font-bold text-primary">
             ⏸ 경매가 일시정지되었습니다 — 재개 버튼으로 계속하세요.
           </CardContent>
@@ -195,7 +360,8 @@ export function AuctionOngoingMaster({
       )}
 
       {isAssigning ? (
-        <>
+        /* 배정 단계 — 모바일에선 고정 높이 안에서 존 전체 스크롤, 데스크톱은 기존 흐름 그대로 */
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 lg:overflow-visible">
           <Card className="bg-card border-border">
             <CardContent className="py-3 flex items-center justify-between gap-3">
               <div className="text-sm text-muted-foreground">
@@ -218,10 +384,11 @@ export function AuctionOngoingMaster({
           </Card>
 
           <AssignmentPanel roomState={roomState} emit={emit} />
-        </>
+        </div>
       ) : (
+        <>
         <LayoutGroup>
-        <div className="grid grid-cols-12 gap-4">
+        <div className="hidden lg:grid grid-cols-12 gap-4">
           {/* 좌측 — 팀 카드 */}
           <aside className="col-span-12 lg:col-span-2 space-y-2">
             <TeamSidebar
@@ -243,153 +410,7 @@ export function AuctionOngoingMaster({
             />
 
             {/* 경매조작 패널 (마스터) */}
-            <Card className="bg-card border-border">
-              <CardContent className="p-4 space-y-3">
-                {/* 매물 선택 — WAITING */}
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 space-y-1">
-                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">
-                      매물 지정 (선택 안 하면 순서대로)
-                    </p>
-                    <Select
-                      value={selectedPlayerId}
-                      onValueChange={setSelectedPlayerId}
-                      disabled={phase === 'BIDDING' || selectablePool.length === 0}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="대기 풀에서 선택..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectablePool.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({p.role.toUpperCase()})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    onClick={handleSelectStart}
-                    disabled={!selectedPlayerId || phase === 'BIDDING'}
-                    className={cn(
-                      'skew-x-[-10deg] bg-primary px-4 text-sm font-bold text-black',
-                      'hover:bg-primary/90 disabled:opacity-40',
-                    )}
-                  >
-                    <span className="skew-x-[10deg] flex items-center gap-1">
-                      <Play className="w-3.5 h-3.5" />
-                      시작
-                    </span>
-                  </Button>
-                </div>
-
-                {/* 입찰 처리 + 다음 — 한 행 */}
-                <div className="grid grid-cols-3 gap-2 border-t border-border/40 pt-3">
-                  <Button
-                    onClick={() => emit.confirmBid()}
-                    disabled={phase !== 'BIDDING' || !roomState.currentBid}
-                    className="game-btn game-btn-gold bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-40"
-                  >
-                    <Hammer className="w-4 h-4 mr-1" />
-                    낙찰
-                  </Button>
-                  <Button
-                    onClick={() => emit.passPlayer()}
-                    disabled={phase !== 'BIDDING'}
-                    variant="outline"
-                    className="game-btn border-ow-red text-ow-red hover:bg-ow-red/10 disabled:opacity-40"
-                  >
-                    <SkipForward className="w-4 h-4 mr-1" />
-                    유찰
-                  </Button>
-                  <Button
-                    onClick={handleAdvanceNext}
-                    disabled={!canAdvance}
-                    className="game-btn bg-ow-blue text-black font-bold hover:bg-ow-blue/90 disabled:opacity-40"
-                  >
-                    <ChevronRight className="w-4 h-4 mr-1" />
-                    다음 매물
-                  </Button>
-                </div>
-
-                {/* 사이클 완료 안내 → 배정 진입 */}
-                {cycleComplete && unsoldOnly.length > 0 && phase !== 'BIDDING' && (
-                  <div className="rounded-sm border-2 border-primary bg-primary/10 p-3 space-y-2 ring-2 ring-primary/30 animate-pulse-slow">
-                    <p className="text-xs font-bold uppercase tracking-widest text-primary">
-                      ⚠ 한 사이클 완료
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      유찰 {unsoldOnly.length}명을 각 팀에 수동 배정하면 경매 종료가 가능합니다.
-                    </p>
-                    <Button
-                      onClick={handleEnterAssignment}
-                      className="w-full bg-primary text-black font-bold hover:bg-primary/90"
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      유찰자 배정 단계로 ({unsoldOnly.length}명)
-                    </Button>
-                  </div>
-                )}
-
-                {/* 일시정지/리셋 + 종료(유찰→배정) */}
-                <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      onClick={handleTogglePause}
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        isPaused
-                          ? 'border-primary text-primary bg-primary/10'
-                          : 'border-border text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {isPaused ? (
-                        <>
-                          <Play className="w-3.5 h-3.5 mr-1" />
-                          재개
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="w-3.5 h-3.5 mr-1" />
-                          일시정지
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleReset}
-                      variant="ghost"
-                      size="sm"
-                      className="text-ow-red hover:text-ow-red hover:bg-ow-red/10"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                      리셋
-                    </Button>
-                  </div>
-                  {allAssigned ? (
-                    <Button
-                      onClick={handleComplete}
-                      variant="outline"
-                      size="sm"
-                      className="border-primary bg-primary text-black hover:bg-primary/90"
-                    >
-                      <Square className="w-3.5 h-3.5 mr-1" />
-                      경매 종료
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleEndToAssignment}
-                      variant="outline"
-                      size="sm"
-                      className="border-ow-red text-ow-red hover:bg-ow-red/10"
-                    >
-                      <Square className="w-3.5 h-3.5 mr-1" />
-                      종료 — 남은 {unassigned.length}명 유찰 → 배정
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {controlPanel}
 
             {/* 입찰 로그 — 게임 킬로그 피드 */}
             <BidLog events={bidEvents ?? []} />
@@ -413,6 +434,80 @@ export function AuctionOngoingMaster({
           </aside>
         </div>
         </LayoutGroup>
+
+        {/*
+          모바일(<lg) — 마스터 하단 탭 네비게이션(경매/채팅/현황). 페이지 자체 스크롤 0.
+          경매 탭은 스테이지(40vh) 아래 조작 패널이 잔여 높이에서 내부 스크롤.
+          세 패널은 항상 동시 마운트, 비활성 패널만 CSS hidden 토글 — 언마운트 금지
+          (채팅 draft/스크롤 위치·매물 선택 상태·타이머 사운드 보존).
+        */}
+        <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
+            {/* 경매 패널 — 스테이지 + 조작(내부 스크롤) */}
+            <div
+              className={cn(
+                'flex-1 min-h-0 flex flex-col gap-2',
+                activeTab !== 'auction' && 'hidden',
+              )}
+            >
+              <div className="h-[40vh] shrink-0">
+                <MobileAuctionStage
+                  player={roomState.currentPlayer}
+                  currentBid={roomState.currentBid}
+                  biddingPhase={phase}
+                  stageEvent={stageEvent}
+                  bidEvents={bidEvents}
+                  timerRemaining={timerRemaining}
+                  totalTime={roomState.auction.turnTimeLimit}
+                />
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">{controlPanel}</div>
+            </div>
+
+            {/* 채팅 패널 */}
+            <div
+              className={cn(
+                'flex-1 min-h-0',
+                activeTab !== 'chat' && 'hidden',
+              )}
+            >
+              {chatMessages && (
+                <ChatPanel
+                  messages={chatMessages}
+                  onSend={emit.sendChat}
+                  participants={roomState.participants}
+                  myUserId={myUserId}
+                />
+              )}
+            </div>
+
+            {/* 현황 패널 — 팀 + 매물 현황 */}
+            <div
+              className={cn(
+                'flex-1 min-h-0 overflow-y-auto space-y-3',
+                activeTab !== 'status' && 'hidden',
+              )}
+            >
+              <TeamSidebar
+                teams={roomState.teams}
+                startingPoints={roomState.auction.startingPoints}
+                rosterMode={roomState.auction.rosterMode}
+                onTeamClick={setDetailCaptainId}
+                highlightCaptainId={roomState.currentBid?.bidderId ?? null}
+              />
+              <PlayerStatusGrid roomState={roomState} />
+            </div>
+          </div>
+
+          {/* 하단 탭바 */}
+          <MobileTabBar
+            tabs={MASTER_MOBILE_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            ariaLabel="경매 화면 전환"
+          />
+        </div>
+        </>
       )}
 
       {/* 팀 상세 + 낙찰 선수 회수 (마스터 전용) */}
