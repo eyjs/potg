@@ -434,4 +434,93 @@ describe('AuctionGateway', () => {
       });
     });
   });
+
+  // ==================== chatMessage ====================
+
+  describe('handleChatMessage', () => {
+    const user = { userId: 'user-1', username: 'tag#1234' };
+
+    /** joinRoom을 거친 상태를 재현 — connectedUsers에 소켓 등록. */
+    const joinRoom = (client: Socket, auctionId: string) => {
+      gateway['connectedUsers'].set(client.id, {
+        socketId: client.id,
+        auctionId,
+        userId: user.userId,
+      });
+    };
+
+    const saveMock = () => gateway['chatRepo'].save as jest.Mock;
+
+    it('입장한 방이면 저장 후 chatMessage 브로드캐스트', async () => {
+      const client = makeSocket(user);
+      joinRoom(client, 'a1');
+
+      await gateway.handleChatMessage({ auctionId: 'a1', message: 'gg' }, client);
+
+      expect(saveMock()).toHaveBeenCalled();
+      expect(server.to).toHaveBeenCalledWith('a1');
+      expect(serverEmit).toHaveBeenCalledWith(
+        'chatMessage',
+        expect.objectContaining({ userId: 'user-1', message: 'gg' }),
+      );
+    });
+
+    it('joinRoom을 거치지 않은 소켓이면 저장/브로드캐스트 없이 error emit', async () => {
+      const client = makeSocket(user);
+
+      await gateway.handleChatMessage({ auctionId: 'a1', message: 'gg' }, client);
+
+      expect(saveMock()).not.toHaveBeenCalled();
+      expect(serverEmit).not.toHaveBeenCalled();
+      expect(client.emit).toHaveBeenCalledWith('error', {
+        message: '입장하지 않은 경매방에는 채팅할 수 없습니다.',
+      });
+    });
+
+    it('다른 방에 입장한 소켓이 방 id를 위조하면 거부', async () => {
+      const client = makeSocket(user);
+      joinRoom(client, 'a1');
+
+      await gateway.handleChatMessage({ auctionId: 'a2', message: 'gg' }, client);
+
+      expect(saveMock()).not.toHaveBeenCalled();
+      expect(client.emit).toHaveBeenCalledWith('error', {
+        message: '입장하지 않은 경매방에는 채팅할 수 없습니다.',
+      });
+    });
+
+    it('윈도우 내 초과 전송은 거부하고, 윈도우가 지나면 다시 허용 (도배 방지)', async () => {
+      const client = makeSocket(user);
+      joinRoom(client, 'a1');
+
+      for (let i = 0; i < 5; i++) {
+        await gateway.handleChatMessage(
+          { auctionId: 'a1', message: `m${i}` },
+          client,
+        );
+      }
+      expect(saveMock()).toHaveBeenCalledTimes(5);
+
+      await gateway.handleChatMessage({ auctionId: 'a1', message: 'm5' }, client);
+      expect(saveMock()).toHaveBeenCalledTimes(5);
+      expect(client.emit).toHaveBeenCalledWith('error', {
+        message: '메시지를 너무 빠르게 보내고 있습니다. 잠시 후 다시 시도해주세요.',
+      });
+
+      jest.advanceTimersByTime(5_000);
+      await gateway.handleChatMessage({ auctionId: 'a1', message: 'm6' }, client);
+      expect(saveMock()).toHaveBeenCalledTimes(6);
+    });
+
+    it('disconnect 시 레이트리밋 기록 정리', async () => {
+      const client = makeSocket(user);
+      joinRoom(client, 'a1');
+      await gateway.handleChatMessage({ auctionId: 'a1', message: 'gg' }, client);
+      expect(gateway['chatRateLog'].has(client.id)).toBe(true);
+
+      gateway.handleDisconnect(client);
+
+      expect(gateway['chatRateLog'].has(client.id)).toBe(false);
+    });
+  });
 });

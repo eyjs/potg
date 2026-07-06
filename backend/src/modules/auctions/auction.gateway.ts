@@ -101,6 +101,11 @@ export class AuctionGateway
   /** 입장 시 되돌려줄 최근 채팅 개수 (프론트 유지 캡과 동일). */
   private static readonly CHAT_HISTORY_LIMIT = 200;
 
+  /** 채팅 도배 방지 — 소켓당 CHAT_RATE_WINDOW_MS 안에 CHAT_RATE_MAX개 초과 시 거부. */
+  private static readonly CHAT_RATE_MAX = 5;
+  private static readonly CHAT_RATE_WINDOW_MS = 5_000;
+  private chatRateLog: Map<string, number[]> = new Map();
+
   handleConnection(client: Socket) {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
@@ -122,6 +127,7 @@ export class AuctionGateway
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
     this.connectedUsers.delete(client.id);
+    this.chatRateLog.delete(client.id);
   }
 
   /** 인증 소켓 사용자. connection 에서 세팅됨. 없으면 거부. */
@@ -448,8 +454,31 @@ export class AuctionGateway
     const { auctionId, message } = payload;
     const { userId, username } = this.requireUser(client);
 
+    // joinRoom(접근 코드 검증 포함)을 거친 소켓만 해당 방에 채팅 가능.
+    const conn = this.connectedUsers.get(client.id);
+    if (!conn || conn.auctionId !== auctionId) {
+      client.emit('error', {
+        message: '입장하지 않은 경매방에는 채팅할 수 없습니다.',
+      });
+      return;
+    }
+
     const trimmed = message?.trim();
     if (!trimmed) return;
+
+    // 도배 방지 — 소켓당 슬라이딩 윈도우.
+    const now = Date.now();
+    const recent = (this.chatRateLog.get(client.id) ?? []).filter(
+      (t) => now - t < AuctionGateway.CHAT_RATE_WINDOW_MS,
+    );
+    if (recent.length >= AuctionGateway.CHAT_RATE_MAX) {
+      this.chatRateLog.set(client.id, recent);
+      client.emit('error', {
+        message: '메시지를 너무 빠르게 보내고 있습니다. 잠시 후 다시 시도해주세요.',
+      });
+      return;
+    }
+    this.chatRateLog.set(client.id, [...recent, now]);
 
     // 저장 후 저장된 row(uuid id, createdAt)를 그대로 broadcast — 프론트가 id 로 dedupe.
     const saved = await this.chatRepo.save(
