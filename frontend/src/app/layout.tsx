@@ -24,6 +24,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // 가상 키보드가 열리면 레이아웃 뷰포트 자체를 줄인다(Android Chrome 108+) —
+  // 100dvh 고정 레이아웃(경매 모바일 탭)이 키보드 높이에 맞춰 재배치되어 입력창이 가려지지 않는다.
+  interactiveWidget: "resizes-content",
 }
 
 export default function RootLayout({

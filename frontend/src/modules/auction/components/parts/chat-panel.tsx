@@ -64,6 +64,13 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
       el.scrollHeight - el.scrollTop - el.clientHeight < 40
   }
 
+  // iOS Safari는 가상 키보드가 열려도 100dvh 고정 레이아웃을 줄이지 않아
+  // 입력창이 키보드에 가려질 수 있다 — 키보드 애니메이션 후 입력창을 다시 노출시킨다.
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const el = e.target
+    window.setTimeout(() => el.scrollIntoView({ block: 'nearest' }), 300)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const text = draft.trim()
@@ -73,8 +80,9 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
     stickToBottomRef.current = true
   }
 
+  // 모바일(<lg)은 탭 존의 flex 잔여 높이에 맞춤 — min-h를 걸면 작은 폰에서 하단 탭바를 침범한다.
   return (
-    <Card className="game-panel h-full flex flex-col min-h-[20rem]">
+    <Card className="game-panel h-full flex flex-col overflow-hidden min-h-0 lg:min-h-[20rem]">
       <CardContent className="p-3 flex flex-col flex-1 min-h-0 gap-2">
         <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/40 pb-2">
           <MessageSquare className="w-3.5 h-3.5" />
@@ -119,6 +127,7 @@ export function ChatPanel({ messages, onSend, participants, myUserId }: Props) {
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onFocus={handleFocus}
             placeholder="메시지 입력..."
             maxLength={200}
             className="h-8 text-xs bg-background"
